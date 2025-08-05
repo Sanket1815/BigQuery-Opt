@@ -1,0 +1,52 @@
+# Core dependencies
+google-cloud-bigquery==3.14.1
+google-generativeai==0.3.2
+sqlparse==0.4.4
+pydantic==2.5.2
+pydantic-settings==2.1.0
+
+# MCP Server dependencies
+mcp==0.3.0
+uvicorn==0.25.0
+fastapi==0.108.0
+
+# Documentation and web scraping
+requests==2.31.0
+beautifulsoup4==4.12.2
+lxml==4.9.4
+markdownify==0.11.6
+
+# Vector database and embeddings
+chromadb==0.4.18
+sentence-transformers==2.2.2
+
+# Data processing
+pandas==2.1.4
+numpy==1.26.2
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0
+
+# Code quality
+black==23.12.1
+isort==5.13.2
+flake8==6.1.0
+mypy==1.8.0
+
+# CLI and utilities
+click==8.1.7
+rich==13.7.0
+python-dotenv==1.0.0
+
+# Logging and monitoring
+structlog==23.2.0
+
+# Development dependencies
+jupyter==1.0.0
+ipython==8.18.1
+
+# Optional: For advanced SQL parsing
+sqlglot==20.10.0
