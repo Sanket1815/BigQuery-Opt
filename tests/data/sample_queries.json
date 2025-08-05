@@ -1,0 +1,106 @@
+{
+  "test_queries": [
+    {
+      "name": "simple_select_star",
+      "description": "Simple query using SELECT * - should trigger column pruning",
+      "query": "SELECT * FROM orders WHERE order_date >= '2024-01-01'",
+      "expected_optimizations": ["column_pruning", "partition_filtering"],
+      "expected_issues": ["Using SELECT *", "Missing partition filter"]
+    },
+    {
+      "name": "complex_join_without_optimization",
+      "description": "Complex multi-table JOIN that needs reordering",
+      "query": "SELECT c.customer_name, o.order_id, p.product_name FROM large_customers c JOIN huge_orders o ON c.customer_id = o.customer_id JOIN small_products p ON o.product_id = p.product_id WHERE o.order_date >= '2024-01-01'",
+      "expected_optimizations": ["join_reordering", "partition_filtering"],
+      "expected_issues": ["Multiple JOINs may benefit from reordering"]
+    },
+    {
+      "name": "count_distinct_on_large_dataset",
+      "description": "COUNT DISTINCT that should use approximate aggregation",
+      "query": "SELECT region, COUNT(DISTINCT customer_id) as unique_customers FROM large_orders WHERE order_date >= '2024-01-01' GROUP BY region",
+      "expected_optimizations": ["approximate_aggregation", "partition_filtering"],
+      "expected_issues": ["COUNT(DISTINCT) can be slow on large datasets"]
+    },
+    {
+      "name": "correlated_subquery",
+      "description": "Correlated subquery that can be converted to JOIN",
+      "query": "SELECT customer_id, customer_name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.customer_id AND o.order_date >= '2024-01-01')",
+      "expected_optimizations": ["subquery_to_join", "partition_filtering"],
+      "expected_issues": ["Correlated subqueries may impact performance"]
+    },
+    {
+      "name": "window_function_without_partition",
+      "description": "Window function that could benefit from better partitioning",
+      "query": "SELECT customer_id, order_date, total_amount, ROW_NUMBER() OVER (ORDER BY total_amount DESC) as rank FROM orders WHERE order_date >= '2024-01-01'",
+      "expected_optimizations": ["window_optimization", "partition_filtering"],
+      "expected_issues": ["Window functions without PARTITION BY may be inefficient"]
+    },
+    {
+      "name": "no_where_clause",
+      "description": "Query without WHERE clause scanning entire table",
+      "query": "SELECT customer_id, SUM(total_amount) FROM orders GROUP BY customer_id",
+      "expected_optimizations": ["partition_filtering"],
+      "expected_issues": ["Query may scan entire table without filtering"]
+    },
+    {
+      "name": "multiple_aggregations",
+      "description": "Query with multiple aggregation functions",
+      "query": "SELECT category, COUNT(*) as orders, SUM(amount) as total, AVG(amount) as average, COUNT(DISTINCT customer_id) as customers FROM order_items oi JOIN products p ON oi.product_id = p.product_id WHERE oi.order_date >= '2024-01-01' GROUP BY category",
+      "expected_optimizations": ["approximate_aggregation", "partition_filtering"],
+      "expected_issues": ["COUNT(DISTINCT) can be slow on large datasets"]
+    },
+    {
+      "name": "nested_subqueries",
+      "description": "Query with nested subqueries that can be flattened",
+      "query": "SELECT * FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE order_id IN (SELECT order_id FROM order_items WHERE quantity > 5))",
+      "expected_optimizations": ["subquery_to_join", "column_pruning"],
+      "expected_issues": ["Using SELECT *", "Nested subqueries"]
+    },
+    {
+      "name": "already_optimized",
+      "description": "Well-optimized query that needs minimal changes",
+      "query": "SELECT customer_id, order_date, total_amount FROM orders WHERE _PARTITIONDATE >= '2024-01-01' AND order_date >= '2024-01-01' AND customer_id = 12345",
+      "expected_optimizations": [],
+      "expected_issues": []
+    },
+    {
+      "name": "performance_heavy_aggregation",
+      "description": "Heavy aggregation query for performance testing",
+      "query": "SELECT DATE(order_date) as order_day, COUNT(*) as order_count, SUM(total_amount) as daily_revenue, AVG(total_amount) as avg_order_value, COUNT(DISTINCT customer_id) as unique_customers FROM orders WHERE order_date BETWEEN '2024-01-01' AND '2024-12-31' GROUP BY DATE(order_date) ORDER BY order_day",
+      "expected_optimizations": ["approximate_aggregation", "partition_filtering"],
+      "expected_issues": ["COUNT(DISTINCT) can be slow on large datasets", "Consider adding partition filters"]
+    }
+  ],
+  "performance_test_queries": [
+    {
+      "name": "large_scan_query",
+      "description": "Query that scans large amounts of data",
+      "original": "SELECT * FROM large_table WHERE date_column > '2023-01-01'",
+      "optimized": "SELECT id, name, amount FROM large_table WHERE _PARTITIONDATE >= '2023-01-01' AND date_column > '2023-01-01'",
+      "expected_improvement": 0.6
+    },
+    {
+      "name": "complex_join_query", 
+      "description": "Complex JOIN query with optimization",
+      "original": "SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id JOIN products p ON o.product_id = p.id WHERE o.date >= '2024-01-01'",
+      "optimized": "SELECT c.name, o.total FROM products p JOIN orders o ON p.id = o.product_id JOIN customers c ON o.customer_id = c.id WHERE o._PARTITIONDATE >= '2024-01-01' AND o.date >= '2024-01-01'",
+      "expected_improvement": 0.4
+    }
+  ],
+  "validation_test_queries": [
+    {
+      "name": "simple_aggregation",
+      "description": "Simple aggregation for validation testing",
+      "query": "SELECT customer_id, COUNT(*) as order_count FROM orders WHERE order_date >= '2024-01-01' GROUP BY customer_id",
+      "should_return_identical_results": true
+    },
+    {
+      "name": "approximate_vs_exact",
+      "description": "Query where approximate might give different results",
+      "original": "SELECT COUNT(DISTINCT customer_id) FROM orders",
+      "optimized": "SELECT APPROX_COUNT_DISTINCT(customer_id) FROM orders",
+      "should_return_identical_results": false,
+      "acceptable_difference_percent": 5
+    }
+  ]
+}
