@@ -53,6 +53,20 @@ class BigQueryOptimizer:
             self.logger.log_error(e, {"operation": "optimizer_initialization"})
             raise OptimizationError(f"Failed to initialize optimizer: {str(e)}")
     
+    def _run_async(self, coro):
+        """Helper to run async functions in both sync and async contexts."""
+        try:
+            # Try to get the current event loop
+            loop = asyncio.get_running_loop()
+            # If we're in an event loop, create a task
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, coro)
+                return future.result()
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            return asyncio.run(coro)
+    
     def optimize_query(
         self, 
         query: str,
@@ -68,10 +82,10 @@ class BigQueryOptimizer:
             self.logger.logger.info(f"Starting optimization for query of length {len(query)}")
             
             # Step 1: Analyze the query
-            analysis = asyncio.run(self.optimization_handler.analyze_query(query))
+            analysis = self._run_async(self.optimization_handler.analyze_query(query))
             
             # Step 2: Get applicable optimization patterns
-            patterns = asyncio.run(self.optimization_handler.get_patterns_for_query(query))
+            patterns = self._run_async(self.optimization_handler.get_patterns_for_query(query))
             
             # Step 3: Get documentation context
             documentation_context = None
@@ -149,9 +163,12 @@ class BigQueryOptimizer:
             self.logger.log_error(e, {"operation": "optimize_query", "query_length": len(query)})
             
             # Return a failed optimization result
-            return OptimizationResult(
-                original_query=query,
-                query_analysis=QueryAnalysis(
+            try:
+                # Try to create a basic analysis for the error case
+                error_analysis = self._run_async(self.optimization_handler.analyze_query(query))
+            except Exception:
+                # If analysis also fails, create a minimal one
+                error_analysis = QueryAnalysis(
                     original_query=query,
                     query_hash="error",
                     complexity="simple",
@@ -162,7 +179,11 @@ class BigQueryOptimizer:
                     aggregate_function_count=0,
                     potential_issues=[f"Optimization failed: {str(e)}"],
                     applicable_patterns=[]
-                ),
+                )
+            
+            return OptimizationResult(
+                original_query=query,
+                query_analysis=error_analysis,
                 optimized_query=query,
                 optimizations_applied=[],
                 total_optimizations=0,
@@ -173,7 +194,7 @@ class BigQueryOptimizer:
     def analyze_query_only(self, query: str) -> QueryAnalysis:
         """Analyze a query without optimizing it."""
         try:
-            return asyncio.run(self.optimization_handler.analyze_query(query))
+            return self._run_async(self.optimization_handler.analyze_query(query))
         except Exception as e:
             self.logger.log_error(e, {"operation": "analyze_query_only"})
             raise OptimizationError(f"Failed to analyze query: {str(e)}")
@@ -181,7 +202,7 @@ class BigQueryOptimizer:
     def get_optimization_suggestions(self, query: str) -> Dict[str, Any]:
         """Get optimization suggestions without actually optimizing the query."""
         try:
-            return asyncio.run(self.optimization_handler.get_optimization_suggestions(query))
+            return self._run_async(self.optimization_handler.get_optimization_suggestions(query))
         except Exception as e:
             self.logger.log_error(e, {"operation": "get_optimization_suggestions"})
             raise OptimizationError(f"Failed to get optimization suggestions: {str(e)}")
@@ -283,7 +304,7 @@ class BigQueryOptimizer:
         
         try:
             self.logger.logger.info(f"Starting batch optimization of {len(queries)} queries")
-            results = asyncio.run(optimize_batch())
+            results = self._run_async(optimize_batch())
             
             # Handle any exceptions
             optimization_results = []
@@ -291,9 +312,10 @@ class BigQueryOptimizer:
                 if isinstance(result, Exception):
                     self.logger.log_error(result, {"operation": "batch_optimize", "query_index": i})
                     # Create a failed result
-                    failed_result = OptimizationResult(
-                        original_query=queries[i],
-                        query_analysis=QueryAnalysis(
+                    try:
+                        error_analysis = self._run_async(self.optimization_handler.analyze_query(queries[i]))
+                    except Exception:
+                        error_analysis = QueryAnalysis(
                             original_query=queries[i],
                             query_hash="batch_error",
                             complexity="simple",
@@ -304,7 +326,11 @@ class BigQueryOptimizer:
                             aggregate_function_count=0,
                             potential_issues=[f"Batch optimization failed: {str(result)}"],
                             applicable_patterns=[]
-                        ),
+                        )
+                    
+                    failed_result = OptimizationResult(
+                        original_query=queries[i],
+                        query_analysis=error_analysis,
                         optimized_query=queries[i],
                         optimizations_applied=[],
                         total_optimizations=0,
