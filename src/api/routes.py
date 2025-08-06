@@ -655,30 +655,149 @@ async def setup_test_data(request: TestSuiteRequest):
         if request.project_id:
             env["GOOGLE_CLOUD_PROJECT"] = request.project_id
         
-        # Import and run setup
-        from tests.integration.test_bigquery_sandbox import TestBigQuerySandboxIntegration
+        # Import required modules
         from config.settings import get_settings
-        from src.bigquery.client import BigQueryClient
+        from src.optimizer.bigquery_client import BigQueryClient
+        from google.cloud import bigquery
+        from google.cloud.exceptions import Conflict
         
-        # Create a temporary instance to run setup
-        test_instance = TestBigQuerySandboxIntegration()
-        test_instance.settings = get_settings()
-        test_instance.bq_client = BigQueryClient()
-        test_instance.optimizer = BigQueryOptimizer(validate_results=True)
-        test_instance.dataset_id = "optimizer_test_dataset"
+        settings = get_settings()
+        if request.project_id:
+            # Temporarily override project ID
+            original_project = settings.google_cloud_project
+            settings.google_cloud_project = request.project_id
         
-        # Run setup
+        bq_client = BigQueryClient(project_id=request.project_id)
+        dataset_id = "optimizer_test_dataset"
+        
         start_time = time.time()
-        test_instance.setup_test_data()
+        
+        # Create dataset
+        try:
+            dataset_full_id = f"{settings.google_cloud_project}.{dataset_id}"
+            dataset = bigquery.Dataset(dataset_full_id)
+            dataset.location = "US"
+            dataset.description = "Test dataset for BigQuery Query Optimizer"
+            
+            dataset = bq_client.client.create_dataset(dataset, exists_ok=True)
+            print(f"✅ Dataset {dataset.dataset_id} created successfully")
+        except Exception as e:
+            print(f"⚠️ Dataset creation warning: {e}")
+        
+        # Create tables with data
+        tables_created = []
+        
+        # Customers table
+        customers_sql = f"""
+        CREATE OR REPLACE TABLE `{settings.google_cloud_project}.{dataset_id}.customers` AS
+        SELECT 
+            customer_id,
+            CONCAT('Customer_', CAST(customer_id AS STRING)) as customer_name,
+            CASE 
+                WHEN MOD(customer_id, 4) = 0 THEN 'Premium'
+                WHEN MOD(customer_id, 4) = 1 THEN 'Gold'
+                WHEN MOD(customer_id, 4) = 2 THEN 'Silver'
+                ELSE 'Bronze'
+            END as customer_tier,
+            CASE 
+                WHEN MOD(customer_id, 5) = 0 THEN 'US-West'
+                WHEN MOD(customer_id, 5) = 1 THEN 'US-East'
+                WHEN MOD(customer_id, 5) = 2 THEN 'Europe'
+                WHEN MOD(customer_id, 5) = 3 THEN 'Asia'
+                ELSE 'Other'
+            END as region,
+            DATE_ADD('2020-01-01', INTERVAL MOD(customer_id, 1000) DAY) as signup_date
+        FROM UNNEST(GENERATE_ARRAY(1, 1000)) as customer_id
+        """
+        
+        result = bq_client.execute_query(customers_sql, dry_run=False)
+        if result["success"]:
+            tables_created.append("customers")
+        else:
+            raise Exception(f"Failed to create customers table: {result['error']}")
+        
+        # Orders table (partitioned)
+        orders_sql = f"""
+        CREATE OR REPLACE TABLE `{settings.google_cloud_project}.{dataset_id}.orders` 
+        PARTITION BY order_date
+        CLUSTER BY customer_id, status
+        AS
+        SELECT 
+            order_id,
+            MOD(order_id, 1000) + 1 as customer_id,
+            DATE_ADD(DATE('2024-01-01'), INTERVAL MOD(order_id, 365) DAY) as order_date,
+            ROUND(RAND() * 1000 + 50, 2) as total_amount,
+            CASE 
+                WHEN MOD(order_id, 10) = 0 THEN 'cancelled'
+                WHEN MOD(order_id, 10) = 1 THEN 'pending'
+                WHEN MOD(order_id, 10) = 2 THEN 'processing'
+                ELSE 'completed'
+            END as status,
+            MOD(order_id, 50) + 1 as product_id
+        FROM UNNEST(GENERATE_ARRAY(1, 50000)) as order_id
+        """
+        
+        result = bq_client.execute_query(orders_sql, dry_run=False)
+        if result["success"]:
+            tables_created.append("orders")
+        else:
+            raise Exception(f"Failed to create orders table: {result['error']}")
+        
+        # Products table
+        products_sql = f"""
+        CREATE OR REPLACE TABLE `{settings.google_cloud_project}.{dataset_id}.products` AS
+        SELECT 
+            product_id,
+            CONCAT('Product_', CAST(product_id AS STRING)) as product_name,
+            CASE 
+                WHEN MOD(product_id, 5) = 0 THEN 'Electronics'
+                WHEN MOD(product_id, 5) = 1 THEN 'Clothing'
+                WHEN MOD(product_id, 5) = 2 THEN 'Books'
+                WHEN MOD(product_id, 5) = 3 THEN 'Home'
+                ELSE 'Sports'
+            END as category,
+            ROUND(RAND() * 500 + 10, 2) as price
+        FROM UNNEST(GENERATE_ARRAY(1, 50)) as product_id
+        """
+        
+        result = bq_client.execute_query(products_sql, dry_run=False)
+        if result["success"]:
+            tables_created.append("products")
+        else:
+            raise Exception(f"Failed to create products table: {result['error']}")
+        
+        # Order items table (partitioned)
+        order_items_sql = f"""
+        CREATE OR REPLACE TABLE `{settings.google_cloud_project}.{dataset_id}.order_items`
+        PARTITION BY order_date
+        CLUSTER BY order_id
+        AS
+        SELECT 
+            (order_id - 1) * 2 + item_seq as item_id,
+            order_id,
+            MOD((order_id - 1) * 2 + item_seq, 50) + 1 as product_id,
+            CAST(RAND() * 5 + 1 AS INT64) as quantity,
+            ROUND(RAND() * 100 + 10, 2) as unit_price,
+            DATE_ADD(DATE('2024-01-01'), INTERVAL MOD(order_id, 365) DAY) as order_date
+        FROM UNNEST(GENERATE_ARRAY(1, 25000)) as order_id,
+        UNNEST(GENERATE_ARRAY(1, 2)) as item_seq
+        """
+        
+        result = bq_client.execute_query(order_items_sql, dry_run=False)
+        if result["success"]:
+            tables_created.append("order_items")
+        else:
+            raise Exception(f"Failed to create order_items table: {result['error']}")
+        
         execution_time = time.time() - start_time
         
         return {
             "success": True,
             "message": "Test dataset and tables created successfully",
             "dataset_id": "optimizer_test_dataset",
-            "tables_created": ["customers", "orders", "products", "order_items"],
+            "tables_created": tables_created,
             "execution_time": execution_time,
-            "project_id": test_instance.settings.google_cloud_project
+            "project_id": settings.google_cloud_project
         }
         
     except Exception as e:

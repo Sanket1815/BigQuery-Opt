@@ -46,21 +46,23 @@ class TestBigQuerySandboxIntegration:
         """Create sample tables with test data in BigQuery."""
         
         try:
-            # Create dataset first
+            # Create dataset using BigQuery client directly
             print(f"📁 Creating dataset: {cls.settings.google_cloud_project}.{cls.dataset_id}")
-            dataset_sql = f"""
-            CREATE SCHEMA IF NOT EXISTS `{cls.settings.google_cloud_project}.{cls.dataset_id}`
-            OPTIONS(
-                description="Test dataset for BigQuery Query Optimizer",
-                location="US"
-            )
-            """
-            result = cls.bq_client.execute_query(dataset_sql, dry_run=False)
-            if not result["success"]:
-                print(f"Dataset creation result: {result}")
-                pytest.skip(f"Failed to create dataset: {result['error']}")
             
-            print("✅ Dataset created successfully")
+            from google.cloud import bigquery
+            from google.cloud.exceptions import Conflict
+            
+            try:
+                dataset_id = f"{cls.settings.google_cloud_project}.{cls.dataset_id}"
+                dataset = bigquery.Dataset(dataset_id)
+                dataset.location = "US"
+                dataset.description = "Test dataset for BigQuery Query Optimizer"
+                
+                dataset = cls.bq_client.client.create_dataset(dataset, exists_ok=True)
+                print(f"✅ Dataset {dataset.dataset_id} created successfully")
+            except Exception as e:
+                print(f"⚠️ Dataset creation warning: {e}")
+                # Continue anyway - dataset might already exist
             
         except Exception as e:
             pytest.skip(f"Failed to create dataset: {str(e)}")
@@ -78,6 +80,7 @@ class TestBigQuerySandboxIntegration:
             print(f"⚠️ Dataset verification failed: {e}")
         
         # Create customers table (small table - 1000 rows)
+        print("📋 Creating customers table...")
         customers_sql = f"""
         CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.customers` AS
         SELECT 
@@ -100,23 +103,18 @@ class TestBigQuerySandboxIntegration:
         FROM UNNEST(GENERATE_ARRAY(1, 1000)) as customer_id
         """
         
+        result = cls.bq_client.execute_query(customers_sql, dry_run=False)
+        if not result["success"]:
+            raise Exception(f"Failed to create customers table: {result['error']}")
+        print("✅ Customers table created successfully")
+        
         # Create orders table (large table - 100,000 rows, partitioned)
+        print("📋 Creating orders table...")
         orders_sql = f"""
-        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.orders` (
-            order_id INT64,
-            customer_id INT64,
-            order_date DATE,
-            total_amount FLOAT64,
-            status STRING,
-            product_id INT64
-        )
+        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.orders` 
         PARTITION BY order_date
         CLUSTER BY customer_id, status
-        """
-        
-        # Insert data into orders table
-        orders_data_sql = f"""
-        INSERT INTO `{cls.settings.google_cloud_project}.{cls.dataset_id}.orders`
+        AS
         SELECT 
             order_id,
             MOD(order_id, 1000) + 1 as customer_id,
@@ -129,22 +127,18 @@ class TestBigQuerySandboxIntegration:
                 ELSE 'completed'
             END as status,
             MOD(order_id, 50) + 1 as product_id
-        FROM UNNEST(GENERATE_ARRAY(1, 100000)) as order_id
+        FROM UNNEST(GENERATE_ARRAY(1, 50000)) as order_id
         """
+        
+        result = cls.bq_client.execute_query(orders_sql, dry_run=False)
+        if not result["success"]:
+            raise Exception(f"Failed to create orders table: {result['error']}")
+        print("✅ Orders table created successfully")
         
         # Create products table (medium table - 50 rows)
+        print("📋 Creating products table...")
         products_sql = f"""
-        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.products` (
-            product_id INT64,
-            product_name STRING,
-            category STRING,
-            price FLOAT64
-        )
-        """
-        
-        # Insert data into products table
-        products_data_sql = f"""
-        INSERT INTO `{cls.settings.google_cloud_project}.{cls.dataset_id}.products`
+        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.products` AS
         SELECT 
             product_id,
             CONCAT('Product_', CAST(product_id AS STRING)) as product_name,
@@ -159,87 +153,44 @@ class TestBigQuerySandboxIntegration:
         FROM UNNEST(GENERATE_ARRAY(1, 50)) as product_id
         """
         
+        result = cls.bq_client.execute_query(products_sql, dry_run=False)
+        if not result["success"]:
+            raise Exception(f"Failed to create products table: {result['error']}")
+        print("✅ Products table created successfully")
+        
         # Create order_items table (very large table - 200,000 rows)
+        print("📋 Creating order_items table...")
         order_items_sql = f"""
-        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.order_items` (
-            item_id INT64,
-            order_id INT64,
-            product_id INT64,
-            quantity INT64,
-            unit_price FLOAT64,
-            order_date DATE
-        )
+        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.order_items`
         PARTITION BY order_date
         CLUSTER BY order_id
-        """
-        
-        # Insert data into order_items table
-        order_items_data_sql = f"""
-        INSERT INTO `{cls.settings.google_cloud_project}.{cls.dataset_id}.order_items`
+        AS
         SELECT 
-            (order_id - 1) * 3 + item_seq as item_id,
+            (order_id - 1) * 2 + item_seq as item_id,
             order_id,
-            MOD(item_id, 50) + 1 as product_id,
+            MOD((order_id - 1) * 2 + item_seq, 50) + 1 as product_id,
             CAST(RAND() * 5 + 1 AS INT64) as quantity,
             ROUND(RAND() * 100 + 10, 2) as unit_price,
             DATE_ADD(DATE('2024-01-01'), INTERVAL MOD(order_id, 365) DAY) as order_date
-        FROM UNNEST(GENERATE_ARRAY(1, 50000)) as order_id,
-        UNNEST(GENERATE_ARRAY(1, 3)) as item_seq
+        FROM UNNEST(GENERATE_ARRAY(1, 25000)) as order_id,
+        UNNEST(GENERATE_ARRAY(1, 2)) as item_seq
         """
         
-        # Execute table creation
-        tables_info = [
-            ("customers", customers_sql, None),
-            ("orders", orders_sql, orders_data_sql), 
-            ("products", products_sql, products_data_sql),
-            ("order_items", order_items_sql, order_items_data_sql)
-        ]
+        result = cls.bq_client.execute_query(order_items_sql, dry_run=False)
+        if not result["success"]:
+            raise Exception(f"Failed to create order_items table: {result['error']}")
+        print("✅ Order_items table created successfully")
         
-        for table_info in tables_info:
-            table_name = table_info[0]
-            create_sql = table_info[1]
-            insert_sql = table_info[2] if len(table_info) > 2 else None
-            
-            try:
-                print(f"📋 Creating table: {table_name}")
-                print(f"SQL preview: {create_sql[:100]}...")
-                
-                # Create table structure
-                result = cls.bq_client.execute_query(create_sql, dry_run=False)
-                if not result["success"]:
-                    print(f"❌ Failed to create table {table_name}: {result['error']}")
-                    raise Exception(f"Failed to create table {table_name}: {result['error']}")
-                else:
-                    print(f"✅ Table {table_name} structure created successfully")
-                
-                # Insert data if needed
-                if insert_sql:
-                    print(f"📊 Inserting data into {table_name}...")
-                    insert_result = cls.bq_client.execute_query(insert_sql, dry_run=False)
-                    if not insert_result["success"]:
-                        print(f"❌ Failed to insert data into {table_name}: {insert_result['error']}")
-                        raise Exception(f"Failed to insert data into {table_name}: {insert_result['error']}")
-                    else:
-                        print(f"✅ Data inserted into {table_name} successfully")
-                    
-                # Verify table was created
-                verify_sql = f"SELECT COUNT(*) as row_count FROM `{cls.settings.google_cloud_project}.{cls.dataset_id}.{table_name}`"
-                verify_result = cls.bq_client.execute_query(verify_sql, dry_run=False)
-                if verify_result["success"] and verify_result["results"]:
-                    row_count = verify_result["results"][0]["row_count"]
-                    print(f"📊 {table_name}: {row_count:,} rows created")
-                else:
-                    print(f"⚠️ Could not verify {table_name} row count")
-                
-                # Add a small delay between table creations
-                import time
-                time.sleep(2)
-                    
-            except Exception as e:
-                print(f"❌ Exception creating {table_name}: {str(e)}")
-                print(f"❌ Full error details: {repr(e)}")
-                # Don't skip, but continue with other tables
-                continue
+        # Verify all tables were created
+        tables = ["customers", "orders", "products", "order_items"]
+        for table_name in tables:
+            verify_sql = f"SELECT COUNT(*) as row_count FROM `{cls.settings.google_cloud_project}.{cls.dataset_id}.{table_name}`"
+            verify_result = cls.bq_client.execute_query(verify_sql, dry_run=False)
+            if verify_result["success"] and verify_result["results"]:
+                row_count = verify_result["results"][0]["row_count"]
+                print(f"📊 {table_name}: {row_count:,} rows created")
+            else:
+                print(f"⚠️ Could not verify {table_name} row count")
         
         print("🎉 All test tables created successfully!")
     
