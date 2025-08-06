@@ -734,6 +734,76 @@ HAVING COUNT(*) > 100`
             suggestionsResults.classList.add('hidden');
             resultsSection.classList.remove('hidden');
         }
+        function displayTestResults(result) {
+            const content = document.getElementById('testContent');
+            
+            let html = `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="result-card ${result.success ? 'bg-green-50' : 'bg-red-50'} p-4 rounded-lg text-center">
+                        <h4 class="font-semibold ${result.success ? 'text-green-900' : 'text-red-900'}">Overall Status</h4>
+                        <p class="text-lg font-bold ${result.success ? 'text-green-600' : 'text-red-600'}">${result.success ? '✅ PASSED' : '❌ FAILED'}</p>
+                    </div>
+                    <div class="result-card bg-blue-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-blue-900">Total Tests</h4>
+                        <p class="text-lg font-bold text-blue-600">${result.total_tests}</p>
+                    </div>
+                    <div class="result-card bg-green-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-green-900">Passed</h4>
+                        <p class="text-lg font-bold text-green-600">${result.passed_tests}</p>
+                    </div>
+                    <div class="result-card bg-red-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-red-900">Failed</h4>
+                        <p class="text-lg font-bold text-red-600">${result.failed_tests}</p>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600">Execution time: ${result.execution_time.toFixed(2)} seconds</p>
+                </div>
+            `;
+
+            if (result.results && result.results.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Test Results</h4>
+                        <div class="space-y-2">
+                `;
+                
+                result.results.forEach(test => {
+                    const statusColor = test.status === 'PASSED' || test.status === 'SUCCESS' ? 'text-green-600' : 'text-red-600';
+                    const statusIcon = test.status === 'PASSED' || test.status === 'SUCCESS' ? '✅' : '❌';
+                    
+                    html += `
+                        <div class="flex items-center justify-between p-3 border border-gray-200 rounded">
+                            <span class="font-medium">${test.name}</span>
+                            <span class="${statusColor}">${statusIcon} ${test.status}</span>
+                        </div>
+                    `;
+                    
+                    if (test.message && test.status !== 'PASSED') {
+                        html += `<p class="text-sm text-gray-600 ml-4">${test.message}</p>`;
+                    }
+                });
+                
+                html += `</div></div>`;
+            }
+
+            if (result.error_message) {
+                html += `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-red-900 mb-2">Error Details</h4>
+                        <pre class="text-red-700 text-sm whitespace-pre-wrap">${result.error_message}</pre>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+            testResults.classList.remove('hidden');
+            optimizationResults.classList.add('hidden');
+            analysisResults.classList.add('hidden');
+            suggestionsResults.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+        }
 
         function displaySystemStatus(status) {
             const content = document.getElementById('statusContent');
