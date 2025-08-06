@@ -103,12 +103,12 @@ class TestBigQuerySandboxIntegration:
         # Create orders table (large table - 100,000 rows, partitioned)
         orders_sql = f"""
         CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.orders`
-        PARTITION BY DATE(order_date)
+        PARTITION BY order_date
         CLUSTER BY customer_id, status AS
         SELECT 
             order_id,
             MOD(order_id, 1000) + 1 as customer_id,
-            DATE_ADD('2024-01-01', INTERVAL MOD(order_id, 365) DAY) as order_date,
+            DATE_ADD(DATE('2024-01-01'), INTERVAL MOD(order_id, 365) DAY) as order_date,
             ROUND(RAND() * 1000 + 50, 2) as total_amount,
             CASE 
                 WHEN MOD(order_id, 10) = 0 THEN 'cancelled'
@@ -140,7 +140,7 @@ class TestBigQuerySandboxIntegration:
         # Create order_items table (very large table - 200,000 rows)
         order_items_sql = f"""
         CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.order_items`
-        PARTITION BY DATE(order_date)
+        PARTITION BY order_date
         CLUSTER BY order_id AS
         SELECT 
             (order_id - 1) * 3 + item_seq as item_id,
@@ -148,7 +148,7 @@ class TestBigQuerySandboxIntegration:
             MOD(item_id, 50) + 1 as product_id,
             CAST(RAND() * 5 + 1 AS INT64) as quantity,
             ROUND(RAND() * 100 + 10, 2) as unit_price,
-            DATE_ADD('2024-01-01', INTERVAL MOD(order_id, 365) DAY) as order_date
+            DATE_ADD(DATE('2024-01-01'), INTERVAL MOD(order_id, 365) DAY) as order_date
         FROM UNNEST(GENERATE_ARRAY(1, 50000)) as order_id,
         UNNEST(GENERATE_ARRAY(1, 3)) as item_seq
         """
