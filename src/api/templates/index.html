@@ -1048,6 +1048,222 @@ HAVING COUNT(*) > 100`
             // Load a sample query by default
             queryInput.value = sampleQueries[0];
         });
+
+        // Load Test Query functionality
+        function loadTestQuery() {
+            showTestQueryModal();
+        }
+
+        function showTestQueryModal() {
+            const modal = document.getElementById('testQueryModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            } else {
+                // Create modal if it doesn't exist
+                createTestQueryModal();
+            }
+        }
+
+        function hideTestQueryModal() {
+            const modal = document.getElementById('testQueryModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function createTestQueryModal() {
+            const modalHTML = `
+                <div id="testQueryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                        <div class="mt-3">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">Load Test Query</h3>
+                                <button onclick="hideTestQueryModal()" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                <p class="text-sm text-blue-700">
+                                    💡 <strong>Tip:</strong> Make sure to setup test data first by clicking the "Setup Test Data" button.
+                                </p>
+                            </div>
+
+                            <div class="space-y-3 max-h-96 overflow-y-auto">
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('simple')">
+                                    <h4 class="font-semibold text-gray-900">Simple Query Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">Basic SELECT with inefficient WHERE clause</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Column Pruning</span>
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-1">Partition Filtering</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 30-50%</p>
+                                </div>
+
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('join')">
+                                    <h4 class="font-semibold text-gray-900">Complex JOIN Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">Multi-table JOIN with suboptimal ordering</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">JOIN Reordering</span>
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-1">Partition Filtering</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 20-40%</p>
+                                </div>
+
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('aggregation')">
+                                    <h4 class="font-semibold text-gray-900">Aggregation Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">GROUP BY without proper partitioning</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Partition Filtering</span>
+                                        <span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded ml-1">Approximate Aggregation</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 40-60%</p>
+                                </div>
+
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('window')">
+                                    <h4 class="font-semibold text-gray-900">Window Function Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">Inefficient window specifications</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded">Window Optimization</span>
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-1">Partition Filtering</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 15-30%</p>
+                                </div>
+
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('nested')">
+                                    <h4 class="font-semibold text-gray-900">Nested Query Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">Deeply nested subqueries that can be flattened</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Subquery to JOIN</span>
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-1">Partition Filtering</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 25-45%</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 flex justify-between">
+                                <button onclick="loadRandomQuery()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                                    🎲 Load Random Query
+                                </button>
+                                <button onclick="hideTestQueryModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        function loadSpecificQuery(queryType) {
+            const projectId = document.getElementById('projectId').value || 'your-project-id';
+            const dataset = 'optimizer_test_dataset';
+            
+            const queries = {
+                simple: `SELECT *
+FROM \`${projectId}.${dataset}.orders\`
+WHERE order_date >= '2024-06-01'
+AND status = 'completed'
+ORDER BY total_amount DESC
+LIMIT 100`,
+
+                join: `SELECT 
+    c.customer_name,
+    o.order_id,
+    o.total_amount,
+    p.product_name,
+    oi.quantity
+FROM \`${projectId}.${dataset}.order_items\` oi
+JOIN \`${projectId}.${dataset}.orders\` o 
+    ON oi.order_id = o.order_id
+JOIN \`${projectId}.${dataset}.customers\` c 
+    ON o.customer_id = c.customer_id
+JOIN \`${projectId}.${dataset}.products\` p 
+    ON oi.product_id = p.product_id
+WHERE o.order_date >= '2024-06-01'
+AND c.customer_tier = 'Premium'
+AND p.category = 'Electronics'`,
+
+                aggregation: `SELECT 
+    c.region,
+    COUNT(*) as total_orders,
+    COUNT(DISTINCT o.customer_id) as unique_customers,
+    SUM(o.total_amount) as total_revenue,
+    AVG(o.total_amount) as avg_order_value
+FROM \`${projectId}.${dataset}.orders\` o
+JOIN \`${projectId}.${dataset}.customers\` c 
+    ON o.customer_id = c.customer_id
+WHERE o.order_date >= '2024-01-01'
+GROUP BY c.region
+ORDER BY total_revenue DESC`,
+
+                window: `SELECT 
+    customer_id,
+    order_id,
+    order_date,
+    total_amount,
+    ROW_NUMBER() OVER (ORDER BY total_amount DESC) as overall_rank,
+    RANK() OVER (ORDER BY order_date) as date_rank,
+    SUM(total_amount) OVER (ORDER BY order_date ROWS UNBOUNDED PRECEDING) as running_total
+FROM \`${projectId}.${dataset}.orders\`
+WHERE order_date >= '2024-06-01'
+ORDER BY total_amount DESC
+LIMIT 1000`,
+
+                nested: `SELECT 
+    customer_name
+FROM \`${projectId}.${dataset}.customers\` c
+WHERE customer_id IN (
+    SELECT customer_id 
+    FROM \`${projectId}.${dataset}.orders\` o1
+    WHERE order_id IN (
+        SELECT order_id
+        FROM \`${projectId}.${dataset}.order_items\` oi
+        WHERE product_id IN (
+            SELECT product_id
+            FROM \`${projectId}.${dataset}.products\` p
+            WHERE category = 'Electronics'
+        )
+        AND quantity > 2
+    )
+    AND o1.order_date >= '2024-06-01'
+    AND o1.status = 'completed'
+)`
+            };
+
+            const query = queries[queryType];
+            if (query) {
+                document.getElementById('sqlQuery').value = query;
+                hideTestQueryModal();
+                showNotification(`✅ Loaded ${queryType} test query successfully!`, 'success');
+            }
+        }
+
+        function loadRandomQuery() {
+            const queryTypes = ['simple', 'join', 'aggregation', 'window', 'nested'];
+            const randomType = queryTypes[Math.floor(Math.random() * queryTypes.length)];
+            loadSpecificQuery(randomType);
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' : 
+                type === 'error' ? 'bg-red-500 text-white' : 
+                'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
     </script>
 </body>
 </html>
