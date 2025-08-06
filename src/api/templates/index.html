@@ -127,15 +127,15 @@ ORDER BY order_count DESC"
                 <div class="flex flex-wrap gap-3">
                     <button id="optimizeBtn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
                         <span>Optimize Query</span>
-                        <div id="optimizeLoading" class="loading ml-2 hidden"></div>
+                        <div id="optimizeLoading" class="loading ml-2" style="display: none;"></div>
                     </button>
                     <button id="analyzeBtn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
                         <span>Analyze Only</span>
-                        <div id="analyzeLoading" class="loading ml-2 hidden"></div>
+                        <div id="analyzeLoading" class="loading ml-2" style="display: none;"></div>
                     </button>
                     <button id="suggestionsBtn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center">
                         <span>Get Suggestions</span>
-                        <div id="suggestionsLoading" class="loading ml-2 hidden"></div>
+                        <div id="suggestionsLoading" class="loading ml-2" style="display: none;"></div>
                     </button>
                 </div>
             </div>
@@ -263,12 +263,12 @@ HAVING COUNT(*) > 100`
 
         function showLoading(buttonId, loadingId) {
             document.getElementById(buttonId).disabled = true;
-            document.getElementById(loadingId).classList.remove('hidden');
+            document.getElementById(loadingId).style.display = 'inline-block';
         }
 
         function hideLoading(buttonId, loadingId) {
             document.getElementById(buttonId).disabled = false;
-            document.getElementById(loadingId).classList.add('hidden');
+            document.getElementById(loadingId).style.display = 'none';
         }
 
         function formatJSON(obj) {
