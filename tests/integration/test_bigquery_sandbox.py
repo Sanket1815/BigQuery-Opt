@@ -32,14 +32,26 @@ class TestBigQuerySandboxIntegration:
     def setup_test_data(cls):
         """Create sample tables with test data in BigQuery."""
         
-        # Create dataset
-        dataset_sql = f"""
-        CREATE SCHEMA IF NOT EXISTS `{cls.settings.google_cloud_project}.{cls.dataset_id}`
-        OPTIONS(
-            description="Test dataset for BigQuery Query Optimizer",
-            location="US"
-        )
-        """
+        try:
+            # Create dataset first
+            dataset_sql = f"""
+            CREATE SCHEMA IF NOT EXISTS `{cls.settings.google_cloud_project}.{cls.dataset_id}`
+            OPTIONS(
+                description="Test dataset for BigQuery Query Optimizer",
+                location="US"
+            )
+            """
+            
+            print(f"Creating dataset: {cls.dataset_id}")
+            result = cls.bq_client.execute_query(dataset_sql, dry_run=False)
+            if not result["success"]:
+                print(f"Dataset creation result: {result}")
+                pytest.skip(f"Failed to create dataset: {result['error']}")
+            
+            print("✅ Dataset created successfully")
+            
+        except Exception as e:
+            pytest.skip(f"Failed to create dataset: {str(e)}")
         
         # Create customers table (small table - 1000 rows)
         customers_sql = f"""
@@ -107,26 +119,38 @@ class TestBigQuerySandboxIntegration:
         PARTITION BY DATE(order_date)
         CLUSTER BY order_id AS
         SELECT 
-            ROW_NUMBER() OVER() as item_id,
+            (order_id - 1) * 3 + item_seq as item_id,
             order_id,
             MOD(item_id, 50) + 1 as product_id,
             CAST(RAND() * 5 + 1 AS INT64) as quantity,
             ROUND(RAND() * 100 + 10, 2) as unit_price,
             DATE_ADD('2024-01-01', INTERVAL MOD(order_id, 365) DAY) as order_date
-        FROM UNNEST(GENERATE_ARRAY(1, 100000)) as order_id,
-        UNNEST(GENERATE_ARRAY(1, CAST(RAND() * 3 + 1 AS INT64))) as item_id
+        FROM UNNEST(GENERATE_ARRAY(1, 50000)) as order_id,
+        UNNEST(GENERATE_ARRAY(1, 3)) as item_seq
         """
         
         # Execute table creation
-        tables_sql = [dataset_sql, customers_sql, orders_sql, products_sql, order_items_sql]
+        tables_info = [
+            ("customers", customers_sql),
+            ("orders", orders_sql), 
+            ("products", products_sql),
+            ("order_items", order_items_sql)
+        ]
         
-        for sql in tables_sql:
+        for table_name, sql in tables_info:
             try:
+                print(f"Creating table: {table_name}")
                 result = cls.bq_client.execute_query(sql, dry_run=False)
                 if not result["success"]:
-                    pytest.skip(f"Failed to create test data: {result['error']}")
+                    print(f"❌ Failed to create {table_name}: {result['error']}")
+                    pytest.skip(f"Failed to create {table_name}: {result['error']}")
+                else:
+                    print(f"✅ {table_name} created successfully")
             except Exception as e:
-                pytest.skip(f"Failed to setup test data: {str(e)}")
+                print(f"❌ Exception creating {table_name}: {str(e)}")
+                pytest.skip(f"Failed to create {table_name}: {str(e)}")
+        
+        print("🎉 All test tables created successfully!")
     
     def test_simple_query_optimization(self):
         """Test 1: Simple Query Test - Basic SELECT with inefficient WHERE clause."""
