@@ -16,6 +16,8 @@ from pathlib import Path
 import subprocess
 import json
 from pathlib import Path
+import os
+import time
 
 router = APIRouter()
 logger = QueryOptimizerLogger(__name__)
@@ -60,23 +62,6 @@ class StatusResponse(BaseModel):
     statistics: Dict[str, Any]
 
 
-class TestSuiteRequest(BaseModel):
-    """Request model for running test suite."""
-    project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
-    test_type: str = Field("sandbox", description="Type of tests to run")
-    cleanup: bool = Field(True, description="Clean up test data after tests")
-
-
-class TestResult(BaseModel):
-    """Response model for test results."""
-    success: bool
-    test_type: str
-    total_tests: int
-    passed_tests: int
-    failed_tests: int
-    execution_time: float
-    results: List[Dict[str, Any]]
-    error_message: Optional[str] = None
 class TestSuiteRequest(BaseModel):
     """Request model for running test suite."""
     project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
@@ -649,260 +634,57 @@ WHERE customer_id IN (
             }
         }
         
-    except OptimizationError as e:
-        logger.log_error(e, {"endpoint": "/table-suggestions"})
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.log_error(e, {"endpoint": "/table-suggestions"})
+        logger.log_error(e, {"endpoint": "/test-queries"})
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-@router.post("/run-tests", response_model=TestResult)
-async def run_test_suite(request: TestSuiteRequest):
+
+
+@router.post("/setup-test-data")
+async def setup_test_data(request: TestSuiteRequest):
     """
-    Run the BigQuery optimizer test suite.
+    Setup test dataset and tables in BigQuery.
     
-    This endpoint runs the comprehensive test suite including:
-    - Simple Query Test
-    - Complex JOIN Test  
-    - Aggregation Test
-    - Window Function Test
-    - Nested Query Test
+    This endpoint creates the optimizer_test_dataset and all required tables
+    with sample data for testing the optimization functionality.
     """
     try:
-        logger.logger.info(f"Running {request.test_type} test suite")
+        logger.logger.info("Setting up test dataset and tables")
         
         # Set project ID if provided
         env = os.environ.copy()
         if request.project_id:
             env["GOOGLE_CLOUD_PROJECT"] = request.project_id
         
-        # Prepare test command
-        test_script = Path(__file__).parent.parent.parent / "tests" / "test_runner.py"
-        cmd = [
-            "python", str(test_script),
-            "--type", request.test_type,
-            "--verbose"
-        ]
+        # Import and run setup
+        from tests.integration.test_bigquery_sandbox import TestBigQuerySandboxIntegration
+        from config.settings import get_settings
+        from src.bigquery.client import BigQueryClient
         
-        if request.cleanup:
-            cmd.append("--cleanup")
+        # Create a temporary instance to run setup
+        test_instance = TestBigQuerySandboxIntegration()
+        test_instance.settings = get_settings()
+        test_instance.bq_client = BigQueryClient()
+        test_instance.optimizer = BigQueryOptimizer(validate_results=True)
+        test_instance.dataset_id = "optimizer_test_dataset"
         
-        # Run tests
-        import time
+        # Run setup
         start_time = time.time()
-        
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=1800  # 30 minutes timeout
-        )
-        
+        test_instance.setup_test_data()
         execution_time = time.time() - start_time
         
-        # Parse test results from output
-        output_lines = result.stdout.split('\n')
-        test_results = []
-        total_tests = 0
-        passed_tests = 0
-        failed_tests = 0
-        
-        # Simple parsing of pytest output
-        for line in output_lines:
-            if "PASSED" in line:
-                passed_tests += 1
-                total_tests += 1
-                test_results.append({
-                    "name": line.split("::")[1] if "::" in line else line,
-                    "status": "PASSED",
-                    "message": ""
-                })
-            elif "FAILED" in line:
-                failed_tests += 1
-                total_tests += 1
-                test_results.append({
-                    "name": line.split("::")[1] if "::" in line else line,
-                    "status": "FAILED", 
-                    "message": line
-                })
-            elif "✅" in line:
-                test_results.append({
-                    "name": line.split(":")[0].replace("✅", "").strip(),
-                    "status": "SUCCESS",
-                    "message": line
-                })
-        
-        success = result.returncode == 0
-        
-        logger.logger.info(
-            f"Test suite completed: {passed_tests}/{total_tests} passed"
-        )
-        
-        return TestResult(
-            success=success,
-            test_type=request.test_type,
-            total_tests=total_tests,
-            passed_tests=passed_tests,
-            failed_tests=failed_tests,
-            execution_time=execution_time,
-            results=test_results,
-            error_message=result.stderr if not success else None
-        )
-        
-    except subprocess.TimeoutExpired:
-        logger.log_error(Exception("Test timeout"), {"endpoint": "/run-tests"})
-        return TestResult(
-            success=False,
-            test_type=request.test_type,
-            total_tests=0,
-            passed_tests=0,
-            failed_tests=0,
-            execution_time=1800,
-            results=[],
-            error_message="Test suite timed out after 30 minutes"
-        )
-    except Exception as e:
-        logger.log_error(e, {"endpoint": "/run-tests"})
-        return TestResult(
-            success=False,
-            test_type=request.test_type,
-            total_tests=0,
-            passed_tests=0,
-            failed_tests=0,
-            execution_time=0,
-            results=[],
-            error_message=str(e)
-        )
-
-
-@router.get("/test-queries")
-async def get_test_queries():
-    """
-    Get predefined test queries for each test category.
-    
-    Returns sample inefficient queries that can be used for testing
-    the optimization functionality.
-    """
-    try:
-        from config.settings import get_settings
-        settings = get_settings()
-        project_id = settings.google_cloud_project or "your-project-id"
-        dataset_id = "optimizer_test_dataset"
-        
-        test_queries = {
-            "simple_query": {
-                "name": "Simple Query Test",
-                "description": "Basic SELECT with inefficient WHERE clause",
-                "inefficient_query": f"""SELECT *
-FROM `{project_id}.{dataset_id}.orders`
-WHERE order_date >= '2024-06-01'
-AND status = 'completed'
-ORDER BY total_amount DESC
-LIMIT 100""",
-                "expected_optimizations": ["Column Pruning", "Partition Filtering"],
-                "expected_improvement": "30-50%"
-            },
-            "complex_join": {
-                "name": "Complex JOIN Test", 
-                "description": "Multi-table JOIN with suboptimal ordering",
-                "inefficient_query": f"""SELECT 
-    c.customer_name,
-    o.order_id,
-    o.total_amount,
-    p.product_name,
-    oi.quantity
-FROM `{project_id}.{dataset_id}.order_items` oi
-JOIN `{project_id}.{dataset_id}.orders` o 
-    ON oi.order_id = o.order_id
-JOIN `{project_id}.{dataset_id}.customers` c 
-    ON o.customer_id = c.customer_id
-JOIN `{project_id}.{dataset_id}.products` p 
-    ON oi.product_id = p.product_id
-WHERE o.order_date >= '2024-06-01'
-AND c.customer_tier = 'Premium'
-AND p.category = 'Electronics'""",
-                "expected_optimizations": ["JOIN Reordering", "Partition Filtering"],
-                "expected_improvement": "20-40%"
-            },
-            "aggregation": {
-                "name": "Aggregation Test",
-                "description": "GROUP BY without proper partitioning", 
-                "inefficient_query": f"""SELECT 
-    c.region,
-    COUNT(*) as total_orders,
-    COUNT(DISTINCT o.customer_id) as unique_customers,
-    SUM(o.total_amount) as total_revenue,
-    AVG(o.total_amount) as avg_order_value
-FROM `{project_id}.{dataset_id}.orders` o
-JOIN `{project_id}.{dataset_id}.customers` c 
-    ON o.customer_id = c.customer_id
-WHERE o.order_date >= '2024-01-01'
-GROUP BY c.region
-ORDER BY total_revenue DESC""",
-                "expected_optimizations": ["Partition Filtering", "Approximate Aggregation"],
-                "expected_improvement": "40-60%"
-            },
-            "window_function": {
-                "name": "Window Function Test",
-                "description": "Inefficient window specifications",
-                "inefficient_query": f"""SELECT 
-    customer_id,
-    order_id,
-    order_date,
-    total_amount,
-    ROW_NUMBER() OVER (ORDER BY total_amount DESC) as overall_rank,
-    RANK() OVER (ORDER BY order_date) as date_rank,
-    SUM(total_amount) OVER (ORDER BY order_date ROWS UNBOUNDED PRECEDING) as running_total
-FROM `{project_id}.{dataset_id}.orders`
-WHERE order_date >= '2024-06-01'
-ORDER BY total_amount DESC
-LIMIT 1000""",
-                "expected_optimizations": ["Window Function Optimization", "Partition Filtering"],
-                "expected_improvement": "15-30%"
-            },
-            "nested_query": {
-                "name": "Nested Query Test",
-                "description": "Deeply nested subqueries that can be flattened",
-                "inefficient_query": f"""SELECT 
-    customer_name
-FROM `{project_id}.{dataset_id}.customers` c
-WHERE customer_id IN (
-    SELECT customer_id 
-    FROM `{project_id}.{dataset_id}.orders` o1
-    WHERE order_id IN (
-        SELECT order_id
-        FROM `{project_id}.{dataset_id}.order_items` oi
-        WHERE product_id IN (
-            SELECT product_id
-            FROM `{project_id}.{dataset_id}.products` p
-            WHERE category = 'Electronics'
-        )
-        AND quantity > 2
-    )
-    AND o1.order_date >= '2024-06-01'
-    AND o1.status = 'completed'
-)""",
-                "expected_optimizations": ["Subquery to JOIN Conversion", "Partition Filtering"],
-                "expected_improvement": "25-45%"
-            }
-        }
-        
         return {
-            "test_queries": test_queries,
-            "setup_instructions": {
-                "description": "To run these tests, you need to create sample data in BigQuery",
-                "steps": [
-                    "Set your Google Cloud Project ID in environment variables",
-                    "Ensure BigQuery API is enabled",
-                    "Run the test suite to automatically create sample data",
-                    "Use the provided queries to test optimization"
-                ]
-            }
+            "success": True,
+            "message": "Test dataset and tables created successfully",
+            "dataset_id": "optimizer_test_dataset",
+            "tables_created": ["customers", "orders", "products", "order_items"],
+            "execution_time": execution_time,
+            "project_id": test_instance.settings.google_cloud_project
         }
         
-    except OptimizationError as e:
-        logger.log_error(e, {"endpoint": "/table-suggestions"})
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.log_error(e, {"endpoint": "/table-suggestions"})
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.log_error(e, {"endpoint": "/setup-test-data"})
+        return {
+            "success": False,
+            "error_message": str(e),
+            "message": "Failed to setup test data"
+        }
