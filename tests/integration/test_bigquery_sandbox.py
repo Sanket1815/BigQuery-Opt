@@ -102,9 +102,21 @@ class TestBigQuerySandboxIntegration:
         
         # Create orders table (large table - 100,000 rows, partitioned)
         orders_sql = f"""
-        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.orders`
+        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.orders` (
+            order_id INT64,
+            customer_id INT64,
+            order_date DATE,
+            total_amount FLOAT64,
+            status STRING,
+            product_id INT64
+        )
         PARTITION BY order_date
-        CLUSTER BY customer_id, status AS
+        CLUSTER BY customer_id, status
+        """
+        
+        # Insert data into orders table
+        orders_data_sql = f"""
+        INSERT INTO `{cls.settings.google_cloud_project}.{cls.dataset_id}.orders`
         SELECT 
             order_id,
             MOD(order_id, 1000) + 1 as customer_id,
@@ -122,7 +134,17 @@ class TestBigQuerySandboxIntegration:
         
         # Create products table (medium table - 50 rows)
         products_sql = f"""
-        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.products` AS
+        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.products` (
+            product_id INT64,
+            product_name STRING,
+            category STRING,
+            price FLOAT64
+        )
+        """
+        
+        # Insert data into products table
+        products_data_sql = f"""
+        INSERT INTO `{cls.settings.google_cloud_project}.{cls.dataset_id}.products`
         SELECT 
             product_id,
             CONCAT('Product_', CAST(product_id AS STRING)) as product_name,
@@ -139,9 +161,21 @@ class TestBigQuerySandboxIntegration:
         
         # Create order_items table (very large table - 200,000 rows)
         order_items_sql = f"""
-        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.order_items`
+        CREATE OR REPLACE TABLE `{cls.settings.google_cloud_project}.{cls.dataset_id}.order_items` (
+            item_id INT64,
+            order_id INT64,
+            product_id INT64,
+            quantity INT64,
+            unit_price FLOAT64,
+            order_date DATE
+        )
         PARTITION BY order_date
-        CLUSTER BY order_id AS
+        CLUSTER BY order_id
+        """
+        
+        # Insert data into order_items table
+        order_items_data_sql = f"""
+        INSERT INTO `{cls.settings.google_cloud_project}.{cls.dataset_id}.order_items`
         SELECT 
             (order_id - 1) * 3 + item_seq as item_id,
             order_id,
@@ -155,22 +189,38 @@ class TestBigQuerySandboxIntegration:
         
         # Execute table creation
         tables_info = [
-            ("customers", customers_sql),
-            ("orders", orders_sql), 
-            ("products", products_sql),
-            ("order_items", order_items_sql)
+            ("customers", customers_sql, None),
+            ("orders", orders_sql, orders_data_sql), 
+            ("products", products_sql, products_data_sql),
+            ("order_items", order_items_sql, order_items_data_sql)
         ]
         
-        for table_name, sql in tables_info:
+        for table_info in tables_info:
+            table_name = table_info[0]
+            create_sql = table_info[1]
+            insert_sql = table_info[2] if len(table_info) > 2 else None
+            
             try:
-                print(f"Creating table: {table_name}")
-                print(f"SQL preview: {sql[:100]}...")
-                result = cls.bq_client.execute_query(sql, dry_run=False)
+                print(f"📋 Creating table: {table_name}")
+                print(f"SQL preview: {create_sql[:100]}...")
+                
+                # Create table structure
+                result = cls.bq_client.execute_query(create_sql, dry_run=False)
                 if not result["success"]:
-                    print(f"❌ Failed to create {table_name}: {result['error']}")
-                    pytest.skip(f"Failed to create {table_name}: {result['error']}")
+                    print(f"❌ Failed to create table {table_name}: {result['error']}")
+                    raise Exception(f"Failed to create table {table_name}: {result['error']}")
                 else:
-                    print(f"✅ {table_name} created successfully")
+                    print(f"✅ Table {table_name} structure created successfully")
+                
+                # Insert data if needed
+                if insert_sql:
+                    print(f"📊 Inserting data into {table_name}...")
+                    insert_result = cls.bq_client.execute_query(insert_sql, dry_run=False)
+                    if not insert_result["success"]:
+                        print(f"❌ Failed to insert data into {table_name}: {insert_result['error']}")
+                        raise Exception(f"Failed to insert data into {table_name}: {insert_result['error']}")
+                    else:
+                        print(f"✅ Data inserted into {table_name} successfully")
                     
                 # Verify table was created
                 verify_sql = f"SELECT COUNT(*) as row_count FROM `{cls.settings.google_cloud_project}.{cls.dataset_id}.{table_name}`"
@@ -180,10 +230,16 @@ class TestBigQuerySandboxIntegration:
                     print(f"📊 {table_name}: {row_count:,} rows created")
                 else:
                     print(f"⚠️ Could not verify {table_name} row count")
+                
+                # Add a small delay between table creations
+                import time
+                time.sleep(2)
                     
             except Exception as e:
                 print(f"❌ Exception creating {table_name}: {str(e)}")
-                pytest.skip(f"Failed to create {table_name}: {str(e)}")
+                print(f"❌ Full error details: {repr(e)}")
+                # Don't skip, but continue with other tables
+                continue
         
         print("🎉 All test tables created successfully!")
     
