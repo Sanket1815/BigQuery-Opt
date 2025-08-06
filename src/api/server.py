@@ -49,7 +49,7 @@ def create_app() -> FastAPI:
         """Serve the main UI page."""
         ui_file = Path(__file__).parent / "templates" / "index.html"
         if ui_file.exists():
-            return HTMLResponse(content=ui_file.read_text(), status_code=200)
+            return HTMLResponse(content=ui_file.read_text(encoding='utf-8'), status_code=200)
         else:
             return HTMLResponse(
                 content="""
