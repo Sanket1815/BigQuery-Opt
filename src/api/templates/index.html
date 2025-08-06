@@ -137,6 +137,13 @@ ORDER BY order_count DESC"
                         <span>Get Suggestions</span>
                         <div id="suggestionsLoading" class="loading ml-2" style="display: none;"></div>
                     </button>
+                    <button id="runTestsBtn" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center">
+                        <span>Run Tests</span>
+                        <div id="testsLoading" class="loading ml-2" style="display: none;"></div>
+                    </button>
+                    <button id="loadTestQueryBtn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                        Load Test Query
+                    </button>
                 </div>
             </div>
         </div>
@@ -164,6 +171,14 @@ ORDER BY order_count DESC"
                 <div class="p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">Optimization Suggestions</h3>
                     <div id="suggestionsContent"></div>
+                </div>
+            </div>
+
+            <!-- Test Results -->
+            <div id="testResults" class="hidden bg-white rounded-lg shadow-sm border mb-8">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Test Suite Results</h3>
+                    <div id="testContent"></div>
                 </div>
             </div>
         </div>
@@ -215,6 +230,8 @@ ORDER BY order_count DESC"
         const optimizeBtn = document.getElementById('optimizeBtn');
         const analyzeBtn = document.getElementById('analyzeBtn');
         const suggestionsBtn = document.getElementById('suggestionsBtn');
+        const runTestsBtn = document.getElementById('runTestsBtn');
+        const loadTestQueryBtn = document.getElementById('loadTestQueryBtn');
         const loadSampleBtn = document.getElementById('loadSampleBtn');
         const clearBtn = document.getElementById('clearBtn');
         const statusBtn = document.getElementById('statusBtn');
@@ -223,6 +240,7 @@ ORDER BY order_count DESC"
         const optimizationResults = document.getElementById('optimizationResults');
         const analysisResults = document.getElementById('analysisResults');
         const suggestionsResults = document.getElementById('suggestionsResults');
+        const testResults = document.getElementById('testResults');
         const errorSection = document.getElementById('errorSection');
 
         // Sample queries
@@ -249,6 +267,9 @@ WHERE oi.order_date >= '2024-01-01'
 GROUP BY category
 HAVING COUNT(*) > 100`
         ];
+
+        // Test queries for different test types
+        let testQueries = {};
 
         // Utility functions
         function showError(message) {
@@ -379,6 +400,39 @@ HAVING COUNT(*) > 100`
             }
         });
 
+        runTestsBtn.addEventListener('click', async () => {
+            hideError();
+            showLoading('runTestsBtn', 'testsLoading');
+
+            try {
+                const result = await makeAPICall('/run-tests', {
+                    project_id: projectId.value || null,
+                    test_type: 'sandbox',
+                    cleanup: true
+                }, 'POST');
+
+                displayTestResults(result);
+            } catch (error) {
+                showError(`Test execution failed: ${error.message}`);
+            } finally {
+                hideLoading('runTestsBtn', 'testsLoading');
+            }
+        });
+
+        loadTestQueryBtn.addEventListener('click', async () => {
+            try {
+                if (Object.keys(testQueries).length === 0) {
+                    const queries = await makeAPICall('/test-queries');
+                    testQueries = queries.test_queries;
+                }
+
+                // Show modal to select test query type
+                showTestQueryModal();
+            } catch (error) {
+                showError(`Failed to load test queries: ${error.message}`);
+            }
+        });
+
         loadSampleBtn.addEventListener('click', () => {
             const randomQuery = sampleQueries[Math.floor(Math.random() * sampleQueries.length)];
             queryInput.value = randomQuery;
@@ -483,6 +537,7 @@ HAVING COUNT(*) > 100`
             optimizationResults.classList.remove('hidden');
             analysisResults.classList.add('hidden');
             suggestionsResults.classList.add('hidden');
+            testResults.classList.add('hidden');
             resultsSection.classList.remove('hidden');
 
             // Re-highlight code
@@ -541,6 +596,7 @@ HAVING COUNT(*) > 100`
             analysisResults.classList.remove('hidden');
             optimizationResults.classList.add('hidden');
             suggestionsResults.classList.add('hidden');
+            testResults.classList.add('hidden');
             resultsSection.classList.remove('hidden');
         }
 
@@ -604,6 +660,78 @@ HAVING COUNT(*) > 100`
             suggestionsResults.classList.remove('hidden');
             optimizationResults.classList.add('hidden');
             analysisResults.classList.add('hidden');
+            testResults.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+        }
+
+        function displayTestResults(result) {
+            const content = document.getElementById('testContent');
+            
+            let html = `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="result-card ${result.success ? 'bg-green-50' : 'bg-red-50'} p-4 rounded-lg text-center">
+                        <h4 class="font-semibold ${result.success ? 'text-green-900' : 'text-red-900'}">Overall Status</h4>
+                        <p class="text-lg font-bold ${result.success ? 'text-green-600' : 'text-red-600'}">${result.success ? '✅ PASSED' : '❌ FAILED'}</p>
+                    </div>
+                    <div class="result-card bg-blue-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-blue-900">Total Tests</h4>
+                        <p class="text-lg font-bold text-blue-600">${result.total_tests}</p>
+                    </div>
+                    <div class="result-card bg-green-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-green-900">Passed</h4>
+                        <p class="text-lg font-bold text-green-600">${result.passed_tests}</p>
+                    </div>
+                    <div class="result-card bg-red-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-red-900">Failed</h4>
+                        <p class="text-lg font-bold text-red-600">${result.failed_tests}</p>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600">Execution time: ${result.execution_time.toFixed(2)} seconds</p>
+                </div>
+            `;
+
+            if (result.results && result.results.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Test Results</h4>
+                        <div class="space-y-2">
+                `;
+                
+                result.results.forEach(test => {
+                    const statusColor = test.status === 'PASSED' || test.status === 'SUCCESS' ? 'text-green-600' : 'text-red-600';
+                    const statusIcon = test.status === 'PASSED' || test.status === 'SUCCESS' ? '✅' : '❌';
+                    
+                    html += `
+                        <div class="flex items-center justify-between p-3 border border-gray-200 rounded">
+                            <span class="font-medium">${test.name}</span>
+                            <span class="${statusColor}">${statusIcon} ${test.status}</span>
+                        </div>
+                    `;
+                    
+                    if (test.message && test.status !== 'PASSED') {
+                        html += `<p class="text-sm text-gray-600 ml-4">${test.message}</p>`;
+                    }
+                });
+                
+                html += `</div></div>`;
+            }
+
+            if (result.error_message) {
+                html += `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-red-900 mb-2">Error Details</h4>
+                        <pre class="text-red-700 text-sm whitespace-pre-wrap">${result.error_message}</pre>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+            testResults.classList.remove('hidden');
+            optimizationResults.classList.add('hidden');
+            analysisResults.classList.add('hidden');
+            suggestionsResults.classList.add('hidden');
             resultsSection.classList.remove('hidden');
         }
 
@@ -657,6 +785,52 @@ HAVING COUNT(*) > 100`
             
             content.innerHTML = html;
         }
+
+        function showTestQueryModal() {
+            const modalHtml = `
+                <div id="testQueryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div class="relative top-20 mx-auto p-5 border w-4/5 max-w-4xl shadow-lg rounded-md bg-white">
+                        <div class="mt-3">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Select Test Query</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                ${Object.entries(testQueries).map(([key, query]) => `
+                                    <div class="border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50" onclick="loadTestQuery('${key}')">
+                                        <h4 class="font-semibold text-gray-900">${query.name}</h4>
+                                        <p class="text-sm text-gray-600 mb-2">${query.description}</p>
+                                        <p class="text-xs text-blue-600">Expected: ${query.expected_improvement} improvement</p>
+                                        <div class="mt-2">
+                                            <span class="text-xs text-gray-500">Optimizations: ${query.expected_optimizations.join(', ')}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="flex justify-end">
+                                <button onclick="closeTestQueryModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        window.loadTestQuery = function(queryKey) {
+            const query = testQueries[queryKey];
+            if (query) {
+                queryInput.value = query.inefficient_query;
+                closeTestQueryModal();
+            }
+        };
+
+        window.closeTestQueryModal = function() {
+            const modal = document.getElementById('testQueryModal');
+            if (modal) {
+                modal.remove();
+            }
+        };
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
