@@ -141,6 +141,13 @@ class QueryValidator:
             original_df = pd.DataFrame(original_results)
             optimized_df = pd.DataFrame(optimized_results)
             
+            # Handle numeric precision issues
+            for col in original_df.columns:
+                if original_df[col].dtype in ['float64', 'float32']:
+                    original_df[col] = original_df[col].round(10)
+                if optimized_df[col].dtype in ['float64', 'float32']:
+                    optimized_df[col] = optimized_df[col].round(10)
+            
             # Sort both DataFrames to handle potential ordering differences
             original_df_sorted = self._sort_dataframe(original_df)
             optimized_df_sorted = self._sort_dataframe(optimized_df)
@@ -188,8 +195,21 @@ class QueryValidator:
             return df
         
         try:
-            # Sort by all columns
-            return df.sort_values(by=list(df.columns)).reset_index(drop=True)
+            # Sort by all columns, handling mixed types
+            sortable_columns = []
+            for col in df.columns:
+                try:
+                    # Test if column is sortable
+                    df[col].sort_values()
+                    sortable_columns.append(col)
+                except (TypeError, ValueError):
+                    # Skip columns that can't be sorted (mixed types, etc.)
+                    continue
+            
+            if sortable_columns:
+                return df.sort_values(by=sortable_columns).reset_index(drop=True)
+            else:
+                return df.reset_index(drop=True)
         except Exception:
             # If sorting fails, return original DataFrame
             return df.reset_index(drop=True)
