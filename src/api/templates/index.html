@@ -235,6 +235,7 @@ ORDER BY order_count DESC"
         const analyzeBtn = document.getElementById('analyzeBtn');
         const suggestionsBtn = document.getElementById('suggestionsBtn');
         const runTestsBtn = document.getElementById('runTestsBtn');
+        const setupDataBtn = document.getElementById('setupDataBtn');
         const loadTestQueryBtn = document.getElementById('loadTestQueryBtn');
         const loadSampleBtn = document.getElementById('loadSampleBtn');
         const clearBtn = document.getElementById('clearBtn');
@@ -422,7 +423,6 @@ HAVING COUNT(*) > 100`
                 hideLoading('runTestsBtn', 'testsLoading');
             }
         });
-
         setupDataBtn.addEventListener('click', async () => {
             hideError();
             showLoading('setupDataBtn', 'setupLoading');
