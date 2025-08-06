@@ -1,0 +1,359 @@
+"""Enhanced result comparator that shows both original and optimized query results."""
+
+import json
+import pandas as pd
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass
+from src.common.logger import QueryOptimizerLogger
+from src.optimizer.bigquery_client import BigQueryClient
+
+
+@dataclass
+class QueryResultComparison:
+    """Detailed comparison of query results."""
+    original_results: List[Dict[str, Any]]
+    optimized_results: List[Dict[str, Any]]
+    original_row_count: int
+    optimized_row_count: int
+    results_identical: bool
+    differences_found: List[str]
+    sample_original: List[Dict[str, Any]]
+    sample_optimized: List[Dict[str, Any]]
+    comparison_summary: str
+    variance_percentage: Optional[float] = None
+    approximate_functions_used: bool = False
+
+
+class EnhancedResultComparator:
+    """Enhanced result comparator with detailed result display."""
+    
+    def __init__(self, bigquery_client: BigQueryClient):
+        self.bq_client = bigquery_client
+        self.logger = QueryOptimizerLogger(__name__)
+    
+    def compare_query_results_detailed(
+        self,
+        original_query: str,
+        optimized_query: str,
+        sample_size: int = 1000,
+        allow_approximate: bool = False,
+        max_variance_percent: float = 2.0
+    ) -> QueryResultComparison:
+        """Compare query results with detailed analysis and display."""
+        
+        self.logger.logger.info("Starting detailed query result comparison")
+        
+        # Execute both queries
+        original_result = self._execute_with_sample(original_query, sample_size)
+        optimized_result = self._execute_with_sample(optimized_query, sample_size)
+        
+        if not original_result["success"] or not optimized_result["success"]:
+            return QueryResultComparison(
+                original_results=[],
+                optimized_results=[],
+                original_row_count=0,
+                optimized_row_count=0,
+                results_identical=False,
+                differences_found=[
+                    f"Query execution failed: Original: {original_result.get('error', 'Unknown')}, "
+                    f"Optimized: {optimized_result.get('error', 'Unknown')}"
+                ],
+                sample_original=[],
+                sample_optimized=[],
+                comparison_summary="Query execution failed"
+            )
+        
+        original_data = original_result["results"]
+        optimized_data = optimized_result["results"]
+        original_count = original_result["row_count"]
+        optimized_count = optimized_result["row_count"]
+        
+        # Perform detailed comparison
+        comparison_result = self._perform_detailed_comparison(
+            original_data, optimized_data, original_count, optimized_count,
+            allow_approximate, max_variance_percent
+        )
+        
+        # Log comparison results
+        self.logger.logger.info(
+            "Query result comparison completed",
+            original_rows=original_count,
+            optimized_rows=optimized_count,
+            results_identical=comparison_result.results_identical,
+            differences_count=len(comparison_result.differences_found)
+        )
+        
+        return comparison_result
+    
+    def _execute_with_sample(self, query: str, sample_size: int) -> Dict[str, Any]:
+        """Execute query with sampling for comparison."""
+        # Add LIMIT if not present and sample_size is specified
+        if sample_size and "LIMIT" not in query.upper():
+            if query.rstrip().endswith(';'):
+                sampled_query = f"{query.rstrip()[:-1]} LIMIT {sample_size};"
+            else:
+                sampled_query = f"{query} LIMIT {sample_size}"
+        else:
+            sampled_query = query
+        
+        return self.bq_client.execute_query(sampled_query, dry_run=False)
+    
+    def _perform_detailed_comparison(
+        self,
+        original_data: List[Dict],
+        optimized_data: List[Dict],
+        original_count: int,
+        optimized_count: int,
+        allow_approximate: bool,
+        max_variance_percent: float
+    ) -> QueryResultComparison:
+        """Perform detailed comparison of query results."""
+        
+        differences = []
+        results_identical = True
+        variance_percentage = None
+        approximate_functions_used = False
+        
+        # Check row counts
+        if original_count != optimized_count:
+            differences.append(f"Row count mismatch: original={original_count}, optimized={optimized_count}")
+            results_identical = False
+        
+        # If no data, return early
+        if original_count == 0 and optimized_count == 0:
+            return QueryResultComparison(
+                original_results=original_data,
+                optimized_results=optimized_data,
+                original_row_count=original_count,
+                optimized_row_count=optimized_count,
+                results_identical=True,
+                differences_found=[],
+                sample_original=[],
+                sample_optimized=[],
+                comparison_summary="Both queries returned no results - identical"
+            )
+        
+        # Convert to DataFrames for easier comparison
+        try:
+            if original_data and optimized_data:
+                original_df = pd.DataFrame(original_data)
+                optimized_df = pd.DataFrame(optimized_data)
+                
+                # Check column structure
+                if list(original_df.columns) != list(optimized_df.columns):
+                    differences.append(f"Column structure differs: original={list(original_df.columns)}, optimized={list(optimized_df.columns)}")
+                    results_identical = False
+                
+                # Detailed value comparison
+                if original_df.shape == optimized_df.shape and list(original_df.columns) == list(optimized_df.columns):
+                    value_differences = self._compare_dataframe_values(
+                        original_df, optimized_df, allow_approximate, max_variance_percent
+                    )
+                    differences.extend(value_differences["differences"])
+                    if value_differences["differences"]:
+                        results_identical = False
+                    variance_percentage = value_differences.get("variance_percentage")
+                    approximate_functions_used = value_differences.get("approximate_detected", False)
+        
+        except Exception as e:
+            differences.append(f"Comparison error: {str(e)}")
+            results_identical = False
+        
+        # Create samples for display
+        sample_original = original_data[:10] if original_data else []
+        sample_optimized = optimized_data[:10] if optimized_data else []
+        
+        # Generate summary
+        if results_identical:
+            summary = f"✅ Results are identical ({original_count} rows)"
+        elif allow_approximate and variance_percentage and variance_percentage <= max_variance_percent:
+            summary = f"✅ Results are approximately identical (variance: {variance_percentage:.2f}%)"
+            results_identical = True  # Accept as identical for approximate functions
+        else:
+            summary = f"❌ Results differ ({len(differences)} differences found)"
+        
+        return QueryResultComparison(
+            original_results=original_data,
+            optimized_results=optimized_data,
+            original_row_count=original_count,
+            optimized_row_count=optimized_count,
+            results_identical=results_identical,
+            differences_found=differences,
+            sample_original=sample_original,
+            sample_optimized=sample_optimized,
+            comparison_summary=summary,
+            variance_percentage=variance_percentage,
+            approximate_functions_used=approximate_functions_used
+        )
+    
+    def _compare_dataframe_values(
+        self,
+        df1: pd.DataFrame,
+        df2: pd.DataFrame,
+        allow_approximate: bool,
+        max_variance_percent: float
+    ) -> Dict[str, Any]:
+        """Compare DataFrame values with support for approximate functions."""
+        
+        differences = []
+        variance_percentage = None
+        approximate_detected = False
+        
+        # Sort both DataFrames for consistent comparison
+        try:
+            # Try to sort by all columns
+            df1_sorted = df1.sort_values(by=list(df1.columns)).reset_index(drop=True)
+            df2_sorted = df2.sort_values(by=list(df2.columns)).reset_index(drop=True)
+        except (TypeError, ValueError):
+            # If sorting fails, use original order
+            df1_sorted = df1.reset_index(drop=True)
+            df2_sorted = df2.reset_index(drop=True)
+        
+        # Compare each column
+        for col in df1_sorted.columns:
+            if col not in df2_sorted.columns:
+                differences.append(f"Column '{col}' missing in optimized results")
+                continue
+            
+            col1_data = df1_sorted[col]
+            col2_data = df2_sorted[col]
+            
+            # Check for numeric columns that might use approximate functions
+            if pd.api.types.is_numeric_dtype(col1_data) and pd.api.types.is_numeric_dtype(col2_data):
+                if allow_approximate:
+                    # Calculate percentage difference for numeric columns
+                    non_zero_mask = col1_data != 0
+                    if non_zero_mask.any():
+                        percentage_diff = abs((col1_data[non_zero_mask] - col2_data[non_zero_mask]) / col1_data[non_zero_mask] * 100)
+                        max_diff = percentage_diff.max()
+                        
+                        if max_diff > max_variance_percent:
+                            differences.append(f"Column '{col}' variance {max_diff:.2f}% exceeds threshold {max_variance_percent}%")
+                        else:
+                            approximate_detected = True
+                            variance_percentage = max_diff
+                    else:
+                        # Handle zero values
+                        if not col1_data.equals(col2_data):
+                            differences.append(f"Column '{col}' values differ (zero values)")
+                else:
+                    # Exact comparison for numeric data
+                    if not col1_data.equals(col2_data):
+                        differences.append(f"Column '{col}' numeric values differ")
+            else:
+                # Exact comparison for non-numeric data
+                if not col1_data.equals(col2_data):
+                    differences.append(f"Column '{col}' values differ")
+        
+        return {
+            "differences": differences,
+            "variance_percentage": variance_percentage,
+            "approximate_detected": approximate_detected
+        }
+    
+    def display_comparison_results(self, comparison: QueryResultComparison) -> str:
+        """Generate a formatted display of comparison results."""
+        
+        output = []
+        output.append("=" * 80)
+        output.append("QUERY RESULT COMPARISON")
+        output.append("=" * 80)
+        
+        # Summary
+        output.append(f"\n📊 SUMMARY: {comparison.comparison_summary}")
+        output.append(f"   Original rows: {comparison.original_row_count:,}")
+        output.append(f"   Optimized rows: {comparison.optimized_row_count:,}")
+        
+        if comparison.variance_percentage is not None:
+            output.append(f"   Variance: {comparison.variance_percentage:.3f}%")
+        
+        if comparison.approximate_functions_used:
+            output.append("   ⚠️  Approximate functions detected - slight variance expected")
+        
+        # Differences
+        if comparison.differences_found:
+            output.append(f"\n❌ DIFFERENCES FOUND ({len(comparison.differences_found)}):")
+            for i, diff in enumerate(comparison.differences_found, 1):
+                output.append(f"   {i}. {diff}")
+        else:
+            output.append("\n✅ NO DIFFERENCES FOUND")
+        
+        # Sample data display
+        if comparison.sample_original or comparison.sample_optimized:
+            output.append(f"\n📋 SAMPLE DATA (first 10 rows):")
+            
+            output.append("\n🔹 ORIGINAL QUERY RESULTS:")
+            if comparison.sample_original:
+                output.append(self._format_sample_data(comparison.sample_original))
+            else:
+                output.append("   No data returned")
+            
+            output.append("\n🔹 OPTIMIZED QUERY RESULTS:")
+            if comparison.sample_optimized:
+                output.append(self._format_sample_data(comparison.sample_optimized))
+            else:
+                output.append("   No data returned")
+        
+        output.append("\n" + "=" * 80)
+        
+        return "\n".join(output)
+    
+    def _format_sample_data(self, data: List[Dict[str, Any]], max_rows: int = 5) -> str:
+        """Format sample data for display."""
+        if not data:
+            return "   No data"
+        
+        # Convert to DataFrame for better formatting
+        try:
+            df = pd.DataFrame(data[:max_rows])
+            
+            # Format the DataFrame as string with proper alignment
+            formatted = df.to_string(index=False, max_cols=10, max_colwidth=20)
+            
+            # Add indentation
+            lines = formatted.split('\n')
+            indented_lines = ['   ' + line for line in lines]
+            
+            if len(data) > max_rows:
+                indented_lines.append(f"   ... and {len(data) - max_rows} more rows")
+            
+            return '\n'.join(indented_lines)
+            
+        except Exception as e:
+            # Fallback to simple JSON formatting
+            return f"   {json.dumps(data[:3], indent=2, default=str)}"
+    
+    def save_comparison_report(
+        self, 
+        comparison: QueryResultComparison,
+        original_query: str,
+        optimized_query: str,
+        output_file: str
+    ) -> None:
+        """Save detailed comparison report to file."""
+        
+        report = {
+            "timestamp": pd.Timestamp.now().isoformat(),
+            "queries": {
+                "original": original_query,
+                "optimized": optimized_query
+            },
+            "comparison_results": {
+                "results_identical": comparison.results_identical,
+                "original_row_count": comparison.original_row_count,
+                "optimized_row_count": comparison.optimized_row_count,
+                "differences_found": comparison.differences_found,
+                "variance_percentage": comparison.variance_percentage,
+                "approximate_functions_used": comparison.approximate_functions_used,
+                "summary": comparison.comparison_summary
+            },
+            "sample_data": {
+                "original": comparison.sample_original,
+                "optimized": comparison.sample_optimized
+            }
+        }
+        
+        with open(output_file, 'w') as f:
+            json.dump(report, f, indent=2, default=str)
+        
+        self.logger.logger.info(f"Comparison report saved to {output_file}")

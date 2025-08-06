@@ -206,6 +206,12 @@ class OptimizationResult(BaseModel):
         description="Time taken to perform optimization"
     )
     
+    # Enhanced result comparison
+    detailed_comparison: Optional[Any] = Field(
+        default=None,
+        description="Detailed comparison results (QueryResultComparison object)"
+    )
+    
     def get_summary(self) -> str:
         """Get a human-readable summary of the optimization."""
         if not self.optimizations_applied:
