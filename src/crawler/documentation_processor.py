@@ -4,9 +4,16 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional
 import numpy as np
-from sentence_transformers import SentenceTransformer
-import chromadb
-from chromadb.config import Settings
+
+try:
+    from sentence_transformers import SentenceTransformer
+    import chromadb
+    from chromadb.config import Settings
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError as e:
+    print(f"Missing dependency: {e}")
+    print("Please install: pip install sentence-transformers chromadb")
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 from config.settings import get_settings
 from src.common.exceptions import DocumentationCrawlerError
@@ -18,6 +25,9 @@ class DocumentationProcessor:
     """Processes crawled documentation and creates embeddings for semantic search."""
     
     def __init__(self):
+        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+            raise ImportError("sentence-transformers and chromadb are required for DocumentationProcessor")
+            
         self.settings = get_settings()
         self.logger = QueryOptimizerLogger(__name__)
         self.embedding_model = SentenceTransformer(self.settings.embedding_model)

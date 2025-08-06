@@ -1,0 +1,10 @@
+README.md
+setup.py
+bigquery_query_optimizer.egg-info/PKG-INFO
+bigquery_query_optimizer.egg-info/SOURCES.txt
+bigquery_query_optimizer.egg-info/dependency_links.txt
+bigquery_query_optimizer.egg-info/entry_points.txt
+bigquery_query_optimizer.egg-info/requires.txt
+bigquery_query_optimizer.egg-info/top_level.txt
+tests/__init__.py
+tests/conftest.py

@@ -1,0 +1,4 @@
+[console_scripts]
+bq-crawler = src.crawler.bigquery_docs_crawler:main
+bq-mcp-server = src.mcp_server.server:main
+bq-optimizer = src.optimizer.main:cli

@@ -28,7 +28,19 @@ class GeminiQueryOptimizer:
             raise OptimizationError("Gemini API key not configured")
         
         genai.configure(api_key=self.settings.gemini_api_key)
-        self.model = genai.GenerativeModel(self.settings.gemini_model)
+        # self.model = genai.GenerativeModel(self.settings.gemini_model)
+        # self.model = genai.GenerativeModel(model_name=self.settings.gemini_model_name)
+        self.model = genai.GenerativeModel(
+    model_name=self.settings.gemini_model_name,  # should be "gemini-pro"
+    safety_settings=[
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}
+    ]
+)
+
+
         
         # Load optimization context
         self.optimization_context = self._build_optimization_context()

@@ -4,6 +4,7 @@ import time
 from typing import Optional, Dict, Any, List
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
+from google.oauth2 import service_account 
 
 from config.settings import get_settings
 from src.common.exceptions import BigQueryConnectionError
@@ -25,9 +26,15 @@ class BigQueryClient:
             raise BigQueryConnectionError("Google Cloud project ID not configured")
         
         try:
+            credentials = service_account.Credentials.from_service_account_file(
+                self.settings.google_application_credentials
+            )
+            print("✅ Using credentials from:", credentials.service_account_email)
+
             self.client = bigquery.Client(
                 project=self.project_id,
-                location=self.settings.default_location
+                location=self.settings.default_location,
+                credentials=credentials
             )
             self.logger.logger.info(f"Connected to BigQuery project: {self.project_id}")
         except Exception as e:
@@ -50,7 +57,7 @@ class BigQueryClient:
             job_config = bigquery.QueryJobConfig(
                 dry_run=dry_run,
                 use_query_cache=False,  # Get fresh performance metrics
-                location=self.settings.default_location
+                # location=self.settings.default_location
             )
             
             # Submit query

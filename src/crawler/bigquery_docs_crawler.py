@@ -8,22 +8,52 @@ from typing import Dict, List, Optional, Set
 from urllib.parse import urljoin, urlparse
 import hashlib
 
-import requests
-from bs4 import BeautifulSoup
-from markdownify import markdownify as md
+try:
+    import requests
+    from bs4 import BeautifulSoup
+    from markdownify import markdownify as md
+except ImportError as e:
+    print(f"Missing required dependency: {e}")
+    print("Please install: pip install requests beautifulsoup4 markdownify")
+    raise
 
-from config.settings import get_settings
-from src.common.exceptions import DocumentationCrawlerError
-from src.common.logger import QueryOptimizerLogger
-from src.common.models import DocumentationSection
+try:
+    from config.settings import get_settings
+    from src.common.exceptions import DocumentationCrawlerError
+    from src.common.logger import QueryOptimizerLogger
+    from src.common.models import DocumentationSection
+except ImportError as e:
+    print(f"Missing internal dependency: {e}")
+    print("Please ensure all project dependencies are installed")
+    raise
 
 
 class BigQueryDocsCrawler:
     """Crawler for BigQuery optimization documentation."""
     
     def __init__(self):
-        self.settings = get_settings()
-        self.logger = QueryOptimizerLogger(__name__)
+        try:
+            self.settings = get_settings()
+        except Exception:
+            # Fallback settings if config is not available
+            self.settings = type('Settings', (), {
+                'docs_base_url': 'https://cloud.google.com/bigquery/docs',
+                'documentation_patterns': ['best-practices-performance'],
+                'crawl_delay': 1,
+                'docs_output_dir': Path('./docs_output')
+            })()
+        
+        try:
+            self.logger = QueryOptimizerLogger(__name__)
+        except Exception:
+            # Fallback logger if not available
+            import logging
+            self.logger = type('Logger', (), {
+                'logger': logging.getLogger(__name__),
+                'log_error': lambda self, e, ctx: print(f"Error: {e}"),
+                'log_crawler_progress': lambda self, url, status, count: print(f"Crawling {url}: {status}")
+            })()
+        
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'BigQuery-Query-Optimizer/1.0 (Educational Purpose)'
@@ -88,12 +118,28 @@ class BigQueryDocsCrawler:
             # Extract optimization patterns mentioned
             optimization_patterns = self._extract_optimization_patterns(content)
             
-            section = DocumentationSection(
-                title=title,
-                url=url,
-                content=content,
-                optimization_patterns=optimization_patterns
-            )
+            # Create documentation section (handle missing DocumentationSection class)
+            try:
+                section = DocumentationSection(
+                    title=title,
+                    url=url,
+                    content=content,
+                    optimization_patterns=optimization_patterns
+                )
+            except NameError:
+                # Fallback if DocumentationSection is not available
+                section = type('DocumentationSection', (), {
+                    'title': title,
+                    'url': url,
+                    'content': content,
+                    'optimization_patterns': optimization_patterns,
+                    'model_dump': lambda self: {
+                        'title': self.title,
+                        'url': self.url,
+                        'content': self.content,
+                        'optimization_patterns': self.optimization_patterns
+                    }
+                })()
             
             self.documentation_sections.append(section)
             self.crawled_urls.add(url)
@@ -241,7 +287,11 @@ class BigQueryDocsCrawler:
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    section = DocumentationSection(**data)
+                    try:
+                        section = DocumentationSection(**data)
+                    except NameError:
+                        # Fallback if DocumentationSection is not available
+                        section = type('DocumentationSection', (), data)()
                     sections.append(section)
             except Exception as e:
                 self.logger.logger.warning(f"Failed to load {json_file}: {str(e)}")

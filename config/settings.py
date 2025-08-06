@@ -31,8 +31,8 @@ class Settings(BaseSettings):
         default=None,
         description="Gemini API key for AI optimization"
     )
-    gemini_model: str = Field(
-        default="gemini-pro",
+    gemini_model_name: str = Field(
+        default="models/gemini-pro",
         description="Gemini model to use for optimization"
     )
     
@@ -140,3 +140,5 @@ settings = Settings()
 def get_settings() -> Settings:
     """Get application settings."""
     return settings
+
+print("✅ Using credentials from:", settings.google_application_credentials)
