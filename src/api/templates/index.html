@@ -141,6 +141,10 @@ ORDER BY order_count DESC"
                         <span>Run Tests</span>
                         <div id="testsLoading" class="loading ml-2" style="display: none;"></div>
                     </button>
+                    <button id="setupDataBtn" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center">
+                        <span>Setup Test Data</span>
+                        <div id="setupLoading" class="loading ml-2" style="display: none;"></div>
+                    </button>
                     <button id="loadTestQueryBtn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
                         Load Test Query
                     </button>
@@ -488,6 +492,64 @@ HAVING COUNT(*) > 100`
             }
         });
 
+        // Add missing event handler for setupDataBtn
+        const setupDataBtn = document.getElementById('setupDataBtn');
+        if (setupDataBtn) {
+            setupDataBtn.addEventListener('click', async () => {
+                hideError();
+                showLoading('setupDataBtn', 'setupLoading');
+
+                try {
+                    const result = await makeAPICall('/setup-test-data', {
+                        project_id: projectId.value || null,
+                        test_type: 'sandbox',
+                        cleanup: false
+                    }, 'POST');
+
+                    if (result.success) {
+                        // Show success message
+                        const successHtml = `
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-green-800">Test Data Setup Complete!</h3>
+                                        <div class="mt-2 text-sm text-green-700">
+                                            <p>Dataset: <strong>${result.dataset_id}</strong></p>
+                                            <p>Tables created: ${result.tables_created.join(', ')}</p>
+                                            <p>Project: ${result.project_id}</p>
+                                            <p>Setup time: ${result.execution_time.toFixed(2)} seconds</p>
+                                            <p class="mt-2">You can now run tests or load test queries!</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Insert success message before results section
+                        const main = document.querySelector('main');
+                        const resultsSection = document.getElementById('resultsSection');
+                        resultsSection.insertAdjacentHTML('beforebegin', successHtml);
+                        
+                        // Remove success message after 10 seconds
+                        setTimeout(() => {
+                            const successDiv = document.querySelector('.bg-green-50');
+                            if (successDiv) successDiv.remove();
+                        }, 10000);
+                    } else {
+                        showError(`Setup failed: ${result.error_message}`);
+                    }
+                } catch (error) {
+                    showError(`Setup failed: ${error.message}`);
+                } finally {
+                    hideLoading('setupDataBtn', 'setupLoading');
+                }
+            });
+        }
         loadSampleBtn.addEventListener('click', () => {
             const randomQuery = sampleQueries[Math.floor(Math.random() * sampleQueries.length)];
             queryInput.value = randomQuery;
@@ -917,6 +979,7 @@ HAVING COUNT(*) > 100`
                     <div class="relative top-20 mx-auto p-5 border w-4/5 max-w-4xl shadow-lg rounded-md bg-white">
                         <div class="mt-3">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Select Test Query</h3>
+                            <p class="text-sm text-gray-600 mb-4">Choose a test query to load into the editor. These queries are designed to demonstrate different optimization scenarios.</p>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 ${Object.entries(testQueries).map(([key, query]) => `
                                     <div class="border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50" onclick="loadTestQuery('${key}')">
@@ -929,10 +992,16 @@ HAVING COUNT(*) > 100`
                                     </div>
                                 `).join('')}
                             </div>
-                            <div class="flex justify-end">
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs text-gray-500">💡 Tip: Make sure you have set up test data first using the "Setup Test Data" button</p>
+                                <div class="flex space-x-2">
+                                    <button onclick="loadRandomTestQuery()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm">
+                                        Load Random Query
+                                    </button>
                                 <button onclick="closeTestQueryModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
                                     Close
                                 </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -947,9 +1016,26 @@ HAVING COUNT(*) > 100`
             if (query) {
                 queryInput.value = query.inefficient_query;
                 closeTestQueryModal();
+                
+                // Show a brief notification about which query was loaded
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50';
+                notification.textContent = `Loaded: ${query.name}`;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
             }
         };
 
+        window.loadRandomTestQuery = function() {
+            const queryKeys = Object.keys(testQueries);
+            if (queryKeys.length > 0) {
+                const randomKey = queryKeys[Math.floor(Math.random() * queryKeys.length)];
+                loadTestQuery(randomKey);
+            }
+        };
         window.closeTestQueryModal = function() {
             const modal = document.getElementById('testQueryModal');
             if (modal) {
