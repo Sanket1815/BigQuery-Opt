@@ -1,0 +1,6 @@
+# Additional requirements for the REST API
+fastapi==0.108.0
+uvicorn[standard]==0.25.0
+
+# All existing requirements
+# -r requirements.txt

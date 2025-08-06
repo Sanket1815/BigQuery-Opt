@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Query Optimizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .code-editor {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .result-card {
+            transition: all 0.3s ease;
+        }
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900">BigQuery Query Optimizer</h1>
+                    <span class="ml-3 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">AI-Powered</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="statusBtn" class="text-sm text-gray-600 hover:text-gray-900">
+                        System Status
+                    </button>
+                    <a href="/docs" target="_blank" class="text-sm text-blue-600 hover:text-blue-800">
+                        API Docs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Query Input Section -->
+        <div class="bg-white rounded-lg shadow-sm border mb-8">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">SQL Query Input</h2>
+                    <div class="flex space-x-2">
+                        <button id="loadSampleBtn" class="text-sm text-blue-600 hover:text-blue-800">
+                            Load Sample Query
+                        </button>
+                        <button id="clearBtn" class="text-sm text-gray-600 hover:text-gray-800">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <textarea 
+                        id="queryInput" 
+                        class="w-full h-40 p-4 border border-gray-300 rounded-lg code-editor text-sm resize-y focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter your BigQuery SQL query here...
+
+Example:
+SELECT customer_id, COUNT(*) as order_count
+FROM orders 
+WHERE order_date >= '2024-01-01'
+GROUP BY customer_id
+ORDER BY order_count DESC"
+                    ></textarea>
+                </div>
+
+                <!-- Options -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Project ID (Optional)</label>
+                        <input 
+                            type="text" 
+                            id="projectId" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="your-gcp-project-id"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sample Size</label>
+                        <input 
+                            type="number" 
+                            id="sampleSize" 
+                            value="1000" 
+                            min="100" 
+                            max="10000"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                    </div>
+                    <div class="flex items-end">
+                        <div class="flex space-x-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="validateResults" checked class="mr-2">
+                                <span class="text-sm text-gray-700">Validate Results</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="measurePerformance" class="mr-2">
+                                <span class="text-sm text-gray-700">Measure Performance</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-3">
+                    <button id="optimizeBtn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                        <span>Optimize Query</span>
+                        <div id="optimizeLoading" class="loading ml-2" style="display: none;"></div>
+                    </button>
+                    <button id="analyzeBtn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                        <span>Analyze Only</span>
+                        <div id="analyzeLoading" class="loading ml-2" style="display: none;"></div>
+                    </button>
+                    <button id="suggestionsBtn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center">
+                        <span>Get Suggestions</span>
+                        <div id="suggestionsLoading" class="loading ml-2" style="display: none;"></div>
+                    </button>
+                    <button id="runTestsBtn" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center">
+                        <span>Run Tests</span>
+                        <div id="testsLoading" class="loading ml-2" style="display: none;"></div>
+                    </button>
+                    <button id="setupDataBtn" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center">
+                    <button type="button" id="loadTestQueryBtn" onclick="loadTestQuery()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        Load Test Query
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+            <!-- Optimization Results -->
+            <div id="optimizationResults" class="hidden bg-white rounded-lg shadow-sm border mb-8">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Optimization Results</h3>
+                    <div id="optimizationContent"></div>
+                </div>
+            </div>
+
+            <!-- Analysis Results -->
+            <div id="analysisResults" class="hidden bg-white rounded-lg shadow-sm border mb-8">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Query Analysis</h3>
+                    <div id="analysisContent"></div>
+                </div>
+            </div>
+
+            <!-- Suggestions Results -->
+            <div id="suggestionsResults" class="hidden bg-white rounded-lg shadow-sm border mb-8">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Optimization Suggestions</h3>
+                    <div id="suggestionsContent"></div>
+                </div>
+            </div>
+
+            <!-- Test Results -->
+            <div id="testResults" class="hidden bg-white rounded-lg shadow-sm border mb-8">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Test Suite Results</h3>
+                    <div id="testContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Display -->
+        <div id="errorSection" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">Error</h3>
+                    <div id="errorMessage" class="mt-2 text-sm text-red-700"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Status Modal -->
+    <div id="statusModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">System Status</h3>
+                <div id="statusContent" class="text-sm text-gray-600">
+                    <div class="loading"></div> Loading status...
+                </div>
+                <div class="mt-4">
+                    <button id="closeStatusModal" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL
+        const API_BASE = '/api/v1';
+
+        // DOM elements
+        const queryInput = document.getElementById('queryInput');
+        const projectId = document.getElementById('projectId');
+        const sampleSize = document.getElementById('sampleSize');
+        const validateResults = document.getElementById('validateResults');
+        
+        const optimizeBtn = document.getElementById('optimizeBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const suggestionsBtn = document.getElementById('suggestionsBtn');
+        const runTestsBtn = document.getElementById('runTestsBtn');
+        // const setupDataBtn = document.getElementById('setupDataBtn');
+        const loadTestQueryBtn = document.getElementById('loadTestQueryBtn');
+        const loadSampleBtn = document.getElementById('loadSampleBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusBtn = document.getElementById('statusBtn');
+
+        const resultsSection = document.getElementById('resultsSection');
+        const optimizationResults = document.getElementById('optimizationResults');
+        const analysisResults = document.getElementById('analysisResults');
+        const suggestionsResults = document.getElementById('suggestionsResults');
+        const testResults = document.getElementById('testResults');
+        const errorSection = document.getElementById('errorSection');
+
+        // Sample queries
+        const sampleQueries = [
+            `SELECT *
+FROM orders 
+WHERE order_date >= '2024-01-01'`,
+            
+            `SELECT customer_id, COUNT(DISTINCT order_id) as order_count
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+WHERE o.order_date >= '2024-01-01'
+GROUP BY customer_id
+ORDER BY order_count DESC`,
+            
+            `SELECT 
+    category,
+    COUNT(*) as total_orders,
+    SUM(amount) as total_revenue,
+    COUNT(DISTINCT customer_id) as unique_customers
+FROM order_items oi
+JOIN products p ON oi.product_id = p.product_id
+WHERE oi.order_date >= '2024-01-01'
+GROUP BY category
+HAVING COUNT(*) > 100`
+        ];
+
+        // Test queries for different test types
+        let testQueries = {};
+
+        // Utility functions
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            errorSection.classList.remove('hidden');
+            resultsSection.classList.add('hidden');
+        }
+
+        function hideError() {
+            errorSection.classList.add('hidden');
+        }
+
+        function showLoading(buttonId, loadingId) {
+            document.getElementById(buttonId).disabled = true;
+            document.getElementById(loadingId).style.display = 'inline-block';
+        }
+
+        function hideLoading(buttonId, loadingId) {
+            document.getElementById(buttonId).disabled = false;
+            document.getElementById(loadingId).style.display = 'none';
+        }
+
+        function formatJSON(obj) {
+            return JSON.stringify(obj, null, 2);
+        }
+
+        function createCodeBlock(code, language = 'sql') {
+            return `<pre><code class="language-${language}">${code}</code></pre>`;
+        }
+
+        // API calls
+        async function makeAPICall(endpoint, data = null, method = 'GET') {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            if (data && method !== 'GET') {
+                options.body = JSON.stringify(data);
+            }
+
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP ${response.status}`);
+            }
+
+            return await response.json();
+        }
+
+        // Event handlers
+        optimizeBtn.addEventListener('click', async () => {
+            const query = queryInput.value.trim();
+            if (!query) {
+                showError('Please enter a SQL query');
+                return;
+            }
+
+            hideError();
+            showLoading('optimizeBtn', 'optimizeLoading');
+
+            try {
+                const result = await makeAPICall('/optimize', {
+                    query,
+                    project_id: projectId.value || null,
+                    validate: validateResults.checked,
+                    measure_performance: measurePerformance.checked,
+                    sample_size: parseInt(sampleSize.value)
+                }, 'POST');
+
+                displayOptimizationResults(result);
+            } catch (error) {
+                showError(`Optimization failed: ${error.message}`);
+            } finally {
+                hideLoading('optimizeBtn', 'optimizeLoading');
+            }
+        });
+
+        analyzeBtn.addEventListener('click', async () => {
+            const query = queryInput.value.trim();
+            if (!query) {
+                showError('Please enter a SQL query');
+                return;
+            }
+
+            hideError();
+            showLoading('analyzeBtn', 'analyzeLoading');
+
+            try {
+                const result = await makeAPICall('/analyze', {
+                    query,
+                    project_id: projectId.value || null
+                }, 'POST');
+
+                displayAnalysisResults(result);
+            } catch (error) {
+                showError(`Analysis failed: ${error.message}`);
+            } finally {
+                hideLoading('analyzeBtn', 'analyzeLoading');
+            }
+        });
+
+        suggestionsBtn.addEventListener('click', async () => {
+            const query = queryInput.value.trim();
+            if (!query) {
+                showError('Please enter a SQL query');
+                return;
+            }
+
+            hideError();
+            showLoading('suggestionsBtn', 'suggestionsLoading');
+
+            try {
+                const params = new URLSearchParams({
+                    query,
+                    ...(projectId.value && { project_id: projectId.value })
+                });
+                
+                const result = await makeAPICall(`/suggestions?${params}`);
+                displaySuggestionsResults(result);
+            } catch (error) {
+                showError(`Failed to get suggestions: ${error.message}`);
+            } finally {
+                hideLoading('suggestionsBtn', 'suggestionsLoading');
+            }
+        });
+
+        runTestsBtn.addEventListener('click', async () => {
+            hideError();
+            showLoading('runTestsBtn', 'testsLoading');
+
+            try {
+                const result = await makeAPICall('/run-tests', {
+                    project_id: projectId.value || null,
+                    test_type: 'sandbox',
+                    cleanup: true
+                }, 'POST');
+
+                displayTestResults(result);
+            } catch (error) {
+                showError(`Test execution failed: ${error.message}`);
+            } finally {
+                hideLoading('runTestsBtn', 'testsLoading');
+            }
+        });
+        setupDataBtn.addEventListener('click', async () => {
+            hideError();
+            showLoading('setupDataBtn', 'setupLoading');
+
+            try {
+                const result = await makeAPICall('/setup-test-data', {
+                    project_id: projectId.value || null,
+                    test_type: 'sandbox',
+                    cleanup: false
+                }, 'POST');
+
+                if (result.success) {
+                    // Show success message
+                    const successHtml = `
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-green-800">Test Data Setup Complete!</h3>
+                                    <div class="mt-2 text-sm text-green-700">
+                                        <p>Dataset: <strong>${result.dataset_id}</strong></p>
+                                        <p>Tables created: ${result.tables_created.join(', ')}</p>
+                                        <p>Project: ${result.project_id}</p>
+                                        <p>Setup time: ${result.execution_time.toFixed(2)} seconds</p>
+                                        <p class="mt-2">You can now run tests or load test queries!</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Insert success message before results section
+                    const main = document.querySelector('main');
+                    const resultsSection = document.getElementById('resultsSection');
+                    resultsSection.insertAdjacentHTML('beforebegin', successHtml);
+                    
+                    // Remove success message after 10 seconds
+                    setTimeout(() => {
+                        const successDiv = document.querySelector('.bg-green-50');
+                        if (successDiv) successDiv.remove();
+                    }, 10000);
+                } else {
+                    showError(`Setup failed: ${result.error_message}`);
+                }
+            } catch (error) {
+                showError(`Setup failed: ${error.message}`);
+            } finally {
+                hideLoading('setupDataBtn', 'setupLoading');
+            }
+        });
+
+        loadTestQueryBtn.addEventListener('click', async () => {
+            try {
+                if (Object.keys(testQueries).length === 0) {
+                    const queries = await makeAPICall('/test-queries');
+                    testQueries = queries.test_queries;
+                }
+
+                // Show modal to select test query type
+                showTestQueryModal();
+            } catch (error) {
+                showError(`Failed to load test queries: ${error.message}`);
+            }
+        });
+
+        // Add missing event handler for setupDataBtn
+        const setupDataBtn = document.getElementById('setupDataBtn');
+        if (setupDataBtn) {
+            setupDataBtn.addEventListener('click', async () => {
+                hideError();
+                showLoading('setupDataBtn', 'setupLoading');
+
+                try {
+                    const result = await makeAPICall('/setup-test-data', {
+                        project_id: projectId.value || null,
+                        test_type: 'sandbox',
+                        cleanup: false
+                    }, 'POST');
+
+                    if (result.success) {
+                        // Show success message
+                        const successHtml = `
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-green-800">Test Data Setup Complete!</h3>
+                                        <div class="mt-2 text-sm text-green-700">
+                                            <p>Dataset: <strong>${result.dataset_id}</strong></p>
+                                            <p>Tables created: ${result.tables_created.join(', ')}</p>
+                                            <p>Project: ${result.project_id}</p>
+                                            <p>Setup time: ${result.execution_time.toFixed(2)} seconds</p>
+                                            <p class="mt-2">You can now run tests or load test queries!</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Insert success message before results section
+                        const main = document.querySelector('main');
+                        const resultsSection = document.getElementById('resultsSection');
+                        resultsSection.insertAdjacentHTML('beforebegin', successHtml);
+                        
+                        // Remove success message after 10 seconds
+                        setTimeout(() => {
+                            const successDiv = document.querySelector('.bg-green-50');
+                            if (successDiv) successDiv.remove();
+                        }, 10000);
+                    } else {
+                        showError(`Setup failed: ${result.error_message}`);
+                    }
+                } catch (error) {
+                    showError(`Setup failed: ${error.message}`);
+                } finally {
+                    hideLoading('setupDataBtn', 'setupLoading');
+                }
+            });
+        }
+        loadSampleBtn.addEventListener('click', () => {
+            const randomQuery = sampleQueries[Math.floor(Math.random() * sampleQueries.length)];
+            queryInput.value = randomQuery;
+        });
+
+        clearBtn.addEventListener('click', () => {
+            queryInput.value = '';
+            hideError();
+            resultsSection.classList.add('hidden');
+        });
+
+        statusBtn.addEventListener('click', async () => {
+            document.getElementById('statusModal').classList.remove('hidden');
+            document.getElementById('statusContent').innerHTML = '<div class="loading"></div> Loading status...';
+
+            try {
+                const status = await makeAPICall('/status');
+                displaySystemStatus(status);
+            } catch (error) {
+                document.getElementById('statusContent').innerHTML = `<p class="text-red-600">Error loading status: ${error.message}</p>`;
+            }
+        });
+
+        document.getElementById('closeStatusModal').addEventListener('click', () => {
+            document.getElementById('statusModal').classList.add('hidden');
+        });
+
+        // Display functions
+        function displayOptimizationResults(result) {
+            const content = document.getElementById('optimizationContent');
+            
+            let html = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="result-card bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-blue-900">Optimizations Applied</h4>
+                        <p class="text-2xl font-bold text-blue-600">${result.total_optimizations}</p>
+                    </div>
+                    <div class="result-card bg-green-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-green-900">Estimated Improvement</h4>
+                        <p class="text-2xl font-bold text-green-600">${result.estimated_improvement ? (result.estimated_improvement * 100).toFixed(1) + '%' : 'N/A'}</p>
+                    </div>
+                    <div class="result-card bg-purple-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-purple-900">Results Identical</h4>
+                        <p class="text-2xl font-bold ${result.results_identical ? 'text-green-600' : 'text-red-600'}">
+                            ${result.results_identical === null ? 'N/A' : (result.results_identical ? '✓ Yes' : '✗ No')}
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            if (result.optimizations_applied && result.optimizations_applied.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Applied Optimizations</h4>
+                        <div class="space-y-3">
+                `;
+                
+                result.optimizations_applied.forEach(opt => {
+                    html += `
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <h5 class="font-medium text-gray-900">${opt.pattern_name}</h5>
+                                <span class="text-sm text-green-600">${opt.expected_improvement ? (opt.expected_improvement * 100).toFixed(1) + '% improvement' : ''}</span>
+                            </div>
+                            <p class="text-gray-600 text-sm mb-2">${opt.description}</p>
+                            ${opt.before_snippet && opt.after_snippet ? `
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <p class="font-medium text-red-700 mb-1">Before:</p>
+                                        ${createCodeBlock(opt.before_snippet)}
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-green-700 mb-1">After:</p>
+                                        ${createCodeBlock(opt.after_snippet)}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+
+            html += `
+                <div class="mb-6">
+                    <h4 class="font-semibold text-gray-900 mb-3">Optimized Query</h4>
+                    ${createCodeBlock(result.optimized_query)}
+                </div>
+            `;
+
+            if (result.validation_error) {
+                html += `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-red-900 mb-2">Validation Error</h4>
+                        <p class="text-red-700">${result.validation_error}</p>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+            optimizationResults.classList.remove('hidden');
+            analysisResults.classList.add('hidden');
+            suggestionsResults.classList.add('hidden');
+            testResults.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+
+            // Re-highlight code
+            Prism.highlightAll();
+        }
+
+        function displayAnalysisResults(result) {
+            const content = document.getElementById('analysisContent');
+            
+            let html = `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="result-card bg-gray-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-gray-900">Complexity</h4>
+                        <p class="text-lg font-bold text-gray-600 capitalize">${result.complexity}</p>
+                    </div>
+                    <div class="result-card bg-blue-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-blue-900">Tables</h4>
+                        <p class="text-lg font-bold text-blue-600">${result.table_count}</p>
+                    </div>
+                    <div class="result-card bg-green-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-green-900">JOINs</h4>
+                        <p class="text-lg font-bold text-green-600">${result.join_count}</p>
+                    </div>
+                    <div class="result-card bg-purple-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-purple-900">Subqueries</h4>
+                        <p class="text-lg font-bold text-purple-600">${result.subquery_count}</p>
+                    </div>
+                </div>
+            `;
+
+            if (result.potential_issues && result.potential_issues.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Potential Issues</h4>
+                        <ul class="space-y-2">
+                `;
+                result.potential_issues.forEach(issue => {
+                    html += `<li class="flex items-start"><span class="text-yellow-500 mr-2">⚠</span><span class="text-gray-700">${issue}</span></li>`;
+                });
+                html += `</ul></div>`;
+            }
+
+            if (result.applicable_patterns && result.applicable_patterns.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Applicable Optimization Patterns</h4>
+                        <div class="flex flex-wrap gap-2">
+                `;
+                result.applicable_patterns.forEach(pattern => {
+                    html += `<span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${pattern.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`;
+                });
+                html += `</div></div>`;
+            }
+
+            content.innerHTML = html;
+            analysisResults.classList.remove('hidden');
+            optimizationResults.classList.add('hidden');
+            suggestionsResults.classList.add('hidden');
+            testResults.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+        }
+
+        function displaySuggestionsResults(result) {
+            const content = document.getElementById('suggestionsContent');
+            
+            let html = '';
+
+            if (result.specific_suggestions && result.specific_suggestions.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Optimization Suggestions</h4>
+                        <div class="space-y-4">
+                `;
+                
+                result.specific_suggestions.forEach((suggestion, index) => {
+                    html += `
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <h5 class="font-medium text-gray-900">${suggestion.pattern_name}</h5>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-green-600">${suggestion.expected_improvement ? (suggestion.expected_improvement * 100).toFixed(1) + '% improvement' : ''}</span>
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Priority ${suggestion.priority || 'N/A'}</span>
+                                </div>
+                            </div>
+                            <p class="text-gray-600 text-sm mb-2">${suggestion.description}</p>
+                            <p class="text-gray-800 text-sm">${suggestion.specific_advice}</p>
+                            ${suggestion.documentation_url ? `
+                                <a href="${suggestion.documentation_url}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">
+                                    📖 View Documentation
+                                </a>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+
+            if (result.documentation_references && result.documentation_references.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Related Documentation</h4>
+                        <div class="space-y-2">
+                `;
+                
+                result.documentation_references.slice(0, 3).forEach(doc => {
+                    html += `
+                        <div class="border border-gray-200 rounded p-3">
+                            <h6 class="font-medium text-gray-900">${doc.title}</h6>
+                            <p class="text-gray-600 text-sm mt-1">${doc.content ? doc.content.substring(0, 200) + '...' : ''}</p>
+                            ${doc.url ? `<a href="${doc.url}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">Read more</a>` : ''}
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+
+            content.innerHTML = html || '<p class="text-gray-600">No specific suggestions available for this query.</p>';
+            suggestionsResults.classList.remove('hidden');
+            optimizationResults.classList.add('hidden');
+            analysisResults.classList.add('hidden');
+            testResults.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+        }
+
+        function displayTestResults(result) {
+            const content = document.getElementById('testContent');
+            
+            let html = `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="result-card ${result.success ? 'bg-green-50' : 'bg-red-50'} p-4 rounded-lg text-center">
+                        <h4 class="font-semibold ${result.success ? 'text-green-900' : 'text-red-900'}">Overall Status</h4>
+                        <p class="text-lg font-bold ${result.success ? 'text-green-600' : 'text-red-600'}">${result.success ? '✅ PASSED' : '❌ FAILED'}</p>
+                    </div>
+                    <div class="result-card bg-blue-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-blue-900">Total Tests</h4>
+                        <p class="text-lg font-bold text-blue-600">${result.total_tests}</p>
+                    </div>
+                    <div class="result-card bg-green-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-green-900">Passed</h4>
+                        <p class="text-lg font-bold text-green-600">${result.passed_tests}</p>
+                    </div>
+                    <div class="result-card bg-red-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-red-900">Failed</h4>
+                        <p class="text-lg font-bold text-red-600">${result.failed_tests}</p>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600">Execution time: ${result.execution_time.toFixed(2)} seconds</p>
+                </div>
+            `;
+
+            if (result.results && result.results.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Test Results</h4>
+                        <div class="space-y-2">
+                `;
+                
+                result.results.forEach(test => {
+                    const statusColor = test.status === 'PASSED' || test.status === 'SUCCESS' ? 'text-green-600' : 'text-red-600';
+                    const statusIcon = test.status === 'PASSED' || test.status === 'SUCCESS' ? '✅' : '❌';
+                    
+                    html += `
+                        <div class="flex items-center justify-between p-3 border border-gray-200 rounded">
+                            <span class="font-medium">${test.name}</span>
+                            <span class="${statusColor}">${statusIcon} ${test.status}</span>
+                        </div>
+                    `;
+                    
+                    if (test.message && test.status !== 'PASSED') {
+                        html += `<p class="text-sm text-gray-600 ml-4">${test.message}</p>`;
+                    }
+                });
+                
+                html += `</div></div>`;
+            }
+
+            if (result.error_message) {
+                html += `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-red-900 mb-2">Error Details</h4>
+                        <pre class="text-red-700 text-sm whitespace-pre-wrap">${result.error_message}</pre>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+            testResults.classList.remove('hidden');
+            optimizationResults.classList.add('hidden');
+            analysisResults.classList.add('hidden');
+            suggestionsResults.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+        }
+        function displayTestResults(result) {
+            const content = document.getElementById('testContent');
+            
+            let html = `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="result-card ${result.success ? 'bg-green-50' : 'bg-red-50'} p-4 rounded-lg text-center">
+                        <h4 class="font-semibold ${result.success ? 'text-green-900' : 'text-red-900'}">Overall Status</h4>
+                        <p class="text-lg font-bold ${result.success ? 'text-green-600' : 'text-red-600'}">${result.success ? '✅ PASSED' : '❌ FAILED'}</p>
+                    </div>
+                    <div class="result-card bg-blue-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-blue-900">Total Tests</h4>
+                        <p class="text-lg font-bold text-blue-600">${result.total_tests}</p>
+                    </div>
+                    <div class="result-card bg-green-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-green-900">Passed</h4>
+                        <p class="text-lg font-bold text-green-600">${result.passed_tests}</p>
+                    </div>
+                    <div class="result-card bg-red-50 p-4 rounded-lg text-center">
+                        <h4 class="font-semibold text-red-900">Failed</h4>
+                        <p class="text-lg font-bold text-red-600">${result.failed_tests}</p>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600">Execution time: ${result.execution_time.toFixed(2)} seconds</p>
+                </div>
+            `;
+
+            if (result.results && result.results.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3">Test Results</h4>
+                        <div class="space-y-2">
+                `;
+                
+                result.results.forEach(test => {
+                    const statusColor = test.status === 'PASSED' || test.status === 'SUCCESS' ? 'text-green-600' : 'text-red-600';
+                    const statusIcon = test.status === 'PASSED' || test.status === 'SUCCESS' ? '✅' : '❌';
+                    
+                    html += `
+                        <div class="flex items-center justify-between p-3 border border-gray-200 rounded">
+                            <span class="font-medium">${test.name}</span>
+                            <span class="${statusColor}">${statusIcon} ${test.status}</span>
+                        </div>
+                    `;
+                    
+                    if (test.message && test.status !== 'PASSED') {
+                        html += `<p class="text-sm text-gray-600 ml-4">${test.message}</p>`;
+                    }
+                });
+                
+                html += `</div></div>`;
+            }
+
+            if (result.error_message) {
+                html += `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-red-900 mb-2">Error Details</h4>
+                        <pre class="text-red-700 text-sm whitespace-pre-wrap">${result.error_message}</pre>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+            testResults.classList.remove('hidden');
+            optimizationResults.classList.add('hidden');
+            analysisResults.classList.add('hidden');
+            suggestionsResults.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+        }
+
+        function displaySystemStatus(status) {
+            const content = document.getElementById('statusContent');
+            
+            let html = `
+                <div class="mb-4">
+                    <div class="flex items-center mb-2">
+                        <span class="w-3 h-3 rounded-full mr-2 ${status.status === 'healthy' ? 'bg-green-500' : status.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}"></span>
+                        <span class="font-semibold capitalize">${status.status}</span>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h4 class="font-semibold mb-2">Components</h4>
+                    <div class="space-y-1 text-sm">
+            `;
+            
+            Object.entries(status.components).forEach(([key, value]) => {
+                const isHealthy = value === 'connected' || value === true || (typeof value === 'number' && value > 0);
+                html += `
+                    <div class="flex justify-between">
+                        <span>${key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>
+                        <span class="${isHealthy ? 'text-green-600' : 'text-red-600'}">${value}</span>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-2">Statistics</h4>
+                    <div class="space-y-1 text-sm">
+            `;
+            
+            Object.entries(status.statistics).forEach(([key, value]) => {
+                if (typeof value !== 'object') {
+                    html += `
+                        <div class="flex justify-between">
+                            <span>${key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>
+                            <span class="text-gray-600">${value}</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            html += `</div></div>`;
+            
+            content.innerHTML = html;
+        }
+
+        function showTestQueryModal() {
+            const modalHtml = `
+                <div id="testQueryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div class="relative top-20 mx-auto p-5 border w-4/5 max-w-4xl shadow-lg rounded-md bg-white">
+                        <div class="mt-3">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Select Test Query</h3>
+                            <p class="text-sm text-gray-600 mb-4">Choose a test query to load into the editor. These queries are designed to demonstrate different optimization scenarios.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                ${Object.entries(testQueries).map(([key, query]) => `
+                                    <div class="border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50" onclick="loadTestQuery('${key}')">
+                                        <h4 class="font-semibold text-gray-900">${query.name}</h4>
+                                        <p class="text-sm text-gray-600 mb-2">${query.description}</p>
+                                        <p class="text-xs text-blue-600">Expected: ${query.expected_improvement} improvement</p>
+                                        <div class="mt-2">
+                                            <span class="text-xs text-gray-500">Optimizations: ${query.expected_optimizations.join(', ')}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs text-gray-500">💡 Tip: Make sure you have set up test data first using the "Setup Test Data" button</p>
+                                <div class="flex space-x-2">
+                                    <button onclick="loadRandomTestQuery()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm">
+                                        Load Random Query
+                                    </button>
+                                <button onclick="closeTestQueryModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                                    Close
+                                </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        window.loadTestQuery = function(queryKey) {
+            const query = testQueries[queryKey];
+            if (query) {
+                queryInput.value = query.inefficient_query;
+                closeTestQueryModal();
+                
+                // Show a brief notification about which query was loaded
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50';
+                notification.textContent = `Loaded: ${query.name}`;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        };
+
+        window.loadRandomTestQuery = function() {
+            const queryKeys = Object.keys(testQueries);
+            if (queryKeys.length > 0) {
+                const randomKey = queryKeys[Math.floor(Math.random() * queryKeys.length)];
+                loadTestQuery(randomKey);
+            }
+        };
+        window.closeTestQueryModal = function() {
+            const modal = document.getElementById('testQueryModal');
+            if (modal) {
+                modal.remove();
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load a sample query by default
+            queryInput.value = sampleQueries[0];
+        });
+
+        // Load Test Query functionality
+        function loadTestQuery() {
+            showTestQueryModal();
+        }
+
+        function showTestQueryModal() {
+            const modal = document.getElementById('testQueryModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            } else {
+                // Create modal if it doesn't exist
+                createTestQueryModal();
+            }
+        }
+
+        function hideTestQueryModal() {
+            const modal = document.getElementById('testQueryModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function createTestQueryModal() {
+            const modalHTML = `
+                <div id="testQueryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                        <div class="mt-3">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">Load Test Query</h3>
+                                <button onclick="hideTestQueryModal()" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                <p class="text-sm text-blue-700">
+                                    💡 <strong>Tip:</strong> Make sure to setup test data first by clicking the "Setup Test Data" button.
+                                </p>
+                            </div>
+
+                            <div class="space-y-3 max-h-96 overflow-y-auto">
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('simple')">
+                                    <h4 class="font-semibold text-gray-900">Simple Query Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">Basic SELECT with inefficient WHERE clause</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Column Pruning</span>
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-1">Partition Filtering</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 30-50%</p>
+                                </div>
+
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('join')">
+                                    <h4 class="font-semibold text-gray-900">Complex JOIN Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">Multi-table JOIN with suboptimal ordering</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">JOIN Reordering</span>
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-1">Partition Filtering</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 20-40%</p>
+                                </div>
+
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('aggregation')">
+                                    <h4 class="font-semibold text-gray-900">Aggregation Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">GROUP BY without proper partitioning</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Partition Filtering</span>
+                                        <span class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded ml-1">Approximate Aggregation</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 40-60%</p>
+                                </div>
+
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('window')">
+                                    <h4 class="font-semibold text-gray-900">Window Function Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">Inefficient window specifications</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded">Window Optimization</span>
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-1">Partition Filtering</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 15-30%</p>
+                                </div>
+
+                                <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="loadSpecificQuery('nested')">
+                                    <h4 class="font-semibold text-gray-900">Nested Query Test</h4>
+                                    <p class="text-sm text-gray-600 mt-1">Deeply nested subqueries that can be flattened</p>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Subquery to JOIN</span>
+                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-1">Partition Filtering</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Expected improvement: 25-45%</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 flex justify-between">
+                                <button onclick="loadRandomQuery()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                                    🎲 Load Random Query
+                                </button>
+                                <button onclick="hideTestQueryModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        function loadSpecificQuery(queryType) {
+            const projectId = document.getElementById('projectId').value || 'your-project-id';
+            const dataset = 'optimizer_test_dataset';
+            
+            const queries = {
+                simple: `SELECT *
+FROM \`${projectId}.${dataset}.orders\`
+WHERE order_date >= '2024-06-01'
+AND status = 'completed'
+ORDER BY total_amount DESC
+LIMIT 100`,
+
+                join: `SELECT 
+    c.customer_name,
+    o.order_id,
+    o.total_amount,
+    p.product_name,
+    oi.quantity
+FROM \`${projectId}.${dataset}.order_items\` oi
+JOIN \`${projectId}.${dataset}.orders\` o 
+    ON oi.order_id = o.order_id
+JOIN \`${projectId}.${dataset}.customers\` c 
+    ON o.customer_id = c.customer_id
+JOIN \`${projectId}.${dataset}.products\` p 
+    ON oi.product_id = p.product_id
+WHERE o.order_date >= '2024-06-01'
+AND c.customer_tier = 'Premium'
+AND p.category = 'Electronics'`,
+
+                aggregation: `SELECT 
+    c.region,
+    COUNT(*) as total_orders,
+    COUNT(DISTINCT o.customer_id) as unique_customers,
+    SUM(o.total_amount) as total_revenue,
+    AVG(o.total_amount) as avg_order_value
+FROM \`${projectId}.${dataset}.orders\` o
+JOIN \`${projectId}.${dataset}.customers\` c 
+    ON o.customer_id = c.customer_id
+WHERE o.order_date >= '2024-01-01'
+GROUP BY c.region
+ORDER BY total_revenue DESC`,
+
+                window: `SELECT 
+    customer_id,
+    order_id,
+    order_date,
+    total_amount,
+    ROW_NUMBER() OVER (ORDER BY total_amount DESC) as overall_rank,
+    RANK() OVER (ORDER BY order_date) as date_rank,
+    SUM(total_amount) OVER (ORDER BY order_date ROWS UNBOUNDED PRECEDING) as running_total
+FROM \`${projectId}.${dataset}.orders\`
+WHERE order_date >= '2024-06-01'
+ORDER BY total_amount DESC
+LIMIT 1000`,
+
+                nested: `SELECT 
+    customer_name
+FROM \`${projectId}.${dataset}.customers\` c
+WHERE customer_id IN (
+    SELECT customer_id 
+    FROM \`${projectId}.${dataset}.orders\` o1
+    WHERE order_id IN (
+        SELECT order_id
+        FROM \`${projectId}.${dataset}.order_items\` oi
+        WHERE product_id IN (
+            SELECT product_id
+            FROM \`${projectId}.${dataset}.products\` p
+            WHERE category = 'Electronics'
+        )
+        AND quantity > 2
+    )
+    AND o1.order_date >= '2024-06-01'
+    AND o1.status = 'completed'
+)`
+            };
+
+            const query = queries[queryType];
+            if (query) {
+                document.getElementById('sqlQuery').value = query;
+                hideTestQueryModal();
+                showNotification(`✅ Loaded ${queryType} test query successfully!`, 'success');
+            }
+        }
+
+        function loadRandomQuery() {
+            const queryTypes = ['simple', 'join', 'aggregation', 'window', 'nested'];
+            const randomType = queryTypes[Math.floor(Math.random() * queryTypes.length)];
+            loadSpecificQuery(randomType);
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' : 
+                type === 'error' ? 'bg-red-500 text-white' : 
+                'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
