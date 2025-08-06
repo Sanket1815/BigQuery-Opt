@@ -142,7 +142,10 @@ ORDER BY order_count DESC"
                         <div id="testsLoading" class="loading ml-2" style="display: none;"></div>
                     </button>
                     <button id="setupDataBtn" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center">
-                    <button type="button" id="loadTestQueryBtn" onclick="loadTestQuery()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <span>Setup Test Data</span>
+                        <div id="setupLoading" class="loading ml-2" style="display: none;"></div>
+                    </button>
+                    <button id="loadTestQueryBtn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
                         Load Test Query
                     </button>
                 </div>
@@ -226,6 +229,7 @@ ORDER BY order_count DESC"
         const projectId = document.getElementById('projectId');
         const sampleSize = document.getElementById('sampleSize');
         const validateResults = document.getElementById('validateResults');
+        const measurePerformance = document.getElementById('measurePerformance');
         
         const optimizeBtn = document.getElementById('optimizeBtn');
         const analyzeBtn = document.getElementById('analyzeBtn');
