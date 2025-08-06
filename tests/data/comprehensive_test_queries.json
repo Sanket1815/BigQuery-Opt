@@ -40,6 +40,17 @@
           "validation_notes": "APPROX_COUNT_DISTINCT may have slight variance (within 1-2%)",
           "allow_approximate": true,
           "max_variance_percent": 2.0
+        },
+        {
+          "id": "full_table_scan",
+          "name": "Full Table Scan Without Filters",
+          "description": "Query that scans entire table without any filtering",
+          "category": "partition_filtering",
+          "original_query": "SELECT customer_id, COUNT(*) as order_count FROM `{project}.{dataset}.orders` GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY order_count DESC LIMIT 25",
+          "expected_optimizations": ["partition_filtering"],
+          "expected_improvement_min": 0.35,
+          "business_logic": "Find customers with more than 10 orders",
+          "validation_notes": "Customer counts and rankings must be identical"
         }
       ]
     },
@@ -67,6 +78,17 @@
           "expected_improvement_min": 0.30,
           "business_logic": "Premium customers and electronics products combination",
           "validation_notes": "Results must be identical - same customer-product combinations"
+        },
+        {
+          "id": "multiple_left_joins",
+          "name": "Multiple LEFT JOINs",
+          "description": "Query with multiple LEFT JOINs that can be optimized",
+          "category": "join_reordering",
+          "original_query": "SELECT c.customer_name, c.region, o.order_id, o.total_amount, p.product_name FROM `{project}.{dataset}.customers` c LEFT JOIN `{project}.{dataset}.orders` o ON c.customer_id = o.customer_id LEFT JOIN `{project}.{dataset}.order_items` oi ON o.order_id = oi.order_id LEFT JOIN `{project}.{dataset}.products` p ON oi.product_id = p.product_id WHERE c.customer_tier IN ('Premium', 'Gold') AND (o.order_date >= '2024-01-01' OR o.order_date IS NULL) ORDER BY c.customer_name, o.order_date LIMIT 200",
+          "expected_optimizations": ["join_reordering", "partition_filtering"],
+          "expected_improvement_min": 0.20,
+          "business_logic": "Premium and Gold customers with their order details (including customers with no orders)",
+          "validation_notes": "Must preserve LEFT JOIN semantics - customers without orders must still appear"
         }
       ]
     },
@@ -94,6 +116,17 @@
           "expected_improvement_min": 0.40,
           "business_logic": "Customers who bought multiple electronics items in completed orders",
           "validation_notes": "Must return identical customer names"
+        },
+        {
+          "id": "not_exists_subquery",
+          "name": "NOT EXISTS Subquery",
+          "description": "NOT EXISTS subquery for finding customers without recent orders",
+          "category": "subquery_to_join",
+          "original_query": "SELECT customer_id, customer_name, signup_date FROM `{project}.{dataset}.customers` c WHERE NOT EXISTS (SELECT 1 FROM `{project}.{dataset}.orders` o WHERE o.customer_id = c.customer_id AND o.order_date >= '2024-06-01') AND c.signup_date < '2024-01-01' ORDER BY signup_date LIMIT 75",
+          "expected_optimizations": ["subquery_to_join"],
+          "expected_improvement_min": 0.25,
+          "business_logic": "Long-time customers who haven't ordered recently",
+          "validation_notes": "Must return identical list of inactive customers"
         }
       ]
     },
@@ -121,6 +154,17 @@
           "expected_improvement_min": 0.25,
           "business_logic": "Customer order trends with moving averages",
           "validation_notes": "All calculated values must match exactly"
+        },
+        {
+          "id": "ranking_without_partition",
+          "name": "Ranking Without Proper Partitioning",
+          "description": "Ranking functions that would benefit from partitioning",
+          "category": "window_optimization",
+          "original_query": "SELECT c.region, c.customer_name, o.total_amount, DENSE_RANK() OVER (ORDER BY o.total_amount DESC) as amount_rank, PERCENT_RANK() OVER (ORDER BY o.total_amount) as amount_percentile FROM `{project}.{dataset}.customers` c JOIN `{project}.{dataset}.orders` o ON c.customer_id = o.customer_id WHERE o.order_date >= '2024-01-01' AND o.status = 'completed' ORDER BY amount_rank LIMIT 150",
+          "expected_optimizations": ["window_optimization", "partition_filtering"],
+          "expected_improvement_min": 0.18,
+          "business_logic": "Customer ranking by order amount across all regions",
+          "validation_notes": "Rankings and percentiles must be identical"
         }
       ]
     },
@@ -152,6 +196,19 @@
           "validation_notes": "Monthly totals must be identical",
           "allow_approximate": true,
           "max_variance_percent": 1.0
+        },
+        {
+          "id": "multiple_count_distinct",
+          "name": "Multiple COUNT DISTINCT Functions",
+          "description": "Query with multiple COUNT DISTINCT operations",
+          "category": "approximate_aggregation",
+          "original_query": "SELECT p.category, COUNT(*) as total_orders, COUNT(DISTINCT o.customer_id) as unique_customers, COUNT(DISTINCT oi.product_id) as unique_products, SUM(oi.quantity * oi.unit_price) as total_revenue FROM `{project}.{dataset}.orders` o JOIN `{project}.{dataset}.order_items` oi ON o.order_id = oi.order_id JOIN `{project}.{dataset}.products` p ON oi.product_id = p.product_id WHERE o.order_date >= '2024-01-01' AND o.status = 'completed' GROUP BY p.category ORDER BY total_revenue DESC",
+          "expected_optimizations": ["approximate_aggregation", "partition_filtering", "join_reordering"],
+          "expected_improvement_min": 0.40,
+          "business_logic": "Product category performance with unique counts",
+          "validation_notes": "Approximate functions may have slight variance",
+          "allow_approximate": true,
+          "max_variance_percent": 2.5
         }
       ]
     },
@@ -181,6 +238,17 @@
           "validation_notes": "Product rankings and metrics must be identical",
           "allow_approximate": true,
           "max_variance_percent": 2.0
+        },
+        {
+          "id": "cohort_analysis",
+          "name": "Customer Cohort Analysis",
+          "description": "Complex cohort analysis with multiple window functions",
+          "category": "multiple_optimizations",
+          "original_query": "WITH first_orders AS (SELECT customer_id, MIN(order_date) as first_order_date FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-01-01' GROUP BY customer_id), monthly_orders AS (SELECT fo.customer_id, fo.first_order_date, DATE_TRUNC(o.order_date, MONTH) as order_month, SUM(o.total_amount) as monthly_spend FROM first_orders fo JOIN `{project}.{dataset}.orders` o ON fo.customer_id = o.customer_id WHERE o.order_date >= fo.first_order_date GROUP BY fo.customer_id, fo.first_order_date, DATE_TRUNC(o.order_date, MONTH)) SELECT DATE_TRUNC(first_order_date, MONTH) as cohort_month, order_month, COUNT(DISTINCT customer_id) as active_customers, SUM(monthly_spend) as cohort_revenue, AVG(monthly_spend) as avg_customer_spend FROM monthly_orders GROUP BY DATE_TRUNC(first_order_date, MONTH), order_month ORDER BY cohort_month, order_month LIMIT 200",
+          "expected_optimizations": ["partition_filtering", "window_optimization", "join_reordering"],
+          "expected_improvement_min": 0.35,
+          "business_logic": "Customer cohort analysis showing retention and spending patterns",
+          "validation_notes": "Cohort metrics must be identical"
         }
       ]
     }
