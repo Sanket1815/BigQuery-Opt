@@ -21,12 +21,25 @@ class TestBigQuerySandboxIntegration:
     def setup_class(cls):
         """Setup test data in BigQuery sandbox."""
         cls.settings = get_settings()
-        cls.bq_client = BigQueryClient()
-        cls.optimizer = BigQueryOptimizer(validate_results=True)
+        
+        try:
+            cls.bq_client = BigQueryClient()
+            cls.optimizer = BigQueryOptimizer(validate_results=True)
+        except Exception as e:
+            pytest.skip(f"Failed to initialize BigQuery client: {str(e)}")
         
         # Create test dataset and tables
         cls.dataset_id = "optimizer_test_dataset"
-        cls.setup_test_data()
+        
+        print(f"🔧 Setting up test environment in project: {cls.settings.google_cloud_project}")
+        print(f"📊 Creating dataset: {cls.dataset_id}")
+        
+        try:
+            cls.setup_test_data()
+            print("✅ Test environment setup completed successfully!")
+        except Exception as e:
+            print(f"❌ Test environment setup failed: {str(e)}")
+            pytest.skip(f"Failed to setup test environment: {str(e)}")
     
     @classmethod
     def setup_test_data(cls):
@@ -34,6 +47,7 @@ class TestBigQuerySandboxIntegration:
         
         try:
             # Create dataset first
+            print(f"📁 Creating dataset: {cls.settings.google_cloud_project}.{cls.dataset_id}")
             dataset_sql = f"""
             CREATE SCHEMA IF NOT EXISTS `{cls.settings.google_cloud_project}.{cls.dataset_id}`
             OPTIONS(
@@ -41,8 +55,6 @@ class TestBigQuerySandboxIntegration:
                 location="US"
             )
             """
-            
-            print(f"Creating dataset: {cls.dataset_id}")
             result = cls.bq_client.execute_query(dataset_sql, dry_run=False)
             if not result["success"]:
                 print(f"Dataset creation result: {result}")
@@ -52,6 +64,18 @@ class TestBigQuerySandboxIntegration:
             
         except Exception as e:
             pytest.skip(f"Failed to create dataset: {str(e)}")
+        
+        # Wait a moment for dataset to be ready
+        import time
+        time.sleep(2)
+        
+        # Verify dataset exists
+        try:
+            verify_sql = f"SELECT schema_name FROM `{cls.settings.google_cloud_project}.INFORMATION_SCHEMA.SCHEMATA` WHERE schema_name = '{cls.dataset_id}'"
+            verify_result = cls.bq_client.execute_query(verify_sql, dry_run=False)
+            print(f"✅ Dataset verification: {verify_result['success']}")
+        except Exception as e:
+            print(f"⚠️ Dataset verification failed: {e}")
         
         # Create customers table (small table - 1000 rows)
         customers_sql = f"""
@@ -140,17 +164,47 @@ class TestBigQuerySandboxIntegration:
         for table_name, sql in tables_info:
             try:
                 print(f"Creating table: {table_name}")
+                print(f"SQL preview: {sql[:100]}...")
                 result = cls.bq_client.execute_query(sql, dry_run=False)
                 if not result["success"]:
                     print(f"❌ Failed to create {table_name}: {result['error']}")
                     pytest.skip(f"Failed to create {table_name}: {result['error']}")
                 else:
                     print(f"✅ {table_name} created successfully")
+                    
+                # Verify table was created
+                verify_sql = f"SELECT COUNT(*) as row_count FROM `{cls.settings.google_cloud_project}.{cls.dataset_id}.{table_name}`"
+                verify_result = cls.bq_client.execute_query(verify_sql, dry_run=False)
+                if verify_result["success"] and verify_result["results"]:
+                    row_count = verify_result["results"][0]["row_count"]
+                    print(f"📊 {table_name}: {row_count:,} rows created")
+                else:
+                    print(f"⚠️ Could not verify {table_name} row count")
+                    
             except Exception as e:
                 print(f"❌ Exception creating {table_name}: {str(e)}")
                 pytest.skip(f"Failed to create {table_name}: {str(e)}")
         
         print("🎉 All test tables created successfully!")
+    
+    @classmethod
+    def teardown_class(cls):
+        """Clean up test data."""
+        cls.cleanup_test_data()
+    
+    @classmethod
+    def cleanup_test_data(cls):
+        """Clean up test dataset and tables."""
+        try:
+            print("🧹 Cleaning up test data...")
+            cleanup_sql = f"DROP SCHEMA IF EXISTS `{cls.settings.google_cloud_project}.{cls.dataset_id}` CASCADE"
+            result = cls.bq_client.execute_query(cleanup_sql, dry_run=False)
+            if result["success"]:
+                print("✅ Test data cleaned up successfully")
+            else:
+                print(f"⚠️ Failed to clean up test data: {result['error']}")
+        except Exception as e:
+            print(f"⚠️ Error during cleanup: {e}")
     
     def test_simple_query_optimization(self):
         """Test 1: Simple Query Test - Basic SELECT with inefficient WHERE clause."""
