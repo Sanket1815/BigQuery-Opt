@@ -2,25 +2,24 @@
 
 An AI-powered BigQuery SQL query optimizer that automatically improves query performance while preserving exact business logic and results.
 
-## Overview
+## Problem Statement
 
-This tool analyzes underperforming BigQuery SQL queries and applies Google's official optimization best practices to improve performance by 30-50% while maintaining 100% functional accuracy.
+Organizations using BigQuery often have queries written by humans that fail to meet performance SLAs. These underperforming queries cost money through inefficient compute usage, delay business insights, and frustrate end users. While BigQuery documentation contains extensive optimization best practices, developers often lack the time or expertise to apply these consistently across hundreds or thousands of queries.
 
-## Features
+## Solution
 
-- **Automated Query Optimization**: Uses AI to apply BigQuery best practices
-- **Performance Improvement**: Targets 30-50% reduction in query execution time
-- **Functional Accuracy**: Guarantees identical query results
-- **Detailed Explanations**: Provides clear explanations of all optimizations applied
-- **Documentation References**: Links to official BigQuery documentation for each optimization
-- **Comprehensive Testing**: Includes test suite with various optimization scenarios
+AI-powered BigQuery query optimizer that:
+- **Input**: Underperforming BigQuery SQL query
+- **Output**: Optimized query with identical results but improved performance
+- **Additional Output**: Clear explanation of optimizations applied and why
 
-## Architecture
+## Success Metrics
 
-1. **Documentation Crawler** (`src/crawler/`): Crawls and processes BigQuery optimization documentation
-2. **MCP Server** (`src/mcp_server/`): Model Context Protocol server for serving documentation and optimization suggestions
-3. **Query Optimizer** (`src/optimizer/`): Main optimization engine with AI integration
-4. **Test Suite** (`tests/`): Comprehensive test coverage with sample queries
+1. **Functional Accuracy**: 100% - Optimized queries must return identical results to original queries
+2. **Performance Improvement**: Target 30-50% reduction in query execution time
+3. **Documentation Coverage**: Tool references 20+ distinct BigQuery optimization patterns
+4. **Explanation Quality**: Each optimization includes specific documentation references
+5. **Test Coverage**: Comprehensive test scenarios demonstrating various optimization patterns
 
 ## Quick Start
 
@@ -38,33 +37,58 @@ This tool analyzes underperforming BigQuery SQL queries and applies Google's off
    export GEMINI_API_KEY=your-gemini-api-key
    ```
 
-3. **Initialize Documentation**:
+3. **Start the Web Interface**:
    ```bash
-   python -m src.crawler.bigquery_docs_crawler
+   python run_api_server.py
    ```
 
-4. **Start MCP Server**:
-   ```bash
-   python -m src.mcp_server.server
-   ```
+4. **Open http://localhost:8080** and start optimizing queries!
 
-5. **Optimize a Query**:
-   ```bash
-   python -m src.optimizer.main --query "SELECT * FROM dataset.table WHERE date > '2024-01-01'"
-   ```
+## Architecture
+
+1. **Query Optimizer** (`src/optimizer/`): Main optimization engine with AI integration
+2. **AI Optimizer** (`src/optimizer/ai_optimizer.py`): Gemini-powered optimization using Google's best practices
+3. **BigQuery Client** (`src/optimizer/bigquery_client.py`): BigQuery service wrapper with performance measurement
+4. **Result Validator** (`src/optimizer/validator.py`): Ensures optimized queries return identical results
+5. **Web Interface** (`src/api/`): REST API and web UI for easy interaction
+
+## Optimization Patterns (20+ Supported)
+
+The optimizer applies Google's official BigQuery best practices:
+
+- **Partition Filtering**: Add partition filters to reduce data scanned
+- **Column Pruning**: Replace SELECT * with specific columns
+- **Subquery to JOIN Conversion**: Convert subqueries to JOINs for better performance
+- **JOIN Reordering**: Optimize JOIN order based on table sizes
+- **Approximate Aggregation**: Use approximate functions for large datasets
+- **Window Function Optimization**: Improve window function specifications
+- **Predicate Pushdown**: Move filters closer to data sources
+- **Clustering Optimization**: Leverage clustering keys in WHERE clauses
+- **Materialized View Suggestions**: Identify opportunities for materialized views
+- **And 10+ more patterns...**
 
 ## Usage Examples
 
-### Command Line Interface
+### Web Interface
+1. Open http://localhost:8080
+2. Enter your BigQuery SQL query
+3. Configure your Google Cloud Project ID
+4. Click "Optimize Query"
+5. View optimized query with performance improvements and identical results validation
+
+### Command Line
 ```bash
-# Optimize a query from file
-python -m src.optimizer.main --file queries/slow_query.sql
+# Optimize a single query
+python -m src.optimizer.main optimize --query "SELECT * FROM orders WHERE date > '2024-01-01'"
 
-# Optimize with performance analysis
-python -m src.optimizer.main --query "YOUR_SQL_HERE" --analyze-performance
+# Optimize from file
+python -m src.optimizer.main optimize --file queries/slow_query.sql
 
-# Generate optimization report
-python -m src.optimizer.main --query "YOUR_SQL_HERE" --report
+# Analyze without optimizing
+python -m src.optimizer.main analyze --query "SELECT * FROM customers"
+
+# Batch optimization
+python -m src.optimizer.main batch --queries-file queries/batch_queries.json
 ```
 
 ### Python API
@@ -73,51 +97,74 @@ from src.optimizer.query_optimizer import BigQueryOptimizer
 
 optimizer = BigQueryOptimizer()
 result = optimizer.optimize_query("""
-    SELECT customer_id, SUM(amount) 
-    FROM transactions 
-    WHERE date >= '2024-01-01' 
-    GROUP BY customer_id
+    SELECT * FROM orders 
+    WHERE order_date >= '2024-01-01'
 """)
 
 print(f"Optimized Query:\n{result.optimized_query}")
-print(f"Improvements:\n{result.explanation}")
+print(f"Optimizations Applied: {result.total_optimizations}")
+print(f"Expected Improvement: {result.estimated_improvement:.1%}")
 ```
-
-## Optimization Patterns
-
-The optimizer handles 20+ optimization patterns including:
-
-- **JOIN Optimization**: Reordering JOINs based on table sizes
-- **Partition Filtering**: Adding partition filters to reduce data scanned
-- **Subquery Conversion**: Converting subqueries to JOINs where appropriate
-- **Window Function Optimization**: Improving window specifications
-- **Aggregation Optimization**: Using approximate functions where applicable
-- **Column Pruning**: Removing unnecessary columns from SELECT statements
-- **Clustering Recommendations**: Suggesting optimal clustering strategies
 
 ## Testing
 
-Run the test suite:
+Run the comprehensive test suite:
+
 ```bash
 # Run all tests
-pytest tests/
+python -m pytest tests/
 
 # Run specific test categories
-pytest tests/test_optimization_patterns.py
-pytest tests/test_performance.py
-pytest tests/test_functional_accuracy.py
+python -m pytest tests/unit/
+python -m pytest tests/integration/
 
 # Run with coverage
-pytest --cov=src tests/
+python -m pytest --cov=src tests/
 ```
 
-## Performance Metrics
+### Test Scenarios
 
-Our test suite demonstrates:
-- **Functional Accuracy**: 100% - All optimized queries return identical results
-- **Performance Improvement**: 30-50% average reduction in execution time
-- **Documentation Coverage**: 20+ distinct optimization patterns
-- **Test Coverage**: 10+ comprehensive test scenarios
+The test suite includes:
+1. **Simple Query Test**: Basic SELECT with inefficient WHERE clause
+2. **Complex JOIN Test**: Multi-table JOIN with suboptimal ordering
+3. **Aggregation Test**: GROUP BY without proper partitioning
+4. **Window Function Test**: Inefficient window specifications
+5. **Nested Query Test**: Deeply nested subqueries that can be flattened
+6. **Business Logic Preservation**: Ensures 100% identical results
+7. **Performance Benchmarks**: Validates 30-50% improvement targets
+
+## Key Features
+
+### Business Logic Preservation
+- **100% Functional Accuracy**: Optimized queries return identical results
+- **Comprehensive Validation**: Row-by-row comparison of query results
+- **Visual Proof**: Side-by-side display of original vs optimized results
+- **Zero Tolerance**: Any difference in results fails the optimization
+
+### Performance Optimization
+- **30-50% Target**: Aims for significant performance improvements
+- **Real Measurements**: Actual BigQuery performance metrics
+- **Cost Reduction**: Reduces bytes processed and compute costs
+- **SLA Compliance**: Helps queries meet performance requirements
+
+### AI-Powered Intelligence
+- **Google's Best Practices**: Applies official BigQuery optimization patterns
+- **Context Awareness**: Considers table metadata and query structure
+- **Documentation References**: Each optimization links to official docs
+- **Explanation Quality**: Clear explanations of why optimizations were applied
+
+### Developer Experience
+- **Web Interface**: Easy-to-use browser-based interface
+- **Command Line Tools**: Scriptable CLI for automation
+- **Python API**: Programmatic access for integration
+- **Batch Processing**: Optimize hundreds of queries at once
+
+## Documentation
+
+- [Architecture Guide](docs/architecture.md)
+- [API Documentation](docs/api.md)
+- [Optimization Patterns](docs/optimization_patterns.md)
+- [Performance Testing](docs/performance_testing.md)
 
 ## Contributing
 
@@ -131,9 +178,13 @@ Our test suite demonstrates:
 
 MIT License - see LICENSE file for details.
 
-## Documentation
+## Support
 
-- [Architecture Guide](docs/architecture.md)
-- [API Documentation](docs/api.md)
-- [Optimization Patterns](docs/optimization_patterns.md)
-- [Performance Testing](docs/performance_testing.md)
+For issues and questions:
+- Check the documentation
+- Review test examples
+- Open an issue on GitHub
+
+---
+
+**Transform your underperforming BigQuery queries into optimized, cost-effective solutions while preserving exact business logic!**
