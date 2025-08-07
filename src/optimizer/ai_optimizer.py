@@ -154,6 +154,9 @@ You are an expert BigQuery SQL optimizer. Your task is to optimize SQL queries f
 - Use BigQuery-specific optimizations
 - Provide clear explanations for each change
 - Reference official BigQuery best practices
+- CRITICAL: Only add _PARTITIONDATE filters for tables that are actually partitioned
+- NEVER add _PARTITIONDATE to non-partitioned tables (will cause errors)
+- Check table metadata before adding any partition filters
 
 📋 RESPONSE FORMAT (JSON ONLY):
 {
@@ -209,11 +212,13 @@ QUERY ANALYSIS:
             for table_name, metadata in table_metadata.items():
                 is_partitioned = metadata.get('is_partitioned', False)
                 partition_field = metadata.get('partition_field', 'N/A')
+                partition_type = metadata.get('partition_type', 'N/A')
                 prompt_parts.append(f"""
 - {table_name}:
   Partitioned: {is_partitioned}
   Partition field: {partition_field}
-  Use _PARTITIONDATE: {is_partitioned}
+  Partition type: {partition_type}
+  CRITICAL: Only add _PARTITIONDATE if Partitioned=True
 """)
         
         # Add applicable patterns

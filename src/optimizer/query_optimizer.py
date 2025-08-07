@@ -92,8 +92,16 @@ class BigQueryOptimizer:
         
         for table_name in table_names:
             try:
-                partition_info = self.bq_client.get_table_partition_info(table_name)
-                metadata[table_name] = partition_info
+                # Get full table info including partitioning
+                table_info = self.bq_client.get_table_info(table_name)
+                if "error" not in table_info:
+                    metadata[table_name] = {
+                        "is_partitioned": table_info.get("partitioning", {}).get("type") is not None,
+                        "partition_field": table_info.get("partitioning", {}).get("field"),
+                        "partition_type": table_info.get("partitioning", {}).get("type")
+                    }
+                else:
+                    metadata[table_name] = {"is_partitioned": False}
             except Exception as e:
                 self.logger.logger.warning(f"Could not get metadata for table {table_name}: {e}")
                 metadata[table_name] = {"is_partitioned": False}
