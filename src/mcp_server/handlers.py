@@ -211,7 +211,7 @@ class OptimizationHandler:
         
         # Check for missing partition filters
         if 'FROM' in query_upper and '_PARTITIONDATE' not in query_upper:
-            issues.append("Missing partition filter - add _PARTITIONDATE >= 'YYYY-MM-DD' for better performance")
+            issues.append("Consider adding partition filter if table is partitioned by date")
         
         # Check for missing WHERE clause
         if 'WHERE' not in query_upper and 'FROM' in query_upper:
@@ -242,7 +242,7 @@ class OptimizationHandler:
         query_upper = query.upper()
         
         patterns_map = {
-            "partition_filtering": ["FROM", "WHERE", "table"],  # Always suggest partition filtering
+            "partition_filtering": ["FROM", "WHERE", "date"],  # Suggest partition filtering for date queries
             "join_reordering": ["JOIN"],
             "subquery_to_join": ["EXISTS", "IN (SELECT"],
             "window_optimization": ["OVER ("],
@@ -253,8 +253,9 @@ class OptimizationHandler:
             "materialized_view": ["GROUP BY", "AGGREGATE"]
         }
         
-        # Always suggest partition filtering for any query with tables
-        if "FROM" in query_upper and "_PARTITIONDATE" not in query_upper:
+        # Suggest partition filtering for queries with date filters (likely partitioned tables)
+        if ("FROM" in query_upper and "_PARTITIONDATE" not in query_upper and 
+            any(date_keyword in query_upper for date_keyword in ["DATE", "TIMESTAMP", ">= '2", "BETWEEN"])):
             applicable.append("partition_filtering")
         
         for pattern_id, keywords in patterns_map.items():

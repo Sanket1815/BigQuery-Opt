@@ -589,6 +589,34 @@
             `);
         }
 
+        // Format query results for display
+        function formatQueryResults(results) {
+            if (!results || results.length === 0) {
+                return 'No data returned';
+            }
+            
+            // Convert to table format
+            const headers = Object.keys(results[0]);
+            let output = headers.join('\t') + '\n';
+            output += headers.map(() => '─'.repeat(15)).join('\t') + '\n';
+            
+            results.slice(0, 10).forEach(row => {
+                const values = headers.map(header => {
+                    const value = row[header];
+                    if (value === null || value === undefined) return 'NULL';
+                    if (typeof value === 'number') return value.toString();
+                    return String(value).substring(0, 15);
+                });
+                output += values.join('\t') + '\n';
+            });
+            
+            if (results.length > 10) {
+                output += `... and ${results.length - 10} more rows\n`;
+            }
+            
+            return output;
+        }
+
         // Initialize syntax highlighting after content is loaded
         document.addEventListener('DOMContentLoaded', function() {
             // Load test queries on page load for faster access
