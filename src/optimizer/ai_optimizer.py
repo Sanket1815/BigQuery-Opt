@@ -1,4 +1,6 @@
-"""AI-powered query optimizer using Gemini API."""
+"""
+AI-powered query optimizer using Gemini API to apply Google's BigQuery best practices.
+"""
 
 import json
 import time
@@ -9,16 +11,14 @@ import google.generativeai as genai
 from config.settings import get_settings
 from src.common.exceptions import OptimizationError
 from src.common.logger import QueryOptimizerLogger
-from src.common.models import (
-    OptimizationResult, 
-    QueryAnalysis, 
-    AppliedOptimization,
-    OptimizationPattern
-)
+from src.common.models import OptimizationResult, QueryAnalysis, AppliedOptimization
 
 
 class GeminiQueryOptimizer:
-    """AI-powered BigQuery query optimizer using Gemini."""
+    """
+    AI-powered BigQuery query optimizer that applies Google's official best practices
+    to underperforming queries while preserving exact business logic.
+    """
     
     def __init__(self):
         self.settings = get_settings()
@@ -38,26 +38,23 @@ class GeminiQueryOptimizer:
                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}
             ]
         )
-        
-        # Load optimization context
-        self.optimization_context = self._build_optimization_context()
     
-    def optimize_query(
+    def optimize_with_best_practices(
         self, 
         query: str, 
         analysis: QueryAnalysis,
-        applicable_patterns: List[OptimizationPattern],
-        documentation_context: Optional[List[Dict]] = None,
-        table_metadata: Optional[Dict[str, Any]] = None
+        table_metadata: Dict[str, Any]
     ) -> OptimizationResult:
-        """Optimize a SQL query using AI with dynamic optimization patterns."""
+        """
+        Optimize query using Google's official BigQuery best practices.
+        
+        CRITICAL REQUIREMENT: The optimized query MUST return IDENTICAL results.
+        """
         start_time = time.time()
         
         try:
-            # Build the optimization prompt with table metadata
-            prompt = self._build_optimization_prompt(
-                query, analysis, applicable_patterns, documentation_context, table_metadata
-            )
+            # Build optimization prompt with Google's best practices
+            prompt = self._build_best_practices_prompt(query, analysis, table_metadata)
             
             # Generate optimization using Gemini
             response = self.model.generate_content(prompt)
@@ -66,14 +63,10 @@ class GeminiQueryOptimizer:
             optimization_data = self._parse_ai_response(response.text)
             
             # Create optimization result
-            result = self._create_optimization_result(
-                query, analysis, optimization_data, start_time
-            )
+            result = self._create_optimization_result(query, analysis, optimization_data, start_time)
             
             self.logger.logger.info(
-                "Query optimization completed",
-                original_length=len(query),
-                optimized_length=len(result.optimized_query),
+                "Query optimization completed using Google best practices",
                 optimizations_applied=result.total_optimizations,
                 processing_time=result.processing_time_seconds
             )
@@ -81,120 +74,91 @@ class GeminiQueryOptimizer:
             return result
             
         except Exception as e:
-            self.logger.log_error(e, {"operation": "optimize_query"})
+            self.logger.log_error(e, {"operation": "optimize_with_best_practices"})
             
-            # Return a result indicating failure
+            # Return original query on failure
             return OptimizationResult(
                 original_query=query,
                 query_analysis=analysis,
-                optimized_query=query,  # Return original on failure
+                optimized_query=query,
                 optimizations_applied=[],
                 total_optimizations=0,
                 processing_time_seconds=time.time() - start_time,
                 validation_error=str(e)
             )
     
-    def _build_optimization_context(self) -> str:
-        """Build the optimization context for the AI model."""
-        context = """
-You are an expert BigQuery SQL optimizer. Your task is to optimize SQL queries for better performance while maintaining IDENTICAL results.
+    def _build_best_practices_prompt(
+        self, 
+        query: str, 
+        analysis: QueryAnalysis,
+        table_metadata: Dict[str, Any]
+    ) -> str:
+        """Build optimization prompt based on Google's BigQuery best practices."""
+        
+        # Create table metadata summary
+        table_info = ""
+        for table_name, metadata in table_metadata.items():
+            is_partitioned = metadata.get('is_partitioned', False)
+            partition_field = metadata.get('partition_field', 'N/A')
+            table_info += f"""
+- {table_name}:
+  Partitioned: {is_partitioned}
+  Partition field: {partition_field}
+  CRITICAL: Only add _PARTITIONDATE if Partitioned=True
+"""
+        
+        prompt = f"""
+You are an expert BigQuery SQL optimizer implementing Google's official best practices.
 
-🚨 CRITICAL REQUIREMENT: RESULTS MUST BE 100% IDENTICAL 🚨
-- The optimized query MUST return exactly the same data as the original
-- Same number of rows, same column values, same data types
-- Only performance optimizations are allowed, NEVER change business logic
-- Results will be executed and compared - they MUST match exactly
-- ANY difference in results means the optimization FAILED
+🚨 CRITICAL BUSINESS REQUIREMENT 🚨
+The optimized query MUST return EXACTLY THE SAME RESULTS as the original query.
+- Same number of rows
+- Same column values  
+- Same data types
+- ZERO differences allowed
+- Business logic must be preserved 100%
 
-🎯 DYNAMIC OPTIMIZATION PATTERNS TO APPLY:
+🎯 GOOGLE'S BIGQUERY BEST PRACTICES TO APPLY:
 
-1. **SUBQUERY TO JOIN CONVERSION**
-   - Convert EXISTS subqueries to INNER JOINs
-   - Convert IN subqueries to INNER JOINs  
-   - Convert NOT EXISTS to LEFT JOIN with IS NULL
-   - Convert correlated subqueries to window functions where appropriate
-   
-2. **PARTITION FILTERING** (ONLY for partitioned tables)
-   - Add _PARTITIONDATE >= 'YYYY-MM-DD' filters for date-partitioned tables
-   - NEVER add _PARTITIONDATE to non-partitioned tables
-   - Check table metadata before adding partition filters
-   
-3. **JOIN OPTIMIZATION**
-   - Reorder JOINs to place smaller tables first
-   - Move more selective conditions earlier in JOIN chain
-   - Convert implicit JOINs to explicit JOINs
-   
-4. **APPROXIMATE AGGREGATION**
-   - Replace COUNT(DISTINCT column) with APPROX_COUNT_DISTINCT(column)
-   - Use HLL_COUNT.MERGE for very large datasets
-   - Only when exact counts aren't critical for business logic
-   
-5. **COLUMN PRUNING**
+1. **PARTITION FILTERING** (High Impact - 50-80% improvement)
+   - Add _PARTITIONDATE >= 'YYYY-MM-DD' ONLY for partitioned tables
+   - NEVER add _PARTITIONDATE to non-partitioned tables (causes errors)
+   - Reduces data scanned significantly
+
+2. **COLUMN PRUNING** (Medium Impact - 20-40% improvement)
    - Replace SELECT * with specific column names
-   - Remove unused columns from intermediate results
-   - Reduce data transfer and processing
-   
-6. **WINDOW FUNCTION OPTIMIZATION**
+   - Reduces data transfer and processing
+   - Improves query performance
+
+3. **SUBQUERY TO JOIN CONVERSION** (High Impact - 30-60% improvement)
+   - Convert EXISTS subqueries to INNER JOINs
+   - Convert IN subqueries to INNER JOINs
+   - Convert NOT EXISTS to LEFT JOIN with IS NULL
+   - Much more efficient execution
+
+4. **JOIN REORDERING** (Medium Impact - 20-40% improvement)
+   - Place smaller tables first in JOIN order
+   - Apply more selective filters early
+   - Optimize JOIN execution plan
+
+5. **APPROXIMATE AGGREGATION** (High Impact - 40-70% improvement)
+   - Replace COUNT(DISTINCT column) with APPROX_COUNT_DISTINCT(column)
+   - Use for large datasets where exact counts aren't critical
+   - Significant performance improvement
+
+6. **WINDOW FUNCTION OPTIMIZATION** (Medium Impact - 15-30% improvement)
    - Convert correlated subqueries to window functions
    - Optimize PARTITION BY clauses
-   - Improve ORDER BY specifications in window functions
-   
-7. **CLUSTERING RECOMMENDATIONS**
-   - Use clustering keys in WHERE clauses
-   - Optimize filter conditions to leverage clustering
-   
-8. **PREDICATE PUSHDOWN**
+   - Improve ORDER BY specifications
+
+7. **PREDICATE PUSHDOWN** (Medium Impact - 25-45% improvement)
    - Move WHERE conditions closer to data sources
    - Apply filters before JOINs where possible
-   - Push filters into subqueries
+   - Reduce intermediate result sizes
 
-🔧 OPTIMIZATION RULES:
-- ALWAYS preserve exact business logic and results
-- Focus on reducing bytes scanned and execution time
-- Use BigQuery-specific optimizations
-- Provide clear explanations for each change
-- Reference official BigQuery best practices
-- CRITICAL: Only add _PARTITIONDATE filters for tables that are actually partitioned
-- NEVER add _PARTITIONDATE to non-partitioned tables (will cause errors)
-- Check table metadata before adding any partition filters
+TABLE METADATA:
+{table_info}
 
-📋 RESPONSE FORMAT (JSON ONLY):
-{
-    "optimized_query": "The optimized SQL query that returns IDENTICAL results",
-    "optimizations_applied": [
-        {
-            "pattern_id": "subquery_to_join",
-            "pattern_name": "Subquery to JOIN Conversion",
-            "description": "Converted EXISTS subquery to INNER JOIN for better performance",
-            "before_snippet": "WHERE EXISTS (SELECT 1 FROM table2 WHERE...)",
-            "after_snippet": "INNER JOIN table2 ON ...",
-            "expected_improvement": 0.3,
-            "confidence_score": 0.9
-        }
-    ],
-    "estimated_improvement": 0.25,
-    "explanation": "Overall explanation of optimizations applied"
-}
-
-⚠️ CRITICAL: Only return the JSON object. Results will be validated for identity.
-"""
-        return context
-    
-    def _build_optimization_prompt(
-        self,
-        query: str,
-        analysis: QueryAnalysis,
-        patterns: List[OptimizationPattern],
-        documentation_context: Optional[List[Dict]] = None,
-        table_metadata: Optional[Dict[str, Any]] = None
-    ) -> str:
-        """Build the complete optimization prompt for Gemini."""
-        
-        # Start with the base context
-        prompt_parts = [self.optimization_context]
-        
-        # Add query analysis
-        prompt_parts.append(f"""
 QUERY ANALYSIS:
 - Complexity: {analysis.complexity}
 - Tables: {analysis.table_count}
@@ -202,63 +166,42 @@ QUERY ANALYSIS:
 - Subqueries: {analysis.subquery_count}
 - Window functions: {analysis.window_function_count}
 - Aggregations: {analysis.aggregate_function_count}
-- Has partition filter: {analysis.has_partition_filter}
-- Potential issues: {', '.join(analysis.potential_issues)}
-""")
-        
-        # Add table metadata if available
-        if table_metadata:
-            prompt_parts.append("TABLE METADATA:")
-            for table_name, metadata in table_metadata.items():
-                is_partitioned = metadata.get('is_partitioned', False)
-                partition_field = metadata.get('partition_field', 'N/A')
-                partition_type = metadata.get('partition_type', 'N/A')
-                prompt_parts.append(f"""
-- {table_name}:
-  Partitioned: {is_partitioned}
-  Partition field: {partition_field}
-  Partition type: {partition_type}
-  CRITICAL: Only add _PARTITIONDATE if Partitioned=True
-""")
-        
-        # Add applicable patterns
-        if patterns:
-            prompt_parts.append("APPLICABLE OPTIMIZATION PATTERNS:")
-            for pattern in patterns:
-                prompt_parts.append(f"""
-- {pattern.name} ({pattern.pattern_id}):
-  Description: {pattern.description}
-  Expected improvement: {pattern.expected_improvement or 'Unknown'}
-""")
-        
-        # Add documentation context if available
-        if documentation_context:
-            prompt_parts.append("RELEVANT DOCUMENTATION:")
-            for doc in documentation_context[:3]:
-                prompt_parts.append(f"""
-- {doc.get('title', 'Unknown')}:
-  {doc.get('content', '')[:300]}...
-""")
-        
-        # Add the query to optimize
-        prompt_parts.append(f"""
-QUERY TO OPTIMIZE:
+- Issues found: {', '.join(analysis.potential_issues)}
+
+ORIGINAL QUERY TO OPTIMIZE:
 ```sql
 {query}
 ```
 
 OPTIMIZATION INSTRUCTIONS:
-1. Analyze the query for optimization opportunities
-2. Apply appropriate optimizations from the patterns above
-3. ENSURE results remain IDENTICAL - same rows, same values
-4. Only add _PARTITIONDATE for tables that are actually partitioned
-5. Focus on performance improvements without changing business logic
-6. Return optimized query in the JSON format specified
+1. Apply Google's BigQuery best practices from the list above
+2. ENSURE the optimized query returns IDENTICAL results
+3. Only add _PARTITIONDATE for tables that are actually partitioned
+4. Focus on performance without changing business logic
+5. Provide clear explanations for each optimization
 
-Please optimize this query and return the result in JSON format.
-""")
-        
-        return "\n".join(prompt_parts)
+RESPONSE FORMAT (JSON ONLY):
+{{
+    "optimized_query": "The optimized SQL query that returns IDENTICAL results",
+    "optimizations_applied": [
+        {{
+            "pattern_id": "partition_filtering",
+            "pattern_name": "Partition Filtering",
+            "description": "Added _PARTITIONDATE filter to reduce data scanned",
+            "before_snippet": "WHERE order_date >= '2024-01-01'",
+            "after_snippet": "WHERE _PARTITIONDATE >= '2024-01-01' AND order_date >= '2024-01-01'",
+            "expected_improvement": 0.6,
+            "confidence_score": 0.95,
+            "google_best_practice": "Partition filtering reduces data scanned"
+        }}
+    ],
+    "estimated_improvement": 0.45,
+    "explanation": "Applied Google's BigQuery best practices for performance optimization"
+}}
+
+CRITICAL: Return only the JSON object. Results will be executed and validated for identity.
+"""
+        return prompt
     
     def _parse_ai_response(self, response_text: str) -> Dict[str, Any]:
         """Parse the AI response and extract optimization data."""
@@ -330,78 +273,3 @@ Please optimize this query and return the result in JSON format.
         )
         
         return result
-    
-    def generate_explanation(
-        self, 
-        original_query: str, 
-        optimized_query: str,
-        optimizations: List[AppliedOptimization]
-    ) -> str:
-        """Generate a detailed explanation of the optimizations."""
-        
-        prompt = f"""
-Explain the following BigQuery SQL optimizations in simple terms:
-
-Original Query:
-```sql
-{original_query}
-```
-
-Optimized Query:
-```sql
-{optimized_query}
-```
-
-Optimizations Applied:
-{json.dumps([opt.model_dump() for opt in optimizations], indent=2)}
-
-Provide a clear explanation of what changed and why it improves performance.
-Keep it under 300 words.
-"""
-        
-        try:
-            response = self.model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            self.logger.log_error(e, {"operation": "generate_explanation"})
-            return "Unable to generate detailed explanation due to an error."
-    
-    def suggest_table_optimizations(
-        self, 
-        query: str, 
-        table_info: Dict[str, Any]
-    ) -> List[str]:
-        """Suggest table-level optimizations based on query patterns."""
-        
-        prompt = f"""
-Based on this BigQuery SQL query and table information, suggest table-level optimizations:
-
-Query:
-```sql
-{query}
-```
-
-Table Information:
-{json.dumps(table_info, indent=2)}
-
-Suggest specific optimizations such as:
-- Partitioning strategies
-- Clustering key recommendations
-- Schema optimizations
-- Materialized view opportunities
-
-Return suggestions as a JSON array of strings.
-"""
-        
-        try:
-            response = self.model.generate_content(prompt)
-            suggestions_data = json.loads(response.text)
-            
-            if isinstance(suggestions_data, list):
-                return suggestions_data
-            else:
-                return ["Unable to parse table optimization suggestions"]
-                
-        except Exception as e:
-            self.logger.log_error(e, {"operation": "suggest_table_optimizations"})
-            return ["Error generating table optimization suggestions"]
