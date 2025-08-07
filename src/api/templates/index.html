@@ -64,7 +64,12 @@ SELECT * FROM `project.dataset.customers` WHERE signup_date >= '2024-01-01'
 SELECT customer_id, COUNT(*) FROM `project.dataset.orders` GROUP BY customer_id
 SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"></textarea>
             </div>
-
+            <div class="mt-4">
+                <label for="queryLimit" class="block text-sm font-medium text-gray-700 mb-1">Row Limit</label>
+                <input type="number" id="queryLimit" value="100" min="1" max="10000"
+                       class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-gray-500 mt-1">Maximum rows to fetch (e.g., 100)</p>
+            </div>
             <!-- Action Buttons -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <div class="flex flex-wrap gap-4 justify-center">
@@ -257,6 +262,10 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 showError('Please enter a SQL query');
                 return;
             }
+            let safeQuery = query;
+if (!/limit\s+\d+/i.test(query)) {
+    safeQuery += `\nLIMIT ${limit}`;
+}
 
             showLoading();
             try {
@@ -264,7 +273,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 const response = await fetch('/api/v1/optimize', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, ...config })
+                    body: JSON.stringify({ query: safeQuery, ...config })
                 });
 
                 const result = await response.json();
