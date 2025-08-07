@@ -231,10 +231,18 @@ UNDERPERFORMING QUERY TO OPTIMIZE:
 
 🚨 CRITICAL PARTITION FILTERING RULES:
 1. ONLY add _PARTITIONDATE if table metadata shows Partitioned=True
-2. ALWAYS use table alias: table_alias._PARTITIONDATE >= 'YYYY-MM-DD'
-3. NEVER use bare _PARTITIONDATE without table alias
-4. Example: o._PARTITIONDATE >= '2024-01-01' (NOT _PARTITIONDATE >= '2024-01-01')
-5. If no table alias exists, create one first
+2. NEVER add _PARTITIONDATE to non-partitioned tables - this causes BigQuery errors!
+3. If table is partitioned, use the date column filter instead of _PARTITIONDATE
+4. Example: WHERE order_date >= '2024-01-01' (NOT _PARTITIONDATE)
+5. Focus on other optimizations like column pruning, JOIN reordering, approximate aggregation
+
+🚨 PARTITION FILTERING IS DISABLED - DO NOT USE _PARTITIONDATE
+Instead of partition filtering, focus on these high-impact optimizations:
+- Column Pruning (SELECT specific columns instead of *)
+- JOIN Reordering (smaller tables first)
+- Approximate Aggregation (APPROX_COUNT_DISTINCT)
+- Subquery to JOIN conversion
+- Window function optimization
 
 🎯 OPTIMIZATION REQUIREMENTS:
 1. Apply at least 1-3 relevant optimizations from Google's best practices

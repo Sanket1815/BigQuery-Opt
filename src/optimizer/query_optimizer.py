@@ -541,7 +541,7 @@ class BigQueryOptimizer:
             issues.append("Multiple JOINs may benefit from reordering based on table sizes")
         
         if 'FROM' in query_upper and '_PARTITIONDATE' not in query_upper:
-            issues.append("Missing partition filter may cause full table scan on partitioned tables")
+            issues.append("Consider adding date filters to reduce data scanned")
         
         if 'OVER (' in query_upper and 'PARTITION BY' not in query_upper:
             issues.append("Window functions without PARTITION BY may be inefficient on large datasets")
@@ -580,11 +580,12 @@ class BigQueryOptimizer:
             patterns.append("window_optimization")
         
         # Pattern 6: Partition filtering
-        if "_PARTITIONDATE" not in query_upper and any(
-            date_keyword in query_upper for date_keyword in 
-            ["DATE", "TIMESTAMP", ">= '2", "BETWEEN", "order_date", "created_at", "date_column"]
-        ):
-            patterns.append("partition_filtering")
+        # DISABLED: Partition filtering causes errors - focus on other optimizations
+        # if "_PARTITIONDATE" not in query_upper and any(
+        #     date_keyword in query_upper for date_keyword in 
+        #     ["DATE", "TIMESTAMP", ">= '2", "BETWEEN", "order_date", "created_at", "date_column"]
+        # ):
+        #     patterns.append("partition_filtering")
         
         # Pattern 7: Predicate pushdown
         if "WHERE" in query_upper and "JOIN" in query_upper:
