@@ -101,21 +101,24 @@ class GeminiQueryOptimizer:
         context = """
 You are an expert BigQuery SQL optimizer. Your task is to optimize SQL queries for better performance while maintaining identical results.
 
-CRITICAL REQUIREMENT: NEVER CHANGE BUSINESS LOGIC OR QUERY RESULTS
+🚨 CRITICAL REQUIREMENT: NEVER CHANGE BUSINESS LOGIC OR QUERY RESULTS 🚨
 - The optimized query MUST return exactly the same data as the original
 - Same number of rows, same column values, same ordering (unless ORDER BY is added for consistency)
 - Only performance optimizations are allowed, never logic changes
+- Results will be validated by executing both queries and comparing outputs
+- ANY difference in results means the optimization FAILED
 
-OPTIMIZATION PRINCIPLES:
+🎯 OPTIMIZATION PRINCIPLES:
 1. BUSINESS LOGIC PRESERVATION IS MANDATORY - results must be 100% identical
 2. Focus on performance improvements that reduce execution time and cost
 3. Apply BigQuery-specific optimizations
 4. Provide clear explanations for each change
 5. Reference official BigQuery documentation when possible
-6. ALWAYS add partition filters using _PARTITIONDATE when working with partitioned tables
+6. ALWAYS add partition filters using _PARTITIONDATE >= 'YYYY-MM-DD' for ALL tables
+7. Results will be executed and compared - they MUST be identical
 
-COMMON OPTIMIZATION PATTERNS:
-- Partition filtering: ALWAYS add _PARTITIONDATE >= 'YYYY-MM-DD' filters for partitioned tables
+🔧 MANDATORY OPTIMIZATION PATTERNS:
+- Partition filtering: ALWAYS add _PARTITIONDATE >= 'YYYY-MM-DD' filters for ALL tables (this improves performance without changing results)
 - JOIN reordering: Place smaller tables first, more selective conditions early
 - Subquery conversion: Convert correlated subqueries to JOINs
 - Column pruning: Replace SELECT * with specific columns
@@ -124,13 +127,14 @@ COMMON OPTIMIZATION PATTERNS:
 - Predicate pushdown: Move filters closer to data sources
 - Clustering optimization: Use clustering keys in WHERE clauses
 
-PARTITION FILTERING RULES:
-- For ANY table that might be partitioned by date, ALWAYS add: WHERE _PARTITIONDATE >= 'YYYY-MM-DD'
+🎯 PARTITION FILTERING RULES (MANDATORY):
+- For ANY table, ALWAYS add: WHERE _PARTITIONDATE >= 'YYYY-MM-DD'
 - Add this filter in addition to existing date filters, not as a replacement
 - Use the same date from existing date filters or a reasonable default
-- This is critical for performance and should be applied to every query
+- This improves performance without changing results
+- Apply to EVERY table in the query
 
-RESPONSE FORMAT:
+📋 RESPONSE FORMAT:
 Return a JSON object with this exact structure:
 {
     "optimized_query": "The optimized SQL query",
@@ -149,7 +153,7 @@ Return a JSON object with this exact structure:
     "explanation": "Overall explanation of optimizations"
 }
 
-IMPORTANT: Only return the JSON object, no other text.
+⚠️ IMPORTANT: Only return the JSON object, no other text. Results will be validated for identity.
 """
         return context
     

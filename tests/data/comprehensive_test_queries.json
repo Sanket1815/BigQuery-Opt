@@ -1,278 +1,230 @@
 {
-  "description": "Comprehensive test queries demonstrating various BigQuery optimization scenarios",
+  "description": "Comprehensive test queries demonstrating various BigQuery optimization scenarios with IDENTICAL results requirement",
   "version": "1.0",
   "created_date": "2024-12-19",
+  "critical_requirement": "ALL optimized queries MUST return IDENTICAL results to original queries. Business logic preservation is MANDATORY.",
+  
   "test_categories": {
     "basic_optimizations": {
-      "description": "Basic optimization patterns that should always preserve results",
+      "description": "Basic optimization patterns that MUST preserve identical results",
       "queries": [
         {
           "id": "select_star_basic",
-          "name": "SELECT * Column Pruning",
-          "description": "Basic SELECT * that should be optimized to specific columns",
+          "name": "SELECT * Column Pruning Test",
+          "description": "Basic SELECT * that should be optimized to specific columns while returning IDENTICAL results",
           "category": "column_pruning",
-          "original_query": "SELECT * FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-01-01' LIMIT 100",
-          "expected_optimized_query": "SELECT order_id, customer_id, order_date, total_amount, status, product_id FROM `{project}.{dataset}.orders` WHERE _PARTITIONDATE >= '2024-01-01' AND order_date >= '2024-01-01' LIMIT 100",
+          "original_query": "SELECT * FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' ORDER BY order_id LIMIT 10",
+          "expected_optimized_query": "SELECT order_id, customer_id, order_date, total_amount, status, product_id FROM `{project}.{dataset}.orders` WHERE _PARTITIONDATE >= '2024-06-01' AND order_date >= '2024-06-01' ORDER BY order_id LIMIT 10",
           "expected_optimizations": ["column_pruning", "partition_filtering"],
           "expected_improvement_min": 0.20,
-          "business_logic": "Retrieve all order information for recent orders",
-          "validation_notes": "Results must be identical - same rows, same columns, same values"
+          "business_logic": "Retrieve all order information for recent orders - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "Results must be 100% identical - same rows, same columns, same values, same order"
         },
         {
           "id": "missing_partition_filter",
-          "name": "Missing Partition Filter",
-          "description": "Query without partition filter that scans entire table",
+          "name": "Missing Partition Filter Test",
+          "description": "Query without partition filter that should add _PARTITIONDATE while keeping IDENTICAL results",
           "category": "partition_filtering",
-          "original_query": "SELECT customer_id, SUM(total_amount) as total_spent FROM `{project}.{dataset}.orders` WHERE status = 'completed' GROUP BY customer_id ORDER BY total_spent DESC LIMIT 50",
-          "expected_optimized_query": "SELECT customer_id, SUM(total_amount) as total_spent FROM `{project}.{dataset}.orders` WHERE _PARTITIONDATE >= '2024-01-01' AND status = 'completed' GROUP BY customer_id ORDER BY total_spent DESC LIMIT 50",
+          "original_query": "SELECT customer_id, total_amount FROM `{project}.{dataset}.orders` WHERE status = 'completed' ORDER BY customer_id, total_amount LIMIT 20",
+          "expected_optimized_query": "SELECT customer_id, total_amount FROM `{project}.{dataset}.orders` WHERE _PARTITIONDATE >= '2024-01-01' AND status = 'completed' ORDER BY customer_id, total_amount LIMIT 20",
           "expected_optimizations": ["partition_filtering"],
           "expected_improvement_min": 0.40,
-          "business_logic": "Find top spending customers with completed orders",
-          "validation_notes": "Must return identical customer rankings and amounts"
+          "business_logic": "Find completed orders with customer and amount - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "Must return identical customer-amount pairs in same order"
         },
         {
           "id": "count_distinct_large",
-          "name": "COUNT DISTINCT on Large Dataset",
-          "description": "Expensive COUNT DISTINCT that can use approximate aggregation",
+          "name": "COUNT DISTINCT Optimization Test",
+          "description": "COUNT DISTINCT that can use APPROX_COUNT_DISTINCT with controlled variance",
           "category": "approximate_aggregation",
-          "original_query": "SELECT DATE(order_date) as order_day, COUNT(DISTINCT customer_id) as unique_customers FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-01-01' GROUP BY DATE(order_date) ORDER BY order_day",
-          "expected_optimized_query": "SELECT DATE(order_date) as order_day, APPROX_COUNT_DISTINCT(customer_id) as unique_customers FROM `{project}.{dataset}.orders` WHERE _PARTITIONDATE >= '2024-01-01' AND order_date >= '2024-01-01' GROUP BY DATE(order_date) ORDER BY order_day",
+          "original_query": "SELECT DATE(order_date) as order_day, COUNT(DISTINCT customer_id) as unique_customers FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' GROUP BY DATE(order_date) ORDER BY order_day LIMIT 10",
+          "expected_optimized_query": "SELECT DATE(order_date) as order_day, APPROX_COUNT_DISTINCT(customer_id) as unique_customers FROM `{project}.{dataset}.orders` WHERE _PARTITIONDATE >= '2024-06-01' AND order_date >= '2024-06-01' GROUP BY DATE(order_date) ORDER BY order_day LIMIT 10",
           "expected_optimizations": ["approximate_aggregation", "partition_filtering"],
           "expected_improvement_min": 0.50,
-          "business_logic": "Daily unique customer count analysis",
-          "validation_notes": "APPROX_COUNT_DISTINCT may have slight variance (within 1-2%)",
+          "business_logic": "Daily unique customer count analysis - APPROXIMATE results acceptable within 2% variance",
+          "validation_notes": "APPROX_COUNT_DISTINCT may have slight variance (within 2%)",
           "allow_approximate": true,
           "max_variance_percent": 2.0
         },
         {
-          "id": "full_table_scan",
-          "name": "Full Table Scan Without Filters",
-          "description": "Query that scans entire table without any filtering",
+          "id": "simple_aggregation",
+          "name": "Simple Aggregation Test",
+          "description": "Basic aggregation that should add partition filter while keeping IDENTICAL results",
           "category": "partition_filtering",
-          "original_query": "SELECT customer_id, COUNT(*) as order_count FROM `{project}.{dataset}.orders` GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY order_count DESC LIMIT 25",
-          "expected_optimized_query": "SELECT customer_id, COUNT(*) as order_count FROM `{project}.{dataset}.orders` WHERE _PARTITIONDATE >= '2024-01-01' GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY order_count DESC LIMIT 25",
+          "original_query": "SELECT status, COUNT(*) as order_count, SUM(total_amount) as total_revenue FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' GROUP BY status ORDER BY total_revenue DESC",
+          "expected_optimized_query": "SELECT status, COUNT(*) as order_count, SUM(total_amount) as total_revenue FROM `{project}.{dataset}.orders` WHERE _PARTITIONDATE >= '2024-06-01' AND order_date >= '2024-06-01' GROUP BY status ORDER BY total_revenue DESC",
           "expected_optimizations": ["partition_filtering"],
           "expected_improvement_min": 0.35,
-          "business_logic": "Find customers with more than 10 orders",
-          "validation_notes": "Customer counts and rankings must be identical"
+          "business_logic": "Order status summary with counts and revenue - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "All aggregated values must be exactly identical"
         }
       ]
     },
+    
     "join_optimizations": {
-      "description": "JOIN optimization scenarios",
+      "description": "JOIN optimization scenarios that MUST preserve identical results",
       "queries": [
         {
-          "id": "inefficient_join_order",
-          "name": "Inefficient JOIN Order",
-          "description": "JOINs starting with largest table first",
+          "id": "basic_join_test",
+          "name": "Basic JOIN Optimization Test",
+          "description": "Simple JOIN that should be optimized while returning IDENTICAL results",
           "category": "join_reordering",
-          "original_query": "SELECT c.customer_name, o.order_id, p.product_name, oi.quantity FROM `{project}.{dataset}.order_items` oi JOIN `{project}.{dataset}.orders` o ON oi.order_id = o.order_id JOIN `{project}.{dataset}.customers` c ON o.customer_id = c.customer_id JOIN `{project}.{dataset}.products` p ON oi.product_id = p.product_id WHERE o.order_date >= '2024-06-01' AND c.customer_tier = 'Premium' AND p.category = 'Electronics' LIMIT 100",
+          "original_query": "SELECT c.customer_name, o.order_id, o.total_amount FROM `{project}.{dataset}.customers` c JOIN `{project}.{dataset}.orders` o ON c.customer_id = o.customer_id WHERE o.order_date >= '2024-06-01' AND c.customer_tier = 'Premium' ORDER BY o.order_id LIMIT 15",
           "expected_optimizations": ["join_reordering", "partition_filtering"],
           "expected_improvement_min": 0.25,
-          "business_logic": "Premium customers' electronics orders with details",
-          "validation_notes": "Must return identical order details regardless of JOIN order"
+          "business_logic": "Premium customers' orders with details - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "Must return identical customer-order combinations in same order"
         },
         {
-          "id": "cross_join_scenario",
-          "name": "Implicit Cross JOIN",
-          "description": "Query that creates implicit cross join",
+          "id": "multiple_joins_test",
+          "name": "Multiple JOINs Test",
+          "description": "Multiple JOINs that should be reordered while keeping IDENTICAL results",
           "category": "join_reordering",
-          "original_query": "SELECT c.customer_name, p.product_name FROM `{project}.{dataset}.customers` c, `{project}.{dataset}.products` p WHERE c.customer_tier = 'Premium' AND p.category = 'Electronics' AND c.customer_id IN (SELECT customer_id FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-01-01') LIMIT 20",
-          "expected_optimizations": ["subquery_to_join", "join_reordering"],
-          "expected_improvement_min": 0.30,
-          "business_logic": "Premium customers and electronics products combination",
-          "validation_notes": "Results must be identical - same customer-product combinations"
-        },
-        {
-          "id": "multiple_left_joins",
-          "name": "Multiple LEFT JOINs",
-          "description": "Query with multiple LEFT JOINs that can be optimized",
-          "category": "join_reordering",
-          "original_query": "SELECT c.customer_name, c.region, o.order_id, o.total_amount, p.product_name FROM `{project}.{dataset}.customers` c LEFT JOIN `{project}.{dataset}.orders` o ON c.customer_id = o.customer_id LEFT JOIN `{project}.{dataset}.order_items` oi ON o.order_id = oi.order_id LEFT JOIN `{project}.{dataset}.products` p ON oi.product_id = p.product_id WHERE c.customer_tier IN ('Premium', 'Gold') AND (o.order_date >= '2024-01-01' OR o.order_date IS NULL) ORDER BY c.customer_name, o.order_date LIMIT 200",
+          "original_query": "SELECT c.customer_name, p.product_name, o.total_amount FROM `{project}.{dataset}.orders` o JOIN `{project}.{dataset}.customers` c ON o.customer_id = c.customer_id JOIN `{project}.{dataset}.products` p ON o.product_id = p.product_id WHERE o.order_date >= '2024-06-01' ORDER BY o.order_id LIMIT 12",
           "expected_optimizations": ["join_reordering", "partition_filtering"],
+          "expected_improvement_min": 0.30,
+          "business_logic": "Customer-product-order details - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "All JOIN results must be identical regardless of JOIN order"
+        },
+        {
+          "id": "left_join_test",
+          "name": "LEFT JOIN Preservation Test",
+          "description": "LEFT JOIN that must preserve NULL values and return IDENTICAL results",
+          "category": "join_reordering",
+          "original_query": "SELECT c.customer_name, c.region, o.order_id, o.total_amount FROM `{project}.{dataset}.customers` c LEFT JOIN `{project}.{dataset}.orders` o ON c.customer_id = o.customer_id WHERE c.customer_tier IN ('Premium', 'Gold') AND (o.order_date >= '2024-06-01' OR o.order_date IS NULL) ORDER BY c.customer_id, o.order_id LIMIT 20",
+          "expected_optimizations": ["partition_filtering"],
           "expected_improvement_min": 0.20,
-          "business_logic": "Premium and Gold customers with their order details (including customers with no orders)",
-          "validation_notes": "Must preserve LEFT JOIN semantics - customers without orders must still appear"
+          "business_logic": "Premium/Gold customers with their orders (including customers with no orders) - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "Must preserve LEFT JOIN semantics - customers without orders must still appear with NULL values"
         }
       ]
     },
+    
     "subquery_optimizations": {
-      "description": "Subquery conversion scenarios",
+      "description": "Subquery conversion scenarios that MUST preserve identical results",
       "queries": [
         {
-          "id": "correlated_exists_subquery",
-          "name": "Correlated EXISTS Subquery",
-          "description": "EXISTS subquery that can be converted to JOIN",
+          "id": "exists_subquery_test",
+          "name": "EXISTS Subquery Conversion Test",
+          "description": "EXISTS subquery that should convert to JOIN while returning IDENTICAL results",
           "category": "subquery_to_join",
-          "original_query": "SELECT customer_id, customer_name FROM `{project}.{dataset}.customers` c WHERE EXISTS (SELECT 1 FROM `{project}.{dataset}.orders` o WHERE o.customer_id = c.customer_id AND o.order_date >= '2024-01-01' AND o.status = 'completed') ORDER BY customer_name LIMIT 100",
+          "original_query": "SELECT customer_id, customer_name FROM `{project}.{dataset}.customers` c WHERE EXISTS (SELECT 1 FROM `{project}.{dataset}.orders` o WHERE o.customer_id = c.customer_id AND o.order_date >= '2024-06-01' AND o.status = 'completed') ORDER BY customer_id LIMIT 15",
           "expected_optimizations": ["subquery_to_join", "partition_filtering"],
           "expected_improvement_min": 0.35,
-          "business_logic": "Customers who have completed orders this year",
-          "validation_notes": "Must return identical customer list"
+          "business_logic": "Customers who have completed orders since June 2024 - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "Must return identical customer list in same order"
         },
         {
-          "id": "nested_in_subqueries",
-          "name": "Nested IN Subqueries",
-          "description": "Multiple nested IN subqueries that can be flattened",
+          "id": "in_subquery_test",
+          "name": "IN Subquery Conversion Test",
+          "description": "IN subquery that should convert to JOIN while returning IDENTICAL results",
           "category": "subquery_to_join",
-          "original_query": "SELECT customer_name FROM `{project}.{dataset}.customers` WHERE customer_id IN (SELECT customer_id FROM `{project}.{dataset}.orders` WHERE order_id IN (SELECT order_id FROM `{project}.{dataset}.order_items` WHERE product_id IN (SELECT product_id FROM `{project}.{dataset}.products` WHERE category = 'Electronics') AND quantity > 2) AND order_date >= '2024-06-01' AND status = 'completed') LIMIT 50",
+          "original_query": "SELECT customer_name, customer_tier FROM `{project}.{dataset}.customers` WHERE customer_id IN (SELECT customer_id FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' AND total_amount > 500) ORDER BY customer_name LIMIT 10",
           "expected_optimizations": ["subquery_to_join", "partition_filtering"],
           "expected_improvement_min": 0.40,
-          "business_logic": "Customers who bought multiple electronics items in completed orders",
-          "validation_notes": "Must return identical customer names"
+          "business_logic": "Customers with high-value orders since June 2024 - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "Must return identical customer names and tiers"
         },
         {
-          "id": "not_exists_subquery",
-          "name": "NOT EXISTS Subquery",
-          "description": "NOT EXISTS subquery for finding customers without recent orders",
+          "id": "not_exists_test",
+          "name": "NOT EXISTS Subquery Test",
+          "description": "NOT EXISTS subquery for finding customers without recent orders - IDENTICAL results required",
           "category": "subquery_to_join",
-          "original_query": "SELECT customer_id, customer_name, signup_date FROM `{project}.{dataset}.customers` c WHERE NOT EXISTS (SELECT 1 FROM `{project}.{dataset}.orders` o WHERE o.customer_id = c.customer_id AND o.order_date >= '2024-06-01') AND c.signup_date < '2024-01-01' ORDER BY signup_date LIMIT 75",
+          "original_query": "SELECT customer_id, customer_name FROM `{project}.{dataset}.customers` c WHERE NOT EXISTS (SELECT 1 FROM `{project}.{dataset}.orders` o WHERE o.customer_id = c.customer_id AND o.order_date >= '2024-06-01') ORDER BY customer_id LIMIT 10",
           "expected_optimizations": ["subquery_to_join"],
           "expected_improvement_min": 0.25,
-          "business_logic": "Long-time customers who haven't ordered recently",
+          "business_logic": "Customers who haven't ordered since June 2024 - RESULTS MUST BE IDENTICAL",
           "validation_notes": "Must return identical list of inactive customers"
         }
       ]
     },
+    
     "window_function_optimizations": {
-      "description": "Window function optimization scenarios",
+      "description": "Window function optimization scenarios that MUST preserve identical results",
       "queries": [
         {
-          "id": "inefficient_window_functions",
-          "name": "Inefficient Window Functions",
-          "description": "Window functions without proper partitioning",
+          "id": "basic_window_test",
+          "name": "Basic Window Function Test",
+          "description": "Window function that should be optimized while returning IDENTICAL results",
           "category": "window_optimization",
-          "original_query": "SELECT customer_id, order_id, order_date, total_amount, ROW_NUMBER() OVER (ORDER BY total_amount DESC) as overall_rank, RANK() OVER (ORDER BY order_date) as date_rank, SUM(total_amount) OVER (ORDER BY order_date ROWS UNBOUNDED PRECEDING) as running_total FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' ORDER BY total_amount DESC LIMIT 1000",
+          "original_query": "SELECT customer_id, order_date, total_amount, ROW_NUMBER() OVER (ORDER BY total_amount DESC) as amount_rank FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' ORDER BY amount_rank LIMIT 10",
           "expected_optimizations": ["window_optimization", "partition_filtering"],
           "expected_improvement_min": 0.20,
-          "business_logic": "Order ranking and running totals analysis",
-          "validation_notes": "Rankings and running totals must be identical"
+          "business_logic": "Order ranking by amount - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "Rankings must be exactly identical"
         },
         {
-          "id": "customer_analytics_window",
-          "name": "Customer Analytics with Window Functions",
-          "description": "Customer analytics using window functions that can be optimized",
+          "id": "partitioned_window_test",
+          "name": "Partitioned Window Function Test",
+          "description": "Window function with partitioning that should be optimized while keeping IDENTICAL results",
           "category": "window_optimization",
-          "original_query": "SELECT customer_id, order_date, total_amount, LAG(total_amount) OVER (ORDER BY order_date) as prev_order_amount, AVG(total_amount) OVER (ORDER BY order_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) as moving_avg FROM `{project}.{dataset}.orders` WHERE customer_id <= 100 AND order_date >= '2024-01-01' ORDER BY customer_id, order_date LIMIT 500",
-          "expected_optimizations": ["window_optimization", "partition_filtering"],
+          "original_query": "SELECT customer_id, order_date, total_amount, RANK() OVER (PARTITION BY customer_id ORDER BY order_date) as order_sequence FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' ORDER BY customer_id, order_sequence LIMIT 20",
+          "expected_optimizations": ["partition_filtering"],
           "expected_improvement_min": 0.25,
-          "business_logic": "Customer order trends with moving averages",
-          "validation_notes": "All calculated values must match exactly"
-        },
-        {
-          "id": "ranking_without_partition",
-          "name": "Ranking Without Proper Partitioning",
-          "description": "Ranking functions that would benefit from partitioning",
-          "category": "window_optimization",
-          "original_query": "SELECT c.region, c.customer_name, o.total_amount, DENSE_RANK() OVER (ORDER BY o.total_amount DESC) as amount_rank, PERCENT_RANK() OVER (ORDER BY o.total_amount) as amount_percentile FROM `{project}.{dataset}.customers` c JOIN `{project}.{dataset}.orders` o ON c.customer_id = o.customer_id WHERE o.order_date >= '2024-01-01' AND o.status = 'completed' ORDER BY amount_rank LIMIT 150",
-          "expected_optimizations": ["window_optimization", "partition_filtering"],
-          "expected_improvement_min": 0.18,
-          "business_logic": "Customer ranking by order amount across all regions",
-          "validation_notes": "Rankings and percentiles must be identical"
+          "business_logic": "Customer order sequence ranking - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "All rankings within each customer partition must be identical"
         }
       ]
     },
+    
     "aggregation_optimizations": {
-      "description": "Aggregation and GROUP BY optimization scenarios",
+      "description": "Aggregation optimization scenarios that MUST preserve identical results",
       "queries": [
         {
-          "id": "heavy_aggregation_query",
-          "name": "Heavy Aggregation Query",
-          "description": "Complex aggregation without proper partitioning",
-          "category": "aggregation_optimization",
-          "original_query": "SELECT c.region, COUNT(*) as total_orders, COUNT(DISTINCT o.customer_id) as unique_customers, SUM(o.total_amount) as total_revenue, AVG(o.total_amount) as avg_order_value, MIN(o.order_date) as first_order, MAX(o.order_date) as last_order FROM `{project}.{dataset}.orders` o JOIN `{project}.{dataset}.customers` c ON o.customer_id = c.customer_id WHERE o.order_date >= '2024-01-01' GROUP BY c.region ORDER BY total_revenue DESC",
-          "expected_optimizations": ["partition_filtering", "approximate_aggregation", "join_reordering"],
-          "expected_improvement_min": 0.45,
-          "business_logic": "Regional sales performance analysis",
-          "validation_notes": "All aggregated values must be identical (or within tolerance for approximate functions)",
-          "allow_approximate": true,
-          "max_variance_percent": 1.5
-        },
-        {
-          "id": "time_series_aggregation",
-          "name": "Time Series Aggregation",
-          "description": "Time-based aggregation that can benefit from partitioning",
+          "id": "group_by_test",
+          "name": "GROUP BY Optimization Test",
+          "description": "GROUP BY query that should add partition filter while keeping IDENTICAL results",
           "category": "partition_filtering",
-          "original_query": "SELECT DATE_TRUNC(order_date, MONTH) as order_month, COUNT(*) as monthly_orders, SUM(total_amount) as monthly_revenue, COUNT(DISTINCT customer_id) as monthly_customers FROM `{project}.{dataset}.orders` WHERE order_date BETWEEN '2024-01-01' AND '2024-12-31' GROUP BY DATE_TRUNC(order_date, MONTH) ORDER BY order_month",
-          "expected_optimizations": ["partition_filtering", "approximate_aggregation"],
+          "original_query": "SELECT customer_id, COUNT(*) as order_count, SUM(total_amount) as total_spent, AVG(total_amount) as avg_order FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' GROUP BY customer_id HAVING COUNT(*) > 2 ORDER BY total_spent DESC LIMIT 15",
+          "expected_optimizations": ["partition_filtering"],
           "expected_improvement_min": 0.35,
-          "business_logic": "Monthly sales trends analysis",
-          "validation_notes": "Monthly totals must be identical",
-          "allow_approximate": true,
-          "max_variance_percent": 1.0
+          "business_logic": "Customer spending analysis for active customers - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "All aggregated values must be exactly identical"
         },
         {
-          "id": "multiple_count_distinct",
-          "name": "Multiple COUNT DISTINCT Functions",
-          "description": "Query with multiple COUNT DISTINCT operations",
-          "category": "approximate_aggregation",
-          "original_query": "SELECT p.category, COUNT(*) as total_orders, COUNT(DISTINCT o.customer_id) as unique_customers, COUNT(DISTINCT oi.product_id) as unique_products, SUM(oi.quantity * oi.unit_price) as total_revenue FROM `{project}.{dataset}.orders` o JOIN `{project}.{dataset}.order_items` oi ON o.order_id = oi.order_id JOIN `{project}.{dataset}.products` p ON oi.product_id = p.product_id WHERE o.order_date >= '2024-01-01' AND o.status = 'completed' GROUP BY p.category ORDER BY total_revenue DESC",
-          "expected_optimizations": ["approximate_aggregation", "partition_filtering", "join_reordering"],
+          "id": "multiple_aggregates_test",
+          "name": "Multiple Aggregates Test",
+          "description": "Multiple aggregation functions that should be optimized while keeping IDENTICAL results",
+          "category": "partition_filtering",
+          "original_query": "SELECT DATE(order_date) as order_day, COUNT(*) as daily_orders, SUM(total_amount) as daily_revenue, MIN(total_amount) as min_order, MAX(total_amount) as max_order FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-06-01' GROUP BY DATE(order_date) ORDER BY order_day LIMIT 10",
+          "expected_optimizations": ["partition_filtering"],
           "expected_improvement_min": 0.40,
-          "business_logic": "Product category performance with unique counts",
-          "validation_notes": "Approximate functions may have slight variance",
-          "allow_approximate": true,
-          "max_variance_percent": 2.5
-        }
-      ]
-    },
-    "complex_scenarios": {
-      "description": "Complex real-world optimization scenarios",
-      "queries": [
-        {
-          "id": "customer_lifetime_value",
-          "name": "Customer Lifetime Value Analysis",
-          "description": "Complex query calculating customer lifetime value",
-          "category": "multiple_optimizations",
-          "original_query": "WITH customer_orders AS (SELECT c.customer_id, c.customer_name, c.customer_tier, c.region, COUNT(o.order_id) as total_orders, SUM(o.total_amount) as total_spent, AVG(o.total_amount) as avg_order_value, MIN(o.order_date) as first_order_date, MAX(o.order_date) as last_order_date FROM `{project}.{dataset}.customers` c LEFT JOIN `{project}.{dataset}.orders` o ON c.customer_id = o.customer_id WHERE o.order_date >= '2024-01-01' OR o.order_date IS NULL GROUP BY c.customer_id, c.customer_name, c.customer_tier, c.region), customer_rankings AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY region ORDER BY total_spent DESC) as region_rank, NTILE(10) OVER (ORDER BY total_spent DESC) as value_decile FROM customer_orders) SELECT region, customer_tier, COUNT(*) as customer_count, AVG(total_spent) as avg_lifetime_value, SUM(total_orders) as total_orders_sum FROM customer_rankings WHERE total_orders > 0 GROUP BY region, customer_tier ORDER BY region, avg_lifetime_value DESC",
-          "expected_optimizations": ["partition_filtering", "window_optimization", "join_reordering"],
-          "expected_improvement_min": 0.30,
-          "business_logic": "Customer lifetime value analysis by region and tier",
-          "validation_notes": "All calculated metrics must be identical"
-        },
-        {
-          "id": "product_performance_analysis",
-          "name": "Product Performance Analysis",
-          "description": "Complex product analysis with multiple JOINs and aggregations",
-          "category": "multiple_optimizations",
-          "original_query": "SELECT p.category, p.product_name, COUNT(DISTINCT oi.order_id) as orders_count, SUM(oi.quantity) as total_quantity_sold, SUM(oi.quantity * oi.unit_price) as total_revenue, COUNT(DISTINCT o.customer_id) as unique_customers, AVG(oi.unit_price) as avg_unit_price FROM `{project}.{dataset}.products` p JOIN `{project}.{dataset}.order_items` oi ON p.product_id = oi.product_id JOIN `{project}.{dataset}.orders` o ON oi.order_id = o.order_id WHERE o.order_date >= '2024-01-01' AND o.status = 'completed' GROUP BY p.category, p.product_name HAVING COUNT(DISTINCT oi.order_id) >= 5 ORDER BY total_revenue DESC LIMIT 100",
-          "expected_optimizations": ["partition_filtering", "join_reordering", "approximate_aggregation"],
-          "expected_improvement_min": 0.40,
-          "business_logic": "Top performing products by revenue with minimum order threshold",
-          "validation_notes": "Product rankings and metrics must be identical",
-          "allow_approximate": true,
-          "max_variance_percent": 2.0
-        },
-        {
-          "id": "cohort_analysis",
-          "name": "Customer Cohort Analysis",
-          "description": "Complex cohort analysis with multiple window functions",
-          "category": "multiple_optimizations",
-          "original_query": "WITH first_orders AS (SELECT customer_id, MIN(order_date) as first_order_date FROM `{project}.{dataset}.orders` WHERE order_date >= '2024-01-01' GROUP BY customer_id), monthly_orders AS (SELECT fo.customer_id, fo.first_order_date, DATE_TRUNC(o.order_date, MONTH) as order_month, SUM(o.total_amount) as monthly_spend FROM first_orders fo JOIN `{project}.{dataset}.orders` o ON fo.customer_id = o.customer_id WHERE o.order_date >= fo.first_order_date GROUP BY fo.customer_id, fo.first_order_date, DATE_TRUNC(o.order_date, MONTH)) SELECT DATE_TRUNC(first_order_date, MONTH) as cohort_month, order_month, COUNT(DISTINCT customer_id) as active_customers, SUM(monthly_spend) as cohort_revenue, AVG(monthly_spend) as avg_customer_spend FROM monthly_orders GROUP BY DATE_TRUNC(first_order_date, MONTH), order_month ORDER BY cohort_month, order_month LIMIT 200",
-          "expected_optimizations": ["partition_filtering", "window_optimization", "join_reordering"],
-          "expected_improvement_min": 0.35,
-          "business_logic": "Customer cohort analysis showing retention and spending patterns",
-          "validation_notes": "Cohort metrics must be identical"
+          "business_logic": "Daily sales statistics - RESULTS MUST BE IDENTICAL",
+          "validation_notes": "All daily statistics must be exactly identical"
         }
       ]
     }
   },
+  
   "validation_settings": {
     "default_sample_size": 1000,
     "performance_measurement_iterations": 3,
     "min_improvement_threshold": 0.15,
     "max_execution_time_seconds": 300,
     "result_comparison_tolerance": {
-      "numeric_precision": 6,
-      "percentage_variance_allowed": 0.001,
+      "numeric_precision": 10,
+      "percentage_variance_allowed": 0.0,
       "approximate_function_variance": 2.0
     }
   },
+  
+  "critical_requirements": [
+    "ALL optimized queries MUST return IDENTICAL results to original queries",
+    "Business logic preservation is MANDATORY - no exceptions",
+    "Any difference in results means the optimization FAILED",
+    "Approximate functions may have controlled variance within specified limits",
+    "Performance improvements are secondary to result accuracy",
+    "The system must ALWAYS show both original and optimized query results",
+    "Validation must be comprehensive and clearly report any differences"
+  ],
+  
   "test_execution_notes": [
-    "All queries must return identical results unless marked with 'allow_approximate'",
-    "Approximate functions (APPROX_COUNT_DISTINCT, etc.) may have slight variance within specified tolerance",
-    "Business logic must never be changed - only performance optimizations are allowed",
-    "Each test should validate both result correctness and performance improvement",
-    "Queries use placeholder {project} and {dataset} that should be replaced with actual values"
+    "Every test query MUST pass result identity validation",
+    "The system will show actual results from both queries side-by-side",
+    "Any optimization that changes results will be marked as FAILED",
+    "Approximate functions are clearly marked and have variance tolerance",
+    "All queries use {project} and {dataset} placeholders for flexibility",
+    "Partition filtering with _PARTITIONDATE should be added to all partitioned tables",
+    "Business logic descriptions explain what each query should accomplish"
   ]
 }

@@ -255,16 +255,19 @@ class EnhancedResultComparator:
         """Generate a formatted display of comparison results."""
         
         output = []
-        output.append("=" * 80)
-        output.append("🔍 QUERY RESULT COMPARISON - BUSINESS LOGIC VALIDATION")
-        output.append("=" * 80)
+        output.append("\n" + "=" * 100)
+        output.append("🔍 QUERY EXECUTION RESULTS - BUSINESS LOGIC VALIDATION")
+        output.append("=" * 100)
         
         # Summary
         if comparison.results_identical:
-            output.append(f"\n✅ VALIDATION PASSED: {comparison.comparison_summary}")
+            output.append(f"\n✅ SUCCESS: BUSINESS LOGIC PRESERVED!")
+            output.append(f"   {comparison.comparison_summary}")
         else:
-            output.append(f"\n❌ VALIDATION FAILED: {comparison.comparison_summary}")
-            output.append("   ⚠️  BUSINESS LOGIC HAS BEEN COMPROMISED!")
+            output.append(f"\n🚨 CRITICAL FAILURE: BUSINESS LOGIC COMPROMISED!")
+            output.append(f"   {comparison.comparison_summary}")
+            output.append("   ⚠️  THE OPTIMIZED QUERY RETURNS DIFFERENT RESULTS!")
+            output.append("   ⚠️  THIS OPTIMIZATION IS INVALID AND MUST BE REJECTED!")
             
         output.append(f"   Original rows: {comparison.original_row_count:,}")
         output.append(f"   Optimized rows: {comparison.optimized_row_count:,}")
@@ -277,37 +280,40 @@ class EnhancedResultComparator:
         
         # Differences
         if comparison.differences_found:
-            output.append(f"\n❌ DIFFERENCES FOUND ({len(comparison.differences_found)}):")
+            output.append(f"\n🚨 CRITICAL DIFFERENCES FOUND ({len(comparison.differences_found)}):")
             for i, diff in enumerate(comparison.differences_found, 1):
-                output.append(f"   {i}. {diff}")
+                output.append(f"   🔴 {i}. {diff}")
         else:
             output.append("\n✅ NO DIFFERENCES FOUND")
         
-        # Sample data display
+        # ALWAYS show both query results side by side
         if comparison.sample_original or comparison.sample_optimized:
-            output.append(f"\n📋 QUERY RESULTS COMPARISON (first 5 rows):")
+            output.append(f"\n📊 ACTUAL QUERY RESULTS COMPARISON (showing first 10 rows):")
+            output.append("-" * 100)
             
-            output.append("\n🔸 ORIGINAL (UNOPTIMIZED) QUERY RESULTS:")
+            output.append("\n🔵 ORIGINAL QUERY RESULTS:")
             if comparison.sample_original:
-                output.append(self._format_sample_data(comparison.sample_original))
+                output.append(self._format_sample_data(comparison.sample_original, max_rows=10))
             else:
                 output.append("   No data returned")
             
-            output.append("\n🔸 OPTIMIZED QUERY RESULTS:")
+            output.append("\n🟢 OPTIMIZED QUERY RESULTS:")
             if comparison.sample_optimized:
-                output.append(self._format_sample_data(comparison.sample_optimized))
+                output.append(self._format_sample_data(comparison.sample_optimized, max_rows=10))
             else:
                 output.append("   No data returned")
                 
             # Add explicit comparison note
             if comparison.results_identical:
-                output.append("\n✅ RESULT VERIFICATION: Both queries return IDENTICAL results")
-                output.append("   Business logic is preserved - optimization is valid!")
+                output.append("\n✅ VERIFICATION: Both queries return IDENTICAL results!")
+                output.append("   ✅ Business logic is PRESERVED - optimization is VALID!")
+                output.append("   ✅ The optimization improves performance without changing results!")
             else:
-                output.append("\n❌ RESULT VERIFICATION: Queries return DIFFERENT results")
-                output.append("   Business logic has been changed - optimization is INVALID!")
+                output.append("\n🚨 VERIFICATION: Queries return DIFFERENT results!")
+                output.append("   🚨 Business logic has been CHANGED - optimization is INVALID!")
+                output.append("   🚨 This optimization MUST BE REJECTED!")
         
-        output.append("\n" + "=" * 80)
+        output.append("\n" + "=" * 100)
         
         return "\n".join(output)
     
@@ -320,8 +326,13 @@ class EnhancedResultComparator:
         try:
             df = pd.DataFrame(data[:max_rows])
             
-            # Format the DataFrame as string with proper alignment
-            formatted = df.to_string(index=False, max_cols=10, max_colwidth=20)
+            # Format the DataFrame as string with better alignment
+            formatted = df.to_string(
+                index=False, 
+                max_cols=15, 
+                max_colwidth=25,
+                justify='left'
+            )
             
             # Add indentation
             lines = formatted.split('\n')
@@ -334,7 +345,6 @@ class EnhancedResultComparator:
             
         except Exception as e:
             # Fallback to simple JSON formatting
-            return f"   {json.dumps(data[:3], indent=2, default=str)}"
     
     def save_comparison_report(
         self, 

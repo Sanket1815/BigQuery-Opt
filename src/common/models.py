@@ -212,6 +212,12 @@ class OptimizationResult(BaseModel):
         description="Detailed comparison results (QueryResultComparison object)"
     )
     
+    # Enhanced result comparison
+    detailed_comparison: Optional[Any] = Field(
+        default=None,
+        description="Detailed comparison results (QueryResultComparison object)"
+    )
+    
     def get_summary(self) -> str:
         """Get a human-readable summary of the optimization."""
         if not self.optimizations_applied:

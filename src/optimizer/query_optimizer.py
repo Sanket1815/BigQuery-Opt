@@ -112,13 +112,11 @@ class BigQueryOptimizer:
             # Step 5: Validate results if requested
             detailed_comparison = None
             if validate_results and self.validator and self.result_comparator:
-                print(f"\n🔍 VALIDATING QUERY RESULTS")
-                print("=" * 60)
-                print(f"📊 Original Query:")
-                print(f"   {query[:100]}{'...' if len(query) > 100 else ''}")
-                print(f"📊 Optimized Query:")
-                print(f"   {optimization_result.optimized_query[:100]}{'...' if len(optimization_result.optimized_query) > 100 else ''}")
-                print()
+                print(f"\n🔍 EXECUTING AND COMPARING QUERY RESULTS")
+                print("=" * 80)
+                print("🎯 CRITICAL REQUIREMENT: Results MUST be identical!")
+                print("   Business logic preservation is mandatory.")
+                print("=" * 80)
                 
                 detailed_comparison = self.result_comparator.compare_query_results_detailed(
                     query,
@@ -135,16 +133,16 @@ class BigQueryOptimizer:
                 # Store detailed comparison for display
                 optimization_result.detailed_comparison = detailed_comparison
                 
-                # ALWAYS show comparison results
+                # ALWAYS show both query results and comparison
                 if detailed_comparison:
                     comparison_display = self.result_comparator.display_comparison_results(detailed_comparison)
                     print(comparison_display)
                     
                     # Critical validation - results MUST be identical
                     if not detailed_comparison.results_identical:
-                        print(f"\n❌ CRITICAL ERROR: Query results are NOT identical!")
-                        print(f"   This violates the core requirement of business logic preservation.")
-                # Display comparison if requested
+                        print(f"\n🚨 CRITICAL FAILURE: BUSINESS LOGIC COMPROMISED!")
+                        print(f"   The optimized query returns DIFFERENT results!")
+                        print(f"   This is UNACCEPTABLE - optimization FAILED!")
                 else:
                     print("⚠️ No detailed comparison available")
             
