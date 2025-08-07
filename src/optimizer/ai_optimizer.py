@@ -62,6 +62,9 @@ class GeminiQueryOptimizer:
             # Parse the AI response
             optimization_data = self._parse_ai_response(response.text)
             
+            # Debug: Log the AI response
+            self.logger.logger.info(f"AI response received: {len(optimization_data.get('optimizations_applied', []))} optimizations")
+            
             # Create optimization result
             result = self._create_optimization_result(query, analysis, optimization_data, start_time)
             
@@ -211,6 +214,9 @@ CRITICAL: Return only the JSON object. Results will be executed and validated fo
             # Clean the response text
             cleaned_response = response_text.strip()
             
+            # Log the raw response for debugging
+            self.logger.logger.debug(f"Raw AI response: {response_text[:500]}...")
+            
             # Remove markdown code blocks if present
             if cleaned_response.startswith('```json'):
                 cleaned_response = cleaned_response[7:]
@@ -229,6 +235,10 @@ CRITICAL: Return only the JSON object. Results will be executed and validated fo
             for field in required_fields:
                 if field not in optimization_data:
                     raise ValueError(f"Missing required field: {field}")
+            
+            # Log what optimizations were found
+            optimizations = optimization_data.get('optimizations_applied', [])
+            self.logger.logger.info(f"Parsed {len(optimizations)} optimizations from AI response")
             
             return optimization_data
             

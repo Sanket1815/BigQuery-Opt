@@ -80,11 +80,22 @@ class BigQueryOptimizer:
             
             # Step 3: Apply Google's official best practices using AI
             print(f"🤖 Applying Google's BigQuery best practices...")
+            print(f"📋 Detected patterns: {', '.join(analysis.applicable_patterns)}")
+            print(f"⚠️ Issues found: {', '.join(analysis.potential_issues)}")
+            
             optimization_result = self.ai_optimizer.optimize_with_best_practices(
                 query, analysis, table_metadata
             )
             
             print(f"✅ Applied {optimization_result.total_optimizations} optimizations")
+            
+            # Show what optimizations were applied
+            if optimization_result.optimizations_applied:
+                print(f"🔧 Optimizations applied:")
+                for opt in optimization_result.optimizations_applied:
+                    print(f"   - {opt.pattern_name}: {opt.description}")
+            else:
+                print(f"⚠️ No optimizations were applied - this may indicate an issue")
             
             # Step 4: CRITICAL - Validate business logic preservation
             if validate_results and self.validator:
