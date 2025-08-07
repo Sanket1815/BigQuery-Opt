@@ -2,6 +2,7 @@
 
 import json
 import time
+import re
 from typing import Dict, List, Optional, Any
 import google.generativeai as genai
 
@@ -28,19 +29,15 @@ class GeminiQueryOptimizer:
             raise OptimizationError("Gemini API key not configured")
         
         genai.configure(api_key=self.settings.gemini_api_key)
-        # self.model = genai.GenerativeModel(self.settings.gemini_model)
-        # self.model = genai.GenerativeModel(model_name=self.settings.gemini_model_name)
         self.model = genai.GenerativeModel(
-    model_name=self.settings.gemini_model_name,  # should be "gemini-pro"
-    safety_settings=[
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}
-    ]
-)
-
-
+            model_name=self.settings.gemini_model_name,
+            safety_settings=[
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}
+            ]
+        )
         
         # Load optimization context
         self.optimization_context = self._build_optimization_context()
@@ -50,15 +47,16 @@ class GeminiQueryOptimizer:
         query: str, 
         analysis: QueryAnalysis,
         applicable_patterns: List[OptimizationPattern],
-        documentation_context: Optional[List[Dict]] = None
+        documentation_context: Optional[List[Dict]] = None,
+        table_metadata: Optional[Dict[str, Any]] = None
     ) -> OptimizationResult:
-        """Optimize a SQL query using AI."""
+        """Optimize a SQL query using AI with dynamic optimization patterns."""
         start_time = time.time()
         
         try:
-            # Build the optimization prompt
+            # Build the optimization prompt with table metadata
             prompt = self._build_optimization_prompt(
-                query, analysis, applicable_patterns, documentation_context
+                query, analysis, applicable_patterns, documentation_context, table_metadata
             )
             
             # Generate optimization using Gemini
@@ -99,62 +97,83 @@ class GeminiQueryOptimizer:
     def _build_optimization_context(self) -> str:
         """Build the optimization context for the AI model."""
         context = """
-You are an expert BigQuery SQL optimizer. Your task is to optimize SQL queries for better performance while maintaining identical results.
+You are an expert BigQuery SQL optimizer. Your task is to optimize SQL queries for better performance while maintaining IDENTICAL results.
 
-🚨 CRITICAL REQUIREMENT: NEVER CHANGE BUSINESS LOGIC OR QUERY RESULTS 🚨
+🚨 CRITICAL REQUIREMENT: RESULTS MUST BE 100% IDENTICAL 🚨
 - The optimized query MUST return exactly the same data as the original
-- Same number of rows, same column values, same ordering (unless ORDER BY is added for consistency)
-- Only performance optimizations are allowed, never logic changes
-- Results will be validated by executing both queries and comparing outputs
+- Same number of rows, same column values, same data types
+- Only performance optimizations are allowed, NEVER change business logic
+- Results will be executed and compared - they MUST match exactly
 - ANY difference in results means the optimization FAILED
 
-🎯 OPTIMIZATION PRINCIPLES:
-1. BUSINESS LOGIC PRESERVATION IS MANDATORY - results must be 100% identical
-2. Focus on performance improvements that reduce execution time and cost
-3. Apply BigQuery-specific optimizations
-4. Provide clear explanations for each change
-5. Reference official BigQuery documentation when possible
-6. ALWAYS add partition filters using _PARTITIONDATE >= 'YYYY-MM-DD' for ALL tables
-7. Results will be executed and compared - they MUST be identical
+🎯 DYNAMIC OPTIMIZATION PATTERNS TO APPLY:
 
-🔧 MANDATORY OPTIMIZATION PATTERNS:
-- Partition filtering: Add partition filters ONLY for tables that are actually partitioned by date/timestamp
-- JOIN reordering: Place smaller tables first, more selective conditions early
-- Subquery conversion: Convert correlated subqueries to JOINs
-- Column pruning: Replace SELECT * with specific columns
-- Approximate aggregation: Use APPROX_COUNT_DISTINCT instead of COUNT(DISTINCT)
-- Window function optimization: Improve PARTITION BY and ORDER BY clauses
-- Predicate pushdown: Move filters closer to data sources
-- Clustering optimization: Use clustering keys in WHERE clauses
+1. **SUBQUERY TO JOIN CONVERSION**
+   - Convert EXISTS subqueries to INNER JOINs
+   - Convert IN subqueries to INNER JOINs  
+   - Convert NOT EXISTS to LEFT JOIN with IS NULL
+   - Convert correlated subqueries to window functions where appropriate
+   
+2. **PARTITION FILTERING** (ONLY for partitioned tables)
+   - Add _PARTITIONDATE >= 'YYYY-MM-DD' filters for date-partitioned tables
+   - NEVER add _PARTITIONDATE to non-partitioned tables
+   - Check table metadata before adding partition filters
+   
+3. **JOIN OPTIMIZATION**
+   - Reorder JOINs to place smaller tables first
+   - Move more selective conditions earlier in JOIN chain
+   - Convert implicit JOINs to explicit JOINs
+   
+4. **APPROXIMATE AGGREGATION**
+   - Replace COUNT(DISTINCT column) with APPROX_COUNT_DISTINCT(column)
+   - Use HLL_COUNT.MERGE for very large datasets
+   - Only when exact counts aren't critical for business logic
+   
+5. **COLUMN PRUNING**
+   - Replace SELECT * with specific column names
+   - Remove unused columns from intermediate results
+   - Reduce data transfer and processing
+   
+6. **WINDOW FUNCTION OPTIMIZATION**
+   - Convert correlated subqueries to window functions
+   - Optimize PARTITION BY clauses
+   - Improve ORDER BY specifications in window functions
+   
+7. **CLUSTERING RECOMMENDATIONS**
+   - Use clustering keys in WHERE clauses
+   - Optimize filter conditions to leverage clustering
+   
+8. **PREDICATE PUSHDOWN**
+   - Move WHERE conditions closer to data sources
+   - Apply filters before JOINs where possible
+   - Push filters into subqueries
 
-🎯 PARTITION FILTERING RULES (CRITICAL):
-- NEVER add _PARTITIONDATE unless you are 100% certain the table is partitioned by date
-- _PARTITIONDATE only exists for tables with date/timestamp partitioning
-- Adding _PARTITIONDATE to non-partitioned tables will cause "Unrecognized name" errors
-- Instead, focus on optimizing existing date filters and other performance improvements
-- Only suggest partition filtering in comments, do not automatically add _PARTITIONDATE
-- Prioritize other optimizations like JOIN reordering, column pruning, and subquery conversion
+🔧 OPTIMIZATION RULES:
+- ALWAYS preserve exact business logic and results
+- Focus on reducing bytes scanned and execution time
+- Use BigQuery-specific optimizations
+- Provide clear explanations for each change
+- Reference official BigQuery best practices
 
-📋 RESPONSE FORMAT:
-Return a JSON object with this exact structure:
+📋 RESPONSE FORMAT (JSON ONLY):
 {
-    "optimized_query": "The optimized SQL query",
+    "optimized_query": "The optimized SQL query that returns IDENTICAL results",
     "optimizations_applied": [
         {
-            "pattern_id": "optimization_pattern_id",
-            "pattern_name": "Human readable name",
-            "description": "What was changed and why",
-            "before_snippet": "Original SQL snippet",
-            "after_snippet": "Optimized SQL snippet",
+            "pattern_id": "subquery_to_join",
+            "pattern_name": "Subquery to JOIN Conversion",
+            "description": "Converted EXISTS subquery to INNER JOIN for better performance",
+            "before_snippet": "WHERE EXISTS (SELECT 1 FROM table2 WHERE...)",
+            "after_snippet": "INNER JOIN table2 ON ...",
             "expected_improvement": 0.3,
             "confidence_score": 0.9
         }
     ],
     "estimated_improvement": 0.25,
-    "explanation": "Overall explanation of optimizations"
+    "explanation": "Overall explanation of optimizations applied"
 }
 
-⚠️ IMPORTANT: Only return the JSON object, no other text. Results will be validated for identity.
+⚠️ CRITICAL: Only return the JSON object. Results will be validated for identity.
 """
         return context
     
@@ -163,7 +182,8 @@ Return a JSON object with this exact structure:
         query: str,
         analysis: QueryAnalysis,
         patterns: List[OptimizationPattern],
-        documentation_context: Optional[List[Dict]] = None
+        documentation_context: Optional[List[Dict]] = None,
+        table_metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         """Build the complete optimization prompt for Gemini."""
         
@@ -183,6 +203,19 @@ QUERY ANALYSIS:
 - Potential issues: {', '.join(analysis.potential_issues)}
 """)
         
+        # Add table metadata if available
+        if table_metadata:
+            prompt_parts.append("TABLE METADATA:")
+            for table_name, metadata in table_metadata.items():
+                is_partitioned = metadata.get('is_partitioned', False)
+                partition_field = metadata.get('partition_field', 'N/A')
+                prompt_parts.append(f"""
+- {table_name}:
+  Partitioned: {is_partitioned}
+  Partition field: {partition_field}
+  Use _PARTITIONDATE: {is_partitioned}
+""")
+        
         # Add applicable patterns
         if patterns:
             prompt_parts.append("APPLICABLE OPTIMIZATION PATTERNS:")
@@ -191,16 +224,15 @@ QUERY ANALYSIS:
 - {pattern.name} ({pattern.pattern_id}):
   Description: {pattern.description}
   Expected improvement: {pattern.expected_improvement or 'Unknown'}
-  Documentation: {pattern.documentation_url or 'N/A'}
 """)
         
         # Add documentation context if available
         if documentation_context:
             prompt_parts.append("RELEVANT DOCUMENTATION:")
-            for doc in documentation_context[:3]:  # Limit to top 3 results
+            for doc in documentation_context[:3]:
                 prompt_parts.append(f"""
 - {doc.get('title', 'Unknown')}:
-  {doc.get('content', '')[:500]}...
+  {doc.get('content', '')[:300]}...
 """)
         
         # Add the query to optimize
@@ -210,13 +242,15 @@ QUERY TO OPTIMIZE:
 {query}
 ```
 
-IMPORTANT REMINDERS:
-1. Results must be IDENTICAL - same rows, same values, same meaning
-2. Add _PARTITIONDATE filters for better performance
-3. Only optimize performance, never change business logic
-4. Provide clear explanations for each optimization
+OPTIMIZATION INSTRUCTIONS:
+1. Analyze the query for optimization opportunities
+2. Apply appropriate optimizations from the patterns above
+3. ENSURE results remain IDENTICAL - same rows, same values
+4. Only add _PARTITIONDATE for tables that are actually partitioned
+5. Focus on performance improvements without changing business logic
+6. Return optimized query in the JSON format specified
 
-Please optimize this query following the principles above and return the result in the specified JSON format.
+Please optimize this query and return the result in JSON format.
 """)
         
         return "\n".join(prompt_parts)
@@ -301,7 +335,7 @@ Please optimize this query following the principles above and return the result 
         """Generate a detailed explanation of the optimizations."""
         
         prompt = f"""
-Explain the following BigQuery SQL optimizations in simple terms for a developer:
+Explain the following BigQuery SQL optimizations in simple terms:
 
 Original Query:
 ```sql
@@ -316,12 +350,8 @@ Optimized Query:
 Optimizations Applied:
 {json.dumps([opt.model_dump() for opt in optimizations], indent=2)}
 
-Please provide a clear, concise explanation of:
-1. What changes were made
-2. Why these changes improve performance
-3. Expected impact on query execution
-
-Keep the explanation under 500 words and use technical but accessible language.
+Provide a clear explanation of what changed and why it improves performance.
+Keep it under 300 words.
 """
         
         try:
@@ -355,7 +385,7 @@ Suggest specific optimizations such as:
 - Schema optimizations
 - Materialized view opportunities
 
-Return suggestions as a JSON array of strings, each being a specific actionable recommendation.
+Return suggestions as a JSON array of strings.
 """
         
         try:

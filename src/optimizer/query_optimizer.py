@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+import re
 from typing import Dict, List, Optional, Any
 import requests
 
@@ -70,6 +71,35 @@ class BigQueryOptimizer:
             # No event loop running, safe to use asyncio.run()
             return asyncio.run(coro)
     
+    def _extract_table_names(self, query: str) -> List[str]:
+        """Extract table names from SQL query."""
+        # Simple regex to find table references
+        table_pattern = r'`([^`]+)`|FROM\s+(\w+\.\w+\.\w+)|JOIN\s+(\w+\.\w+\.\w+)'
+        matches = re.findall(table_pattern, query, re.IGNORECASE)
+        
+        tables = []
+        for match in matches:
+            for group in match:
+                if group and '.' in group:
+                    tables.append(group)
+        
+        return list(set(tables))  # Remove duplicates
+    
+    def _get_table_metadata(self, query: str) -> Dict[str, Any]:
+        """Get metadata for all tables in the query."""
+        table_names = self._extract_table_names(query)
+        metadata = {}
+        
+        for table_name in table_names:
+            try:
+                partition_info = self.bq_client.get_table_partition_info(table_name)
+                metadata[table_name] = partition_info
+            except Exception as e:
+                self.logger.logger.warning(f"Could not get metadata for table {table_name}: {e}")
+                metadata[table_name] = {"is_partitioned": False}
+        
+        return metadata
+    
     def optimize_query(
         self, 
         query: str,
@@ -80,20 +110,28 @@ class BigQueryOptimizer:
         allow_approximate: bool = False,
         max_variance_percent: float = 2.0
     ) -> OptimizationResult:
-        """Optimize a BigQuery SQL query end-to-end."""
+        """Optimize a BigQuery SQL query with dynamic optimization patterns."""
         
         start_time = time.time()
         
         try:
-            self.logger.logger.info(f"Starting optimization for query of length {len(query)}")
+            self.logger.logger.info(f"🚀 Starting optimization for query of length {len(query)}")
+            print(f"\n🔍 ANALYZING QUERY...")
+            print(f"📝 Query length: {len(query)} characters")
             
             # Step 1: Analyze the query
             analysis = self._run_async(self.optimization_handler.analyze_query(query))
+            print(f"📊 Analysis complete - Complexity: {analysis.complexity}, Tables: {analysis.table_count}, JOINs: {analysis.join_count}")
             
-            # Step 2: Get applicable optimization patterns
+            # Step 2: Get table metadata for smart partition filtering
+            table_metadata = self._get_table_metadata(query)
+            print(f"🗃️ Table metadata retrieved for {len(table_metadata)} tables")
+            
+            # Step 3: Get applicable optimization patterns
             patterns = self._run_async(self.optimization_handler.get_patterns_for_query(query))
+            print(f"🎯 Found {len(patterns)} applicable optimization patterns")
             
-            # Step 3: Get documentation context
+            # Step 4: Get documentation context
             documentation_context = None
             if self.use_mcp_server:
                 try:
@@ -101,20 +139,25 @@ class BigQueryOptimizer:
                         query, n_results=5
                     )
                     documentation_context = doc_results
+                    print(f"📚 Retrieved {len(doc_results)} documentation references")
                 except Exception as e:
                     self.logger.logger.warning(f"Failed to get documentation context: {e}")
             
-            # Step 4: Use AI to optimize the query
+            # Step 5: Use AI to optimize the query with table metadata
+            print(f"🤖 Applying AI-powered optimizations...")
             optimization_result = self.ai_optimizer.optimize_query(
-                query, analysis, patterns, documentation_context
+                query, analysis, patterns, documentation_context, table_metadata
             )
             
-            # Step 5: Validate results if requested
-            detailed_comparison = None
+            print(f"✅ Optimization complete - {optimization_result.total_optimizations} optimizations applied")
+            
+            # Step 6: ALWAYS validate results and show comparison
             if validate_results and self.validator and self.result_comparator:
-                self.logger.logger.info("🔍 EXECUTING AND COMPARING QUERY RESULTS")
-                self.logger.logger.info("🎯 CRITICAL REQUIREMENT: Results MUST be identical!")
-                self.logger.logger.info("   Business logic preservation is mandatory.")
+                print(f"\n🔍 EXECUTING AND COMPARING QUERY RESULTS")
+                print(f"🎯 CRITICAL REQUIREMENT: Results MUST be identical!")
+                print(f"   📊 Executing original query...")
+                print(f"   📊 Executing optimized query...")
+                print(f"   🔄 Comparing results...")
                 
                 detailed_comparison = self.result_comparator.compare_query_results_detailed(
                     query,
@@ -125,24 +168,27 @@ class BigQueryOptimizer:
                 )
                 
                 optimization_result.results_identical = detailed_comparison.results_identical
-                if not detailed_comparison.results_identical:
-                    optimization_result.validation_error = "; ".join(detailed_comparison.differences_found)
-                
-                # Store detailed comparison for display
                 optimization_result.detailed_comparison = detailed_comparison
                 
-                # Log critical validation results
                 if not detailed_comparison.results_identical:
-                    self.logger.logger.error("🚨 CRITICAL FAILURE: BUSINESS LOGIC COMPROMISED!")
-                    self.logger.logger.error("   The optimized query returns DIFFERENT results!")
-                    self.logger.logger.error("   This is UNACCEPTABLE - optimization FAILED!")
+                    optimization_result.validation_error = "; ".join(detailed_comparison.differences_found)
+                    print(f"🚨 CRITICAL FAILURE: BUSINESS LOGIC COMPROMISED!")
+                    print(f"   ❌ The optimized query returns DIFFERENT results!")
+                    print(f"   ❌ This optimization is INVALID and REJECTED!")
                 else:
-                    self.logger.logger.info("✅ SUCCESS: BUSINESS LOGIC PRESERVED!")
-                    self.logger.logger.info("   Both queries return IDENTICAL results!")
+                    print(f"✅ SUCCESS: BUSINESS LOGIC PRESERVED!")
+                    print(f"   ✅ Both queries return IDENTICAL results!")
+                    print(f"   ✅ Optimization is VALID and APPROVED!")
+                
+                # ALWAYS display the comparison results
+                if show_result_comparison:
+                    comparison_display = self.result_comparator.display_comparison_results(detailed_comparison)
+                    print(comparison_display)
             
-            # Step 6: Measure performance if requested
+            # Step 7: Measure performance if requested
             if measure_performance:
                 try:
+                    print(f"\n📈 Measuring performance improvement...")
                     performance_comparison = self.bq_client.compare_query_performance(
                         query, 
                         optimization_result.optimized_query,
@@ -159,6 +205,8 @@ class BigQueryOptimizer:
                         optimization_result.optimized_performance = PerformanceMetrics(
                             execution_time_ms=int(performance_comparison["optimized_avg_ms"])
                         )
+                        
+                        print(f"📊 Performance improvement: {performance_comparison['improvement_percentage']:.1%}")
                         
                         self.logger.log_performance_comparison(
                             int(performance_comparison["original_avg_ms"]),
@@ -448,7 +496,6 @@ class BigQueryOptimizer:
                 return False
             
             # Test AI optimizer (simple test)
-            # This would require an API call, so we'll just check if it's configured
             if not self.settings.gemini_api_key:
                 return False
             
