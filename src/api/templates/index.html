@@ -666,7 +666,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             
             // Create HTML table
             const headers = Object.keys(results[0]);
-            let tableHtml = `<div class="text-xs text-gray-600 mb-2 font-semibold">${queryType} Query Results - ${results.length} rows</div>`;
+            let tableHtml = `<div class="text-sm text-gray-700 mb-3 font-bold bg-gray-100 p-2 rounded">${queryType} Query Results - ALL ${results.length} rows shown</div>`;
             tableHtml += '<table class="w-full text-xs border-collapse border border-gray-300">';
             
             // Add headers
@@ -678,7 +678,8 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             
             // Add data rows
             tableHtml += '<tbody>';
-            results.slice(0, 100).forEach((row, index) => {
+            // Show ALL results, not just first 100
+            results.forEach((row, index) => {
                 tableHtml += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50">`;
                 headers.forEach(header => {
                     const value = row[header];
@@ -698,9 +699,8 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             });
             tableHtml += '</tbody></table>';
             
-            if (results.length > 100) {
-                tableHtml += `<div class="text-center text-gray-500 text-xs mt-2 font-semibold">... and ${results.length - 100} more rows (total: ${results.length})</div>`;
-            }
+            // Always show total count
+            tableHtml += `<div class="text-center text-gray-600 text-sm mt-3 font-bold bg-gray-50 p-2 rounded">Complete results: ${results.length} total rows displayed</div>`;
             
             return tableHtml;
         }

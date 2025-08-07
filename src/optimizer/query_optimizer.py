@@ -136,7 +136,7 @@ class BigQueryOptimizer:
                 detailed_comparison = comparator.compare_query_results_detailed(
                     query, 
                     optimization_result.optimized_query,
-                    sample_size=sample_size,
+                    sample_size=0,  # No sampling - show ALL results
                     allow_approximate=allow_approximate,
                     max_variance_percent=max_variance_percent
                 )

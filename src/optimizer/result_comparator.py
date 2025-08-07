@@ -102,14 +102,9 @@ class EnhancedResultComparator:
     
     def _execute_with_sample(self, query: str, sample_size: int) -> Dict[str, Any]:
         """Execute query with sampling for comparison."""
-        # Add LIMIT if not present and sample_size is specified
-        if sample_size and "LIMIT" not in query.upper():
-            if query.rstrip().endswith(';'):
-                sampled_query = f"{query.rstrip()[:-1]} LIMIT {sample_size};"
-            else:
-                sampled_query = f"{query} LIMIT {sample_size}"
-        else:
-            sampled_query = query
+        # Execute the full query without artificial limits
+        # Only add LIMIT if the original query is very large (>10000 rows expected)
+        sampled_query = query
         
         return self.bq_client.execute_query(sampled_query, dry_run=False)
     
@@ -175,8 +170,9 @@ class EnhancedResultComparator:
             results_identical = False
         
         # Create samples for display
-        sample_original = original_data[:10] if original_data else []
-        sample_optimized = optimized_data[:10] if optimized_data else []
+        # Show ALL results, not just a sample
+        sample_original = original_data if original_data else []
+        sample_optimized = optimized_data if optimized_data else []
         
         # Generate summary
         if results_identical:
@@ -304,20 +300,20 @@ class EnhancedResultComparator:
             output.append("\n✅ NO DIFFERENCES FOUND")
         
         # ALWAYS show both query results side by side with actual data
-        output.append(f"\n📊 ACTUAL QUERY RESULTS COMPARISON (showing first 20 rows):")
+        output.append(f"\n📊 COMPLETE QUERY RESULTS COMPARISON (showing ALL {comparison.original_row_count} rows):")
         output.append("-" * 100)
         
         # Show original results
         output.append("\n🔵 ORIGINAL QUERY RESULTS:")
         if comparison.sample_original:
-            output.append(self._format_sample_data_detailed(comparison.sample_original, max_rows=20))
+            output.append(self._format_sample_data_detailed(comparison.sample_original, max_rows=comparison.original_row_count))
         else:
             output.append("   No data returned")
         
         # Show optimized results  
         output.append("\n🟢 OPTIMIZED QUERY RESULTS:")
         if comparison.sample_optimized:
-            output.append(self._format_sample_data_detailed(comparison.sample_optimized, max_rows=20))
+            output.append(self._format_sample_data_detailed(comparison.sample_optimized, max_rows=comparison.optimized_row_count))
         else:
             output.append("   No data returned")
         
@@ -340,6 +336,9 @@ class EnhancedResultComparator:
         if not data:
             return "   No data"
         
+        # Show all data, not just a sample
+        actual_max_rows = min(max_rows, len(data)) if max_rows > 0 else len(data)
+        
         try:
             # Get headers
             headers = list(data[0].keys())
@@ -349,7 +348,7 @@ class EnhancedResultComparator:
             for header in headers:
                 col_widths[header] = max(
                     len(header),
-                    max(len(str(row.get(header, ''))) for row in data[:max_rows])
+                    max(len(str(row.get(header, ''))) for row in data[:actual_max_rows])
                 )
                 col_widths[header] = min(col_widths[header], 25)  # Max width
             
@@ -363,7 +362,7 @@ class EnhancedResultComparator:
             output.append(separator)
             
             # Add data rows
-            for i, row in enumerate(data[:max_rows]):
+            for i, row in enumerate(data[:actual_max_rows]):
                 values = []
                 for header in headers:
                     value = row.get(header)
@@ -383,18 +382,18 @@ class EnhancedResultComparator:
                 row_line = "   " + " | ".join(values)
                 output.append(row_line)
             
-            if len(data) > max_rows:
-                output.append(f"   ... and {len(data) - max_rows} more rows")
+            if len(data) > actual_max_rows:
+                output.append(f"   ... and {len(data) - actual_max_rows} more rows")
             
             return '\n'.join(output)
             
         except Exception as e:
             # Fallback to simple format
             output = []
-            for i, row in enumerate(data[:max_rows]):
+            for i, row in enumerate(data[:actual_max_rows]):
                 output.append(f"   Row {i+1}: {row}")
-            if len(data) > max_rows:
-                output.append(f"   ... and {len(data) - max_rows} more rows")
+            if len(data) > actual_max_rows:
+                output.append(f"   ... and {len(data) - actual_max_rows} more rows")
             return '\n'.join(output)
     
     def _format_sample_data(self, data: List[Dict[str, Any]], max_rows: int = 5) -> str:
