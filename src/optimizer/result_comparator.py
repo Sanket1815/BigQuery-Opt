@@ -256,11 +256,16 @@ class EnhancedResultComparator:
         
         output = []
         output.append("=" * 80)
-        output.append("QUERY RESULT COMPARISON")
+        output.append("🔍 QUERY RESULT COMPARISON - BUSINESS LOGIC VALIDATION")
         output.append("=" * 80)
         
         # Summary
-        output.append(f"\n📊 SUMMARY: {comparison.comparison_summary}")
+        if comparison.results_identical:
+            output.append(f"\n✅ VALIDATION PASSED: {comparison.comparison_summary}")
+        else:
+            output.append(f"\n❌ VALIDATION FAILED: {comparison.comparison_summary}")
+            output.append("   ⚠️  BUSINESS LOGIC HAS BEEN COMPROMISED!")
+            
         output.append(f"   Original rows: {comparison.original_row_count:,}")
         output.append(f"   Optimized rows: {comparison.optimized_row_count:,}")
         
@@ -280,19 +285,27 @@ class EnhancedResultComparator:
         
         # Sample data display
         if comparison.sample_original or comparison.sample_optimized:
-            output.append(f"\n📋 SAMPLE DATA (first 10 rows):")
+            output.append(f"\n📋 QUERY RESULTS COMPARISON (first 5 rows):")
             
-            output.append("\n🔹 ORIGINAL QUERY RESULTS:")
+            output.append("\n🔸 ORIGINAL (UNOPTIMIZED) QUERY RESULTS:")
             if comparison.sample_original:
                 output.append(self._format_sample_data(comparison.sample_original))
             else:
                 output.append("   No data returned")
             
-            output.append("\n🔹 OPTIMIZED QUERY RESULTS:")
+            output.append("\n🔸 OPTIMIZED QUERY RESULTS:")
             if comparison.sample_optimized:
                 output.append(self._format_sample_data(comparison.sample_optimized))
             else:
                 output.append("   No data returned")
+                
+            # Add explicit comparison note
+            if comparison.results_identical:
+                output.append("\n✅ RESULT VERIFICATION: Both queries return IDENTICAL results")
+                output.append("   Business logic is preserved - optimization is valid!")
+            else:
+                output.append("\n❌ RESULT VERIFICATION: Queries return DIFFERENT results")
+                output.append("   Business logic has been changed - optimization is INVALID!")
         
         output.append("\n" + "=" * 80)
         

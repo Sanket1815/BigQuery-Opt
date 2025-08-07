@@ -111,7 +111,15 @@ class BigQueryOptimizer:
             
             # Step 5: Validate results if requested
             detailed_comparison = None
-            if validate_results and self.result_comparator:
+            if validate_results and self.validator and self.result_comparator:
+                print(f"\n🔍 VALIDATING QUERY RESULTS")
+                print("=" * 60)
+                print(f"📊 Original Query:")
+                print(f"   {query[:100]}{'...' if len(query) > 100 else ''}")
+                print(f"📊 Optimized Query:")
+                print(f"   {optimization_result.optimized_query[:100]}{'...' if len(optimization_result.optimized_query) > 100 else ''}")
+                print()
+                
                 detailed_comparison = self.result_comparator.compare_query_results_detailed(
                     query,
                     optimization_result.optimized_query,
@@ -127,10 +135,18 @@ class BigQueryOptimizer:
                 # Store detailed comparison for display
                 optimization_result.detailed_comparison = detailed_comparison
                 
-                # Display comparison if requested
-                if show_result_comparison:
+                # ALWAYS show comparison results
+                if detailed_comparison:
                     comparison_display = self.result_comparator.display_comparison_results(detailed_comparison)
                     print(comparison_display)
+                    
+                    # Critical validation - results MUST be identical
+                    if not detailed_comparison.results_identical:
+                        print(f"\n❌ CRITICAL ERROR: Query results are NOT identical!")
+                        print(f"   This violates the core requirement of business logic preservation.")
+                # Display comparison if requested
+                else:
+                    print("⚠️ No detailed comparison available")
             
             # Step 6: Measure performance if requested
             if measure_performance:

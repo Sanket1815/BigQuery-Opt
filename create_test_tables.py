@@ -135,7 +135,7 @@ def create_test_dataset_and_tables(project_id=None):
         result = bq_client.execute_query(orders_sql, dry_run=False)
         if not result["success"]:
             raise Exception(f"Failed to create orders table: {result['error']}")
-        print("✅ Orders table created (50,000 rows, partitioned by date)")
+        print("✅ Orders table created (50,000 rows, partitioned by order_date with _PARTITIONDATE)")
         
         # Create products table (50 rows)
         print("3️⃣ Creating products table...")
@@ -181,7 +181,7 @@ def create_test_dataset_and_tables(project_id=None):
         result = bq_client.execute_query(order_items_sql, dry_run=False)
         if not result["success"]:
             raise Exception(f"Failed to create order_items table: {result['error']}")
-        print("✅ Order_items table created (50,000 rows, partitioned by date)")
+        print("✅ Order_items table created (50,000 rows, partitioned by order_date with _PARTITIONDATE)")
         
         # Verify all tables and show row counts
         print("\n📋 Verifying created tables:")

@@ -209,9 +209,13 @@ class OptimizationHandler:
         if 'SELECT *' in query_upper:
             issues.append("Using SELECT * may retrieve unnecessary columns")
         
-        # Check for missing WHERE clause on large tables
+        # Check for missing partition filters
+        if 'FROM' in query_upper and '_PARTITIONDATE' not in query_upper:
+            issues.append("Missing partition filter - add _PARTITIONDATE >= 'YYYY-MM-DD' for better performance")
+        
+        # Check for missing WHERE clause
         if 'WHERE' not in query_upper and 'FROM' in query_upper:
-            issues.append("Query may scan entire table without filtering")
+            issues.append("Query may scan entire table without filtering - consider adding WHERE clause")
         
         # Check for correlated subqueries
         if re.search(r'WHERE.*EXISTS\s*\(SELECT.*\)', query_upper):
@@ -219,11 +223,7 @@ class OptimizationHandler:
         
         # Check for COUNT(DISTINCT) on large datasets
         if 'COUNT(DISTINCT' in query_upper:
-            issues.append("COUNT(DISTINCT) can be slow on large datasets - consider APPROX_COUNT_DISTINCT")
-        
-        # Check for missing partition filters
-        if not re.search(r'_PARTITION(?:TIME|DATE)', query_upper):
-            issues.append("Consider adding partition filters to reduce data scanned")
+            issues.append("COUNT(DISTINCT) can be slow on large datasets - consider APPROX_COUNT_DISTINCT (results may vary slightly)")
         
         # Check for complex JOINs without proper ordering
         join_count = len(re.findall(r'\bJOIN\b', query_upper))
@@ -242,8 +242,8 @@ class OptimizationHandler:
         query_upper = query.upper()
         
         patterns_map = {
+            "partition_filtering": ["FROM", "WHERE", "table"],  # Always suggest partition filtering
             "join_reordering": ["JOIN"],
-            "partition_filtering": ["FROM", "WHERE"],
             "subquery_to_join": ["EXISTS", "IN (SELECT"],
             "window_optimization": ["OVER ("],
             "approximate_aggregation": ["COUNT(DISTINCT"],
@@ -253,7 +253,13 @@ class OptimizationHandler:
             "materialized_view": ["GROUP BY", "AGGREGATE"]
         }
         
+        # Always suggest partition filtering for any query with tables
+        if "FROM" in query_upper and "_PARTITIONDATE" not in query_upper:
+            applicable.append("partition_filtering")
+        
         for pattern_id, keywords in patterns_map.items():
+            if pattern_id == "partition_filtering":
+                continue  # Already handled above
             if any(keyword in query_upper for keyword in keywords):
                 applicable.append(pattern_id)
         
