@@ -464,12 +464,17 @@ class BigQueryOptimizer:
                 if "error" not in table_info:
                     is_partitioned = table_info.get("partitioning", {}).get("type") is not None
                     print(f"    ✅ Partitioned: {is_partitioned}")
+                    
+                    # Extract table alias from query for proper _PARTITIONDATE usage
+                    table_alias = self._extract_table_alias(query, table_name)
+                    
                     metadata[table_name] = {
                         "is_partitioned": is_partitioned,
                         "partition_field": table_info.get("partitioning", {}).get("field"),
                         "num_rows": table_info.get("num_rows", 0),
                         "num_bytes": table_info.get("num_bytes", 0),
-                        "clustering_fields": table_info.get("clustering", {}).get("fields", [])
+                        "clustering_fields": table_info.get("clustering", {}).get("fields", []),
+                        "table_alias": table_alias
                     }
                 else:
                     print(f"    ⚠️ Could not get metadata: {table_info.get('error', 'Unknown error')}")
@@ -479,6 +484,28 @@ class BigQueryOptimizer:
                 metadata[table_name] = {"is_partitioned": False}
         
         return metadata
+    
+    def _extract_table_alias(self, query: str, table_name: str) -> Optional[str]:
+        """Extract table alias from query for a given table."""
+        import re
+        
+        # Look for patterns like "FROM table_name alias" or "JOIN table_name alias"
+        patterns = [
+            rf"FROM\s+`?{re.escape(table_name)}`?\s+(\w+)",
+            rf"JOIN\s+`?{re.escape(table_name)}`?\s+(\w+)",
+            rf"FROM\s+`?{re.escape(table_name)}`?\s+AS\s+(\w+)",
+            rf"JOIN\s+`?{re.escape(table_name)}`?\s+AS\s+(\w+)"
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                alias = match.group(1)
+                # Make sure it's not a keyword
+                if alias.upper() not in ['ON', 'WHERE', 'GROUP', 'ORDER', 'HAVING', 'LIMIT']:
+                    return alias
+        
+        return None
     
     def _extract_table_names(self, query: str) -> List[str]:
         """Extract table names from SQL query."""

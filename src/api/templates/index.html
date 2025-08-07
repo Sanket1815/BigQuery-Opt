@@ -262,10 +262,13 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 showError('Please enter a SQL query');
                 return;
             }
+            
+            // Add reasonable LIMIT if not present to prevent huge result sets
             let safeQuery = query;
-if (!/limit\s+\d+/i.test(query)) {
-    safeQuery += `\nLIMIT ${limit}`;
-}
+            const limit = parseInt(document.getElementById('queryLimit').value) || 100;
+            if (!/limit\s+\d+/i.test(query)) {
+                safeQuery += `\nLIMIT ${limit}`;
+            }
 
             showLoading();
             try {
@@ -673,9 +676,17 @@ if (!/limit\s+\d+/i.test(query)) {
             
             console.log(`${queryType} Query Results (${results.length} rows):`, results);
             
+            // Limit display to prevent browser hanging with large datasets
+            const maxDisplayRows = 100;
+            const displayResults = results.slice(0, maxDisplayRows);
+            const hasMoreRows = results.length > maxDisplayRows;
+            
             // Create HTML table
-            const headers = Object.keys(results[0]);
-            let tableHtml = `<div class="text-sm text-gray-700 mb-3 font-bold bg-gray-100 p-2 rounded">${queryType} Query Results - ALL ${results.length} rows shown</div>`;
+            const headers = Object.keys(displayResults[0]);
+            let tableHtml = `<div class="text-sm text-gray-700 mb-3 font-bold bg-gray-100 p-2 rounded">
+                ${queryType} Query Results - Showing ${displayResults.length} of ${results.length} rows
+                ${hasMoreRows ? `<span class="text-orange-600">(Limited to first ${maxDisplayRows} rows for performance)</span>` : ''}
+            </div>`;
             tableHtml += '<table class="w-full text-xs border-collapse border border-gray-300">';
             
             // Add headers
@@ -687,8 +698,8 @@ if (!/limit\s+\d+/i.test(query)) {
             
             // Add data rows
             tableHtml += '<tbody>';
-            // Show ALL results, not just first 100
-            results.forEach((row, index) => {
+            // Show limited results to prevent browser hanging
+            displayResults.forEach((row, index) => {
                 tableHtml += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50">`;
                 headers.forEach(header => {
                     const value = row[header];
@@ -708,10 +719,53 @@ if (!/limit\s+\d+/i.test(query)) {
             });
             tableHtml += '</tbody></table>';
             
-            // Always show total count
-            tableHtml += `<div class="text-center text-gray-600 text-sm mt-3 font-bold bg-gray-50 p-2 rounded">Complete results: ${results.length} total rows displayed</div>`;
+            // Show total count and performance note
+            tableHtml += `<div class="text-center text-gray-600 text-sm mt-3 font-bold bg-gray-50 p-2 rounded">
+                Total query results: ${results.length} rows
+                ${hasMoreRows ? `<br><span class="text-orange-600">⚠️ Showing first ${maxDisplayRows} rows only to prevent browser performance issues</span>` : ''}
+            </div>`;
+            
+            // Add download option for large datasets
+            if (hasMoreRows) {
+                tableHtml += `<div class="text-center mt-3">
+                    <button onclick="downloadFullResults('${queryType}', ${JSON.stringify(results).replace(/"/g, '&quot;')})" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                        📥 Download Full Results (${results.length} rows)
+                    </button>
+                </div>`;
+            }
             
             return tableHtml;
+        }
+        
+        // Download full results as CSV
+        function downloadFullResults(queryType, results) {
+            if (!results || results.length === 0) return;
+            
+            const headers = Object.keys(results[0]);
+            let csvContent = headers.join(',') + '\n';
+            
+            results.forEach(row => {
+                const values = headers.map(header => {
+                    const value = row[header];
+                    if (value === null || value === undefined) return '';
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return String(value);
+                });
+                csvContent += values.join(',') + '\n';
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${queryType.toLowerCase()}_query_results_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         }
         
         // Legacy function for backward compatibility

@@ -158,6 +158,7 @@ The optimized query MUST return EXACTLY THE SAME RESULTS as the original query.
 1. **PARTITION FILTERING** (High Impact - 50-80% improvement)
    - 🚨 CRITICAL: Only add _PARTITIONDATE >= 'YYYY-MM-DD' if table shows Partitioned=True
    - NEVER add _PARTITIONDATE if Partitioned=False - this causes BigQuery errors!
+   - 🚨 IMPORTANT: Use table alias when adding _PARTITIONDATE (e.g., o._PARTITIONDATE, not just _PARTITIONDATE)
    - Check table metadata carefully before adding partition filters
    - Documentation: https://cloud.google.com/bigquery/docs/partitioned-tables
 
@@ -228,10 +229,17 @@ UNDERPERFORMING QUERY TO OPTIMIZE:
 {query}
 ```
 
+🚨 CRITICAL PARTITION FILTERING RULES:
+1. ONLY add _PARTITIONDATE if table metadata shows Partitioned=True
+2. ALWAYS use table alias: table_alias._PARTITIONDATE >= 'YYYY-MM-DD'
+3. NEVER use bare _PARTITIONDATE without table alias
+4. Example: o._PARTITIONDATE >= '2024-01-01' (NOT _PARTITIONDATE >= '2024-01-01')
+5. If no table alias exists, create one first
+
 🎯 OPTIMIZATION REQUIREMENTS:
 1. Apply at least 1-3 relevant optimizations from Google's best practices
 2. ENSURE the optimized query returns IDENTICAL results
-3. CRITICAL: Check table metadata - only add _PARTITIONDATE if Partitioned=True
+3. CRITICAL: Check table metadata - only add table_alias._PARTITIONDATE if Partitioned=True
 4. Focus on performance without changing business logic
 5. Include documentation references for each optimization
 6. Target 30-50% performance improvement
@@ -244,8 +252,8 @@ RESPONSE FORMAT (JSON ONLY):
             "pattern_id": "partition_filtering",
             "pattern_name": "Partition Filtering",
             "description": "Added _PARTITIONDATE filter to reduce data scanned by 60%",
-            "before_snippet": "WHERE order_date >= '2024-01-01'",
-            "after_snippet": "WHERE _PARTITIONDATE >= '2024-01-01' AND order_date >= '2024-01-01'",
+            "before_snippet": "WHERE o.order_date >= '2024-01-01'",
+            "after_snippet": "WHERE o._PARTITIONDATE >= '2024-01-01' AND o.order_date >= '2024-01-01'",
             "expected_improvement": 0.6,
             "confidence_score": 0.95,
             "documentation_reference": "https://cloud.google.com/bigquery/docs/partitioned-tables"
@@ -267,6 +275,7 @@ RESPONSE FORMAT (JSON ONLY):
 
 🚨 CRITICAL REMINDERS:
 - NEVER add _PARTITIONDATE to non-partitioned tables
+- ALWAYS use table alias with _PARTITIONDATE (e.g., o._PARTITIONDATE)
 - Results must be 100% identical
 - Apply multiple optimizations when possible
 - Include documentation references
