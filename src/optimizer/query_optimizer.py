@@ -19,6 +19,7 @@ from src.mcp_server.handlers import OptimizationHandler
 from src.optimizer.ai_optimizer import GeminiQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
 from src.optimizer.validator import QueryValidator
+from src.optimizer.result_comparator import EnhancedResultComparator, QueryResultComparison
 
 
 class BigQueryOptimizer:
@@ -42,8 +43,10 @@ class BigQueryOptimizer:
             
             if validate_results:
                 self.validator = QueryValidator(self.bq_client)
+                self.result_comparator = EnhancedResultComparator(self.bq_client)
             else:
                 self.validator = None
+                self.result_comparator = None
             
             self.use_mcp_server = use_mcp_server
             
@@ -72,7 +75,10 @@ class BigQueryOptimizer:
         query: str,
         validate_results: bool = True,
         measure_performance: bool = False,
-        sample_size: Optional[int] = 1000
+        sample_size: Optional[int] = 1000,
+        show_result_comparison: bool = True,
+        allow_approximate: bool = False,
+        max_variance_percent: float = 2.0
     ) -> OptimizationResult:
         """Optimize a BigQuery SQL query end-to-end."""
         
@@ -104,16 +110,41 @@ class BigQueryOptimizer:
             )
             
             # Step 5: Validate results if requested
-            if validate_results and self.validator:
-                validation_result = self.validator.validate_query_results(
-                    query, 
+            detailed_comparison = None
+            if validate_results and self.validator and self.result_comparator:
+                print(f"\n🔍 EXECUTING AND COMPARING QUERY RESULTS")
+                print("=" * 80)
+                print("🎯 CRITICAL REQUIREMENT: Results MUST be identical!")
+                print("   Business logic preservation is mandatory.")
+                print("=" * 80)
+                
+                detailed_comparison = self.result_comparator.compare_query_results_detailed(
+                    query,
                     optimization_result.optimized_query,
-                    sample_size
+                    sample_size,
+                    allow_approximate,
+                    max_variance_percent
                 )
                 
-                optimization_result.results_identical = validation_result["identical"]
-                if not validation_result["identical"]:
-                    optimization_result.validation_error = validation_result.get("error")
+                optimization_result.results_identical = detailed_comparison.results_identical
+                if not detailed_comparison.results_identical:
+                    optimization_result.validation_error = "; ".join(detailed_comparison.differences_found)
+                
+                # Store detailed comparison for display
+                optimization_result.detailed_comparison = detailed_comparison
+                
+                # ALWAYS show both query results and comparison
+                if detailed_comparison:
+                    comparison_display = self.result_comparator.display_comparison_results(detailed_comparison)
+                    print(comparison_display)
+                    
+                    # Critical validation - results MUST be identical
+                    if not detailed_comparison.results_identical:
+                        print(f"\n🚨 CRITICAL FAILURE: BUSINESS LOGIC COMPROMISED!")
+                        print(f"   The optimized query returns DIFFERENT results!")
+                        print(f"   This is UNACCEPTABLE - optimization FAILED!")
+                else:
+                    print("⚠️ No detailed comparison available")
             
             # Step 6: Measure performance if requested
             if measure_performance:
@@ -190,6 +221,69 @@ class BigQueryOptimizer:
                 processing_time_seconds=time.time() - start_time,
                 validation_error=str(e)
             )
+    
+    def optimize_query_with_detailed_results(
+        self,
+        query: str,
+        validate_results: bool = True,
+        measure_performance: bool = False,
+        sample_size: Optional[int] = 1000,
+        save_report: bool = False,
+        report_file: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Optimize query and return detailed results including comparison data."""
+        
+        # Run optimization
+        result = self.optimize_query(
+            query,
+            validate_results=validate_results,
+            measure_performance=measure_performance,
+            sample_size=sample_size,
+            show_result_comparison=True
+        )
+        
+        # Prepare detailed response
+        detailed_result = {
+            "optimization_result": result,
+            "original_query": query,
+            "optimized_query": result.optimized_query,
+            "optimizations_applied": [opt.model_dump() for opt in result.optimizations_applied],
+            "performance_metrics": {
+                "estimated_improvement": result.estimated_improvement,
+                "actual_improvement": result.actual_improvement,
+                "processing_time": result.processing_time_seconds
+            }
+        }
+        
+        # Add detailed comparison if available
+        if hasattr(result, 'detailed_comparison') and result.detailed_comparison:
+            detailed_result["result_comparison"] = {
+                "results_identical": result.detailed_comparison.results_identical,
+                "original_row_count": result.detailed_comparison.original_row_count,
+                "optimized_row_count": result.detailed_comparison.optimized_row_count,
+                "differences_found": result.detailed_comparison.differences_found,
+                "sample_original_data": result.detailed_comparison.sample_original,
+                "sample_optimized_data": result.detailed_comparison.sample_optimized,
+                "variance_percentage": result.detailed_comparison.variance_percentage,
+                "comparison_summary": result.detailed_comparison.comparison_summary
+            }
+        
+        # Save report if requested
+        if save_report and self.result_comparator and hasattr(result, 'detailed_comparison'):
+            if not report_file:
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                report_file = f"optimization_report_{timestamp}.json"
+            
+            self.result_comparator.save_comparison_report(
+                result.detailed_comparison,
+                query,
+                result.optimized_query,
+                report_file
+            )
+            detailed_result["report_file"] = report_file
+        
+        return detailed_result
     
     def analyze_query_only(self, query: str) -> QueryAnalysis:
         """Analyze a query without optimizing it."""
