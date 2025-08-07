@@ -47,12 +47,18 @@ class EnhancedResultComparator:
         # Execute both queries
         original_result = self._execute_with_sample(original_query, sample_size)
         print(f"✅ Original query executed: {original_result['success']}")
+        if original_result["success"]:
+            print(f"   📊 Original query returned {original_result['row_count']} rows")
+        
         if not original_result["success"]:
             print(f"❌ Original query error: {original_result.get('error', 'Unknown')}")
         
         print(f"🔍 Executing optimized query...")
         optimized_result = self._execute_with_sample(optimized_query, sample_size)
         print(f"✅ Optimized query executed: {optimized_result['success']}")
+        if optimized_result["success"]:
+            print(f"   📊 Optimized query returned {optimized_result['row_count']} rows")
+        
         if not optimized_result["success"]:
             print(f"❌ Optimized query error: {optimized_result.get('error', 'Unknown')}")
         

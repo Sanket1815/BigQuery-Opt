@@ -100,11 +100,13 @@ class GeminiQueryOptimizer:
         for table_name, metadata in table_metadata.items():
             is_partitioned = metadata.get('is_partitioned', False)
             partition_field = metadata.get('partition_field', 'N/A')
+            row_count = metadata.get('num_rows', 0)
             table_info += f"""
 - {table_name}:
   Partitioned: {is_partitioned}
   Partition field: {partition_field}
-  CRITICAL: Only add _PARTITIONDATE if Partitioned=True
+  Row count: {row_count:,}
+  CRITICAL: NEVER add _PARTITIONDATE if Partitioned=False - this causes BigQuery errors!
 """
         
         prompt = f"""
@@ -121,8 +123,9 @@ The optimized query MUST return EXACTLY THE SAME RESULTS as the original query.
 🎯 GOOGLE'S BIGQUERY BEST PRACTICES TO APPLY:
 
 1. **PARTITION FILTERING** (High Impact - 50-80% improvement)
-   - Add _PARTITIONDATE >= 'YYYY-MM-DD' ONLY for partitioned tables
-   - NEVER add _PARTITIONDATE to non-partitioned tables (causes errors)
+   - CRITICAL: Only add _PARTITIONDATE >= 'YYYY-MM-DD' if table shows Partitioned=True
+   - NEVER EVER add _PARTITIONDATE if Partitioned=False - this will cause BigQuery errors!
+   - Check table metadata above before adding any partition filters
    - Reduces data scanned significantly
 
 2. **COLUMN PRUNING** (Medium Impact - 20-40% improvement)
@@ -176,9 +179,8 @@ ORIGINAL QUERY TO OPTIMIZE:
 OPTIMIZATION INSTRUCTIONS:
 1. Apply Google's BigQuery best practices from the list above
 2. ENSURE the optimized query returns IDENTICAL results
-3. Only add _PARTITIONDATE for tables that are actually partitioned
+3. CRITICAL: Check table metadata - only add _PARTITIONDATE if Partitioned=True
 4. Focus on performance without changing business logic
-5. Provide clear explanations for each optimization
 
 RESPONSE FORMAT (JSON ONLY):
 {{

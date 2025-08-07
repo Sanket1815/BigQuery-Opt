@@ -103,6 +103,10 @@ class BigQueryOptimizer:
                     max_variance_percent=2.0
                 )
                 
+                # Display the comparison results
+                comparison_display = comparator.display_comparison_results(detailed_comparison)
+                print(comparison_display)
+                
                 optimization_result.results_identical = detailed_comparison.results_identical
                 optimization_result.detailed_comparison = detailed_comparison
                 
@@ -350,21 +354,27 @@ class BigQueryOptimizer:
         table_names = self._extract_table_names(query)
         metadata = {}
         
+        print(f"🔍 Analyzing {len(table_names)} tables for partition information...")
+        
         for table_name in table_names:
             try:
+                print(f"  📊 Checking table: {table_name}")
                 table_info = self.bq_client.get_table_info(table_name)
                 if "error" not in table_info:
+                    is_partitioned = table_info.get("partitioning", {}).get("type") is not None
+                    print(f"    ✅ Partitioned: {is_partitioned}")
                     metadata[table_name] = {
-                        "is_partitioned": table_info.get("partitioning", {}).get("type") is not None,
+                        "is_partitioned": is_partitioned,
                         "partition_field": table_info.get("partitioning", {}).get("field"),
                         "num_rows": table_info.get("num_rows", 0),
                         "num_bytes": table_info.get("num_bytes", 0),
                         "clustering_fields": table_info.get("clustering", {}).get("fields", [])
                     }
                 else:
+                    print(f"    ⚠️ Could not get metadata: {table_info.get('error', 'Unknown error')}")
                     metadata[table_name] = {"is_partitioned": False}
             except Exception as e:
-                self.logger.logger.warning(f"Could not get metadata for table {table_name}: {e}")
+                print(f"    ❌ Error getting metadata for {table_name}: {e}")
                 metadata[table_name] = {"is_partitioned": False}
         
         return metadata
