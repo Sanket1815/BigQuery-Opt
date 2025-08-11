@@ -482,12 +482,12 @@ GROUP BY customer_tier"""
     o.total_amount,
     p.product_name,
     oi.quantity
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
-JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o 
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
+JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o 
     ON oi.order_id = o.order_id
-JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c 
+JOIN `gen-lang-client-0064110488.optimizer_test_dataset.customers` c 
     ON o.customer_id = c.customer_id
-JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p 
+JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p 
     ON oi.product_id = p.product_id
 WHERE o.order_date >= '2024-06-01'
 AND c.customer_tier = 'Premium'
@@ -497,10 +497,10 @@ AND p.category = 'Electronics'"""
                         "name": "LEFT JOIN with SELECT *",
                         "description": "LEFT JOIN query with SELECT * needing both JOIN and column optimization",
                         "query": f"""SELECT *
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
-LEFT JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
+LEFT JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
     ON c.customer_id = o.customer_id
-LEFT JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+LEFT JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p
     ON o.product_id = p.product_id
 WHERE c.region = 'Europe'"""
                     },
@@ -508,8 +508,8 @@ WHERE c.region = 'Europe'"""
                         "name": "Cross JOIN Pattern",
                         "description": "Implicit cross join that needs conversion to proper JOIN",
                         "query": f"""SELECT c.customer_name, p.product_name
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c,
-     `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c,
+     `gen-lang-client-0064110488.optimizer_test_dataset.products` p
 WHERE c.customer_tier = 'Gold'
 AND p.category = 'Electronics'
 LIMIT 50"""
@@ -529,8 +529,8 @@ LIMIT 50"""
     COUNT(DISTINCT o.customer_id) as unique_customers,
     SUM(o.total_amount) as total_revenue,
     AVG(o.total_amount) as avg_order_value
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
-JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c 
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
+JOIN `gen-lang-client-0064110488.optimizer_test_dataset.customers` c 
     ON o.customer_id = c.customer_id
 WHERE o.order_date >= '2024-01-01'
 GROUP BY c.region
@@ -544,9 +544,9 @@ ORDER BY total_revenue DESC"""
     COUNT(DISTINCT oi.order_id) as unique_orders,
     COUNT(DISTINCT o.customer_id) as unique_customers,
     COUNT(DISTINCT oi.product_id) as unique_products
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
-JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
-JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p ON oi.product_id = p.product_id
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
+JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
+JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p ON oi.product_id = p.product_id
 WHERE o.order_date >= '2024-01-01'
 GROUP BY p.category"""
                     },
@@ -557,7 +557,7 @@ GROUP BY p.category"""
     COUNT(DISTINCT customer_id) as unique_customers
 FROM (
     SELECT *
-    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+    FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders`
     WHERE order_date >= '2024-01-01'
     AND status = 'completed'
 ) completed_orders
@@ -579,7 +579,7 @@ GROUP BY order_date"""
     total_amount,
     ROW_NUMBER() OVER (ORDER BY total_amount DESC) as overall_rank,
     RANK() OVER (ORDER BY order_date) as date_rank
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders`
 WHERE order_date >= '2024-06-01'
 ORDER BY total_amount DESC
 LIMIT 1000"""
@@ -594,7 +594,7 @@ LIMIT 1000"""
     LAG(total_amount) OVER (ORDER BY order_date) as prev_amount,
     LEAD(total_amount) OVER (ORDER BY order_date) as next_amount,
     SUM(total_amount) OVER (ORDER BY order_date ROWS UNBOUNDED PRECEDING) as running_total
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders`
 WHERE customer_id <= 100"""
                     },
                     {
@@ -603,7 +603,7 @@ WHERE customer_id <= 100"""
                         "query": f"""SELECT *,
     NTILE(4) OVER (ORDER BY total_amount) as quartile,
     PERCENT_RANK() OVER (ORDER BY order_date) as date_percentile
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders`
 WHERE order_date >= '2024-01-01'
 LIMIT 500"""
                     }
@@ -618,16 +618,16 @@ LIMIT 500"""
                         "description": "Deeply nested IN subqueries that should be converted to JOINs",
                         "query": f"""SELECT 
     customer_name
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
 WHERE customer_id IN (
     SELECT customer_id 
-    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o1
+    FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o1
     WHERE order_id IN (
         SELECT order_id
-        FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
+        FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
         WHERE product_id IN (
             SELECT product_id
-            FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+            FROM `gen-lang-client-0064110488.optimizer_test_dataset.products` p
             WHERE category = 'Electronics'
         )
         AND quantity > 2
@@ -640,15 +640,15 @@ WHERE customer_id IN (
                         "name": "EXISTS with Nested Subquery",
                         "description": "EXISTS subquery with nested conditions that can be flattened",
                         "query": f"""SELECT *
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
 WHERE EXISTS (
     SELECT 1 
-    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+    FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
     WHERE o.customer_id = c.customer_id
     AND o.order_date >= '2024-01-01'
     AND EXISTS (
         SELECT 1 
-        FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
+        FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
         WHERE oi.order_id = o.order_id
         AND oi.quantity > 3
     )
@@ -661,14 +661,14 @@ WHERE EXISTS (
     customer_id,
     customer_name,
     (SELECT COUNT(*) 
-     FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o 
+     FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o 
      WHERE o.customer_id = c.customer_id 
      AND o.status = 'completed') as completed_orders,
     (SELECT SUM(total_amount) 
-     FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o2 
+     FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o2 
      WHERE o2.customer_id = c.customer_id 
      AND o2.order_date >= '2024-01-01') as total_spent_2024
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
 WHERE c.customer_tier IN ('Premium', 'Gold')"""
                     }
                 ]
@@ -961,7 +961,7 @@ async def get_test_queries():
     try:
         from config.settings import get_settings
         settings = get_settings()
-        project_id = settings.google_cloud_project or "your-project-id"
+        project_id = settings.google_cloud_project or "gen-lang-client-0064110488"
         dataset_id = "optimizer_test_dataset"
         
         test_queries = {

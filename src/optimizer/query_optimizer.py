@@ -460,15 +460,24 @@ class BigQueryOptimizer:
         for table_name in table_names:
             try:
                 print(f"  📊 Checking table: {table_name}")
-                table_info = self.bq_client.get_table_info(table_name)
+                
+                # If table_name doesn't include project, add it
+                if '.' not in table_name:
+                    full_table_name = f"{self.bq_client.project_id}.optimizer_test_dataset.{table_name}"
+                else:
+                    full_table_name = table_name
+                
+                print(f"    🔍 Full table name: {full_table_name}")
+                
+                table_info = self.bq_client.get_table_info(full_table_name)
                 if "error" not in table_info:
                     is_partitioned = table_info.get("partitioning", {}).get("type") is not None
                     print(f"    ✅ Partitioned: {is_partitioned}")
                     
                     # Extract table alias from query for proper _PARTITIONDATE usage
-                    table_alias = self._extract_table_alias(query, table_name)
+                    table_alias = self._extract_table_alias(query, full_table_name)
                     
-                    metadata[table_name] = {
+                    metadata[full_table_name] = {
                         "is_partitioned": is_partitioned,
                         "partition_field": table_info.get("partitioning", {}).get("field"),
                         "num_rows": table_info.get("num_rows", 0),
@@ -478,7 +487,7 @@ class BigQueryOptimizer:
                     }
                 else:
                     print(f"    ⚠️ Could not get metadata: {table_info.get('error', 'Unknown error')}")
-                    metadata[table_name] = {"is_partitioned": False}
+                    metadata[full_table_name] = {"is_partitioned": False}
             except Exception as e:
                 print(f"    ❌ Error getting metadata for {table_name}: {e}")
                 metadata[table_name] = {"is_partitioned": False}
@@ -513,6 +522,8 @@ class BigQueryOptimizer:
             r'`([^`]+\.[^`]+\.[^`]+)`',  # Fully qualified with backticks
             r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)',
             r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)',
+            r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names
+            r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names in JOINs
         ]
         
         tables = set()
