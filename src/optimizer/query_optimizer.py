@@ -461,8 +461,19 @@ class BigQueryOptimizer:
             try:
                 print(f"  📊 Checking table: {table_name}")
                 
-                # table_name is already fully qualified from _extract_table_names
-                full_table_name = table_name
+                # Always construct the correct full table name
+                if table_name.count('.') >= 2:
+                    # Already fully qualified, but might have wrong project ID
+                    parts = table_name.split('.')
+                    if len(parts) >= 3:
+                        # Replace project ID with actual one
+                        full_table_name = f"{self.bq_client.project_id}.{parts[-2]}.{parts[-1]}"
+                    else:
+                        full_table_name = table_name
+                else:
+                    # Simple table name, construct full name
+                    full_table_name = f"{self.bq_client.project_id}.optimizer_test_dataset.{table_name}"
+                
                 print(f"    🔍 Using table name: {full_table_name}")
                 
                 table_info = self.bq_client.get_table_info(full_table_name)
@@ -514,8 +525,10 @@ class BigQueryOptimizer:
     
     def _extract_table_names(self, query: str) -> List[str]:
         """Extract table names from SQL query."""
-        # Extract simple table names and construct full names with correct project ID
-        simple_patterns = [
+        # Extract table names from various SQL patterns
+        patterns = [
+            r'FROM\s+`([^`]+)`',  # FROM `project.dataset.table`
+            r'JOIN\s+`([^`]+)`',  # JOIN `project.dataset.table`
             r'FROM\s+`[^`]*\.([^`\.]+)`',  # Extract table name from backticks
             r'JOIN\s+`[^`]*\.([^`\.]+)`',  # Extract table name from JOIN backticks
             r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names
@@ -523,15 +536,10 @@ class BigQueryOptimizer:
         ]
         
         tables = set()
-        for pattern in simple_patterns:
+        for pattern in patterns:
             matches = re.findall(pattern, query, re.IGNORECASE)
             for match in matches:
-                # Always construct full table name with correct project ID
-                if '.' not in match:  # Simple table name
-                    full_table_name = f"{self.bq_client.project_id}.optimizer_test_dataset.{match}"
-                else:
-                    full_table_name = match
-                tables.add(full_table_name)
+                tables.add(match)
         
         return list(tables)
     

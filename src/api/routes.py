@@ -706,9 +706,15 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
             case_start_time = time.time()
             
             try:
+                # Fix project ID in test case query
+                actual_project_id = request.project_id or optimizer.bq_client.project_id
+                test_query = test_case["query"]
+                if 'your-project' in test_query:
+                    test_query = test_query.replace('your-project', actual_project_id)
+                
                 # Run optimization on the test query
                 optimization_result = optimizer.optimize_query(
-                    test_case["query"],
+                    test_query,
                     validate_results=request.validate_results,
                     measure_performance=request.measure_performance,
                     sample_size=100  # Use smaller sample for tests
@@ -719,13 +725,23 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
                 optimized_results = None
                 
                 try:
+                    # Fix project ID in test query before execution
+                    actual_project_id = request.project_id or optimizer.bq_client.project_id
+                    test_query = test_case["query"]
+                    if 'your-project' in test_query:
+                        test_query = test_query.replace('your-project', actual_project_id)
+                    
                     # Get original query results
-                    original_exec = optimizer.bq_client.execute_query(test_case["query"], dry_run=False)
+                    original_exec = optimizer.bq_client.execute_query(test_query, dry_run=False)
                     if original_exec["success"]:
                         original_results = original_exec["results"][:5]  # First 5 rows
                     
                     # Get optimized query results
-                    optimized_exec = optimizer.bq_client.execute_query(optimization_result.optimized_query, dry_run=False)
+                    optimized_query_fixed = optimization_result.optimized_query
+                    if 'your-project' in optimized_query_fixed:
+                        optimized_query_fixed = optimized_query_fixed.replace('your-project', actual_project_id)
+                    
+                    optimized_exec = optimizer.bq_client.execute_query(optimized_query_fixed, dry_run=False)
                     if optimized_exec["success"]:
                         optimized_results = optimized_exec["results"][:5]  # First 5 rows
                         
@@ -750,7 +766,7 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
                 test_results.append(TestCaseResult(
                     name=test_case["name"],
                     description=test_case["description"],
-                    original_query=test_case["query"],
+                    original_query=test_query,
                     original_results=original_results,
                     optimization_result=optimization_result,
                     optimized_results=optimized_results,

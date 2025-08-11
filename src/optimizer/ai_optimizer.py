@@ -153,6 +153,12 @@ The optimized query MUST return EXACTLY THE SAME RESULTS as the original query.
 - ZERO differences allowed
 - Business logic must be preserved 100%
 
+🚨 CRITICAL PROJECT ID REQUIREMENT 🚨
+- ALWAYS use the ACTUAL project ID from table metadata
+- NEVER use placeholder project IDs like "your-project" or "project"
+- Replace ANY placeholder project IDs with the REAL project ID
+- Ensure ALL table references use the correct project ID
+
 📋 GOOGLE'S BIGQUERY BEST PRACTICES (20+ PATTERNS):
 
 1. **PARTITION FILTERING** (High Impact - 50-80% improvement)
@@ -247,14 +253,15 @@ Instead of partition filtering, focus on these high-impact optimizations:
 🎯 OPTIMIZATION REQUIREMENTS:
 1. Apply at least 1-3 relevant optimizations from Google's best practices
 2. ENSURE the optimized query returns IDENTICAL results
-3. CRITICAL: Check table metadata - only add table_alias._PARTITIONDATE if Partitioned=True
-4. Focus on performance without changing business logic
-5. Include documentation references for each optimization
-6. Target 30-50% performance improvement
+3. CRITICAL: Replace ALL placeholder project IDs with the ACTUAL project ID
+4. CRITICAL: Check table metadata - only add table_alias._PARTITIONDATE if Partitioned=True
+5. Focus on performance without changing business logic
+6. Include documentation references for each optimization
+7. Target 30-50% performance improvement
 
 RESPONSE FORMAT (JSON ONLY):
 {{
-    "optimized_query": "The optimized SQL query that returns IDENTICAL results",
+    "optimized_query": "The optimized SQL query with CORRECT project ID that returns IDENTICAL results",
     "optimizations_applied": [
         {{
             "pattern_id": "partition_filtering",
@@ -282,6 +289,7 @@ RESPONSE FORMAT (JSON ONLY):
 }}
 
 🚨 CRITICAL REMINDERS:
+- ALWAYS replace placeholder project IDs with the actual project ID from table metadata
 - NEVER add _PARTITIONDATE to non-partitioned tables
 - ALWAYS use table alias with _PARTITIONDATE (e.g., o._PARTITIONDATE)
 - Results must be 100% identical
@@ -350,6 +358,9 @@ Return only the JSON object. The optimized query will be executed and validated 
     ) -> OptimizationResult:
         """Create an OptimizationResult from the AI response."""
         
+        # Get the actual project ID from settings
+        actual_project_id = self.settings.google_cloud_project
+        
         # Parse applied optimizations
         applied_optimizations = []
         for opt_data in optimization_data.get('optimizations_applied', []):
@@ -365,11 +376,17 @@ Return only the JSON object. The optimized query will be executed and validated 
             )
             applied_optimizations.append(optimization)
         
+        # Fix project ID in optimized query
+        optimized_query = optimization_data.get('optimized_query', original_query)
+        if actual_project_id and 'your-project' in optimized_query:
+            optimized_query = optimized_query.replace('your-project', actual_project_id)
+            self.logger.logger.info(f"Replaced placeholder project ID with actual: {actual_project_id}")
+        
         # Create the result
         result = OptimizationResult(
             original_query=original_query,
             query_analysis=analysis,
-            optimized_query=optimization_data.get('optimized_query', original_query),
+            optimized_query=optimized_query,
             optimizations_applied=applied_optimizations,
             total_optimizations=len(applied_optimizations),
             estimated_improvement=optimization_data.get('estimated_improvement'),
