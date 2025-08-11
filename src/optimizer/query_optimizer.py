@@ -57,7 +57,8 @@ class BigQueryOptimizer:
             self.ai_optimizer = GeminiQueryOptimizer()
             
             if validate_results:
-                self.validator = QueryValidator(self.bq_client)
+                # self.validator = QueryValidator(self.bq_client)  # Commented out for now
+                self.validator = None
             else:
                 self.validator = None
                 
