@@ -483,9 +483,11 @@ JOIN `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
     ON o.customer_id = c.customer_id
 JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p 
     ON oi.product_id = p.product_id
-WHERE o.order_date >= '2024-06-01'
-AND c.customer_tier = 'Premium'
-AND p.category = 'Electronics'"""
+WHERE o.order_date >= '2024-01-01'
+  AND p.category IS NOT NULL
+ORDER BY o.total_amount DESC
+LIMIT 100;
+"""
                     },
                     {
                         "name": "LEFT JOIN with SELECT *",
@@ -496,7 +498,9 @@ LEFT JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
     ON c.customer_id = o.customer_id
 LEFT JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p
     ON o.product_id = p.product_id
-WHERE c.region = 'Europe'"""
+WHERE c.region = 'Europe'
+LIMIT 100;
+"""
                     },
                     {
                         "name": "Cross JOIN Pattern",
@@ -533,29 +537,46 @@ ORDER BY total_revenue DESC"""
                     {
                         "name": "Multiple COUNT DISTINCT",
                         "description": "Query with multiple COUNT DISTINCT operations needing optimization",
-                        "query": f"""SELECT 
-    p.category,
-    COUNT(DISTINCT oi.order_id) as unique_orders,
-    COUNT(DISTINCT o.customer_id) as unique_customers,
-    COUNT(DISTINCT oi.product_id) as unique_products
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
-JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p ON oi.product_id = p.product_id
-WHERE o.order_date >= '2024-01-01'
-GROUP BY p.category"""
+                        "query": f"""SELECT
+  c.category,
+  (SELECT COUNT(DISTINCT oi.order_id)
+   FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
+   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
+   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p2 ON oi.product_id = p2.product_id
+   WHERE CAST(o.order_date AS STRING) >= '2024-01-01' AND p2.category = c.category) AS unique_orders,
+  (SELECT COUNT(DISTINCT o.customer_id)
+   FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
+   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
+   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p2 ON oi.product_id = p2.product_id
+   WHERE CAST(o.order_date AS STRING) >= '2024-01-01' AND p2.category = c.category) AS unique_customers,
+  (SELECT COUNT(DISTINCT oi.product_id)
+   FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
+   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
+   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p2 ON oi.product_id = p2.product_id
+   WHERE CAST(o.order_date AS STRING) >= '2024-01-01' AND p2.category = c.category) AS unique_products
+FROM (
+  SELECT DISTINCT category
+  FROM `gen-lang-client-0064110488.optimizer_test_dataset.products`
+) c
+ORDER BY c.category;
+"""
                     },
                     {
                         "name": "Heavy Aggregation with SELECT *",
                         "description": "Complex aggregation with SELECT * needing multiple optimizations",
-                        "query": f"""SELECT *,
-    COUNT(DISTINCT customer_id) as unique_customers
+                        "query": f"""SELECT
+  (ANY_VALUE(t)).*,
+  COUNT(DISTINCT t.customer_id) AS unique_customers
 FROM (
-    SELECT *
-    FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders`
-    WHERE order_date >= '2024-01-01'
-    AND status = 'completed'
-) completed_orders
-GROUP BY order_date"""
+  SELECT o.*
+  FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
+  WHERE SUBSTR(CAST(o.order_date AS STRING), 1, 10) >= '2024-01-01'
+    AND (LOWER(o.status) LIKE 'completed%' OR o.status = 'completed')
+) AS t
+CROSS JOIN UNNEST(GENERATE_ARRAY(1, 5)) AS blowup   -- pointless row duplication
+GROUP BY FORMAT_DATE('%Y-%m-%d', DATE(t.order_date))
+ORDER BY RAND();
+"""
                     }
                 ]
             },
@@ -610,25 +631,21 @@ LIMIT 500"""
                     {
                         "name": "Triple Nested IN Subqueries",
                         "description": "Deeply nested IN subqueries that should be converted to JOINs",
-                        "query": f"""SELECT 
-    customer_name
+                        "query": f"""SELECT DISTINCT c.customer_name
 FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
-WHERE customer_id IN (
-    SELECT customer_id 
-    FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o1
-    WHERE order_id IN (
-        SELECT order_id
-        FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-        WHERE product_id IN (
-            SELECT product_id
-            FROM `gen-lang-client-0064110488.optimizer_test_dataset.products` p
-            WHERE category = 'Electronics'
-        )
-        AND quantity > 2
+WHERE CAST(c.customer_id AS STRING) NOT IN (
+  SELECT CAST(o1.customer_id AS STRING)
+  FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o1
+  WHERE CAST(o1.order_id AS STRING) IN (
+    SELECT CAST(oi.order_id AS STRING)
+    FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
+    WHERE oi.product_id IN (
+      SELECT p.product_id
+      FROM `gen-lang-client-0064110488.optimizer_test_dataset.products` p
+      WHERE LOWER(p.category) LIKE '%electronic%'
     )
-    AND o1.order_date >= '2024-06-01'
-    AND o1.status = 'completed'
-)"""
+  )
+);"""
                     },
                     {
                         "name": "EXISTS with Nested Subquery",
@@ -636,17 +653,16 @@ WHERE customer_id IN (
                         "query": f"""SELECT *
 FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
 WHERE EXISTS (
-    SELECT 1 
-    FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
-    WHERE o.customer_id = c.customer_id
-    AND o.order_date >= '2024-01-01'
+  SELECT 1
+  FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
+  WHERE CAST(o.customer_id AS STRING) = CAST(c.customer_id AS STRING)
+    AND SUBSTR(CAST(o.order_date AS STRING),1,10) >= '2024-01-01'
     AND EXISTS (
-        SELECT 1 
-        FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-        WHERE oi.order_id = o.order_id
-        AND oi.quantity > 3
+      SELECT 1 FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
+      WHERE oi.order_id = o.order_id AND CAST(oi.quantity AS STRING) > '3'
     )
-)"""
+);
+"""
                     },
                     {
                         "name": "Correlated Subquery in SELECT",
