@@ -70,6 +70,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                        class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <p class="text-xs text-gray-500 mt-1">Maximum rows to fetch (e.g., 100)</p>
             </div>
+
             <!-- Action Buttons -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <div class="flex flex-wrap gap-4 justify-center">
@@ -114,7 +115,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 </div>
                 <div class="mt-4 text-sm text-gray-600">
                     <p>Each test suite contains 3 test cases that demonstrate different optimization scenarios.</p>
-                    <p>You'll see both the unoptimized and optimized queries with detailed comparison results.</p>
+                    <p>You'll see both the unoptimized and optimized queries with their actual results.</p>
                 </div>
             </div>
 
@@ -417,103 +418,46 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
         function displayTestSuiteResults(result) {
             const testCasesHtml = result.test_cases.map((testCase, index) => `
                 <div class="border border-gray-200 rounded-lg p-6 mb-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h4 class="text-lg font-semibold text-blue-800">Test Case ${index + 1}: ${testCase.name}</h4>
-                        <span class="px-3 py-1 rounded-full text-sm font-medium ${testCase.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                            ${testCase.success ? '✅ PASSED' : '❌ FAILED'}
-                        </span>
-                    </div>
+                    <h4 class="text-lg font-semibold text-blue-800 mb-4">Test Case ${index + 1}: ${testCase.name}</h4>
+                    <p class="text-gray-700 mb-6">${testCase.description}</p>
                     
-                    <p class="text-gray-700 mb-4">${testCase.description}</p>
-                    
-                    <!-- Optimization Results -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div class="bg-blue-50 p-3 rounded">
-                            <h5 class="font-semibold text-blue-800">Optimizations Applied</h5>
-                            <p class="text-xl font-bold text-blue-600">${testCase.optimization_result.total_optimizations}</p>
-                        </div>
-                        <div class="bg-green-50 p-3 rounded">
-                            <h5 class="font-semibold text-green-800">Expected Improvement</h5>
-                            <p class="text-xl font-bold text-green-600">${testCase.optimization_result.estimated_improvement ? (testCase.optimization_result.estimated_improvement * 100).toFixed(1) + '%' : 'N/A'}</p>
-                        </div>
-                        <div class="bg-purple-50 p-3 rounded">
-                            <h5 class="font-semibold text-purple-800">Results Identical</h5>
-                            <p class="text-xl font-bold ${testCase.optimization_result.results_identical ? 'text-green-600' : 'text-red-600'}">
-                                ${testCase.optimization_result.results_identical ? '✓ Yes' : '✗ No'}
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Applied Optimizations -->
-                    ${testCase.optimization_result.optimizations_applied && testCase.optimization_result.optimizations_applied.length > 0 ? `
-                        <div class="mb-4">
-                            <h5 class="font-semibold text-gray-800 mb-2">Applied Optimizations:</h5>
-                            <div class="space-y-2">
-                                ${testCase.optimization_result.optimizations_applied.map(opt => `
-                                    <div class="border-l-4 border-blue-500 pl-3 py-1">
-                                        <span class="font-medium text-blue-800">${opt.pattern_name}</span>
-                                        <p class="text-sm text-gray-600">${opt.description}</p>
-                                        ${opt.expected_improvement ? `<p class="text-xs text-green-600">Expected: ${(opt.expected_improvement * 100).toFixed(1)}%</p>` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-
                     <!-- Query Comparison -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                         <div>
-                            <h5 class="font-semibold text-red-800 mb-2">🔴 Original Query (Unoptimized)</h5>
+                            <h5 class="font-semibold text-red-800 mb-3">🔴 Original Query (Unoptimized)</h5>
                             <pre class="bg-red-50 border border-red-200 p-3 rounded text-xs overflow-x-auto"><code class="language-sql">${testCase.original_query}</code></pre>
                         </div>
                         <div>
-                            <h5 class="font-semibold text-green-800 mb-2">🟢 Optimized Query</h5>
+                            <h5 class="font-semibold text-green-800 mb-3">🟢 Optimized Query</h5>
                             <pre class="bg-green-50 border border-green-200 p-3 rounded text-xs overflow-x-auto"><code class="language-sql">${testCase.optimization_result.optimized_query}</code></pre>
                         </div>
                     </div>
 
-                    ${testCase.error ? `
-                        <div class="mt-4 bg-red-50 border border-red-200 rounded p-3">
-                            <h5 class="font-semibold text-red-800 mb-1">Error:</h5>
-                            <p class="text-red-700 text-sm">${testCase.error}</p>
+                    <!-- Query Results -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h5 class="font-semibold text-blue-800 mb-3">🔵 Original Query Results</h5>
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-h-96 overflow-auto">
+                                ${formatQueryResults(testCase.original_results, 'Original')}
+                            </div>
                         </div>
-                    ` : ''}
+                        <div>
+                            <h5 class="font-semibold text-green-800 mb-3">🟢 Optimized Query Results</h5>
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 max-h-96 overflow-auto">
+                                ${formatQueryResults(testCase.optimized_results, 'Optimized')}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `).join('');
 
             showResults(`
                 <div class="bg-white rounded-lg shadow-md p-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-semibold text-indigo-800">Test Suite Results: ${result.suite_name}</h2>
-                        <span class="px-4 py-2 rounded-full text-lg font-bold ${result.overall_success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                            ${result.overall_success ? '✅ ALL PASSED' : '❌ SOME FAILED'}
-                        </span>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-blue-800">Total Tests</h3>
-                            <p class="text-2xl font-bold text-blue-600">${result.total_tests}</p>
-                        </div>
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-green-800">Passed</h3>
-                            <p class="text-2xl font-bold text-green-600">${result.passed_tests}</p>
-                        </div>
-                        <div class="bg-red-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-red-800">Failed</h3>
-                            <p class="text-2xl font-bold text-red-600">${result.failed_tests}</p>
-                        </div>
-                        <div class="bg-purple-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-purple-800">Execution Time</h3>
-                            <p class="text-2xl font-bold text-purple-600">${result.execution_time.toFixed(1)}s</p>
-                        </div>
-                    </div>
-
-                    <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <h2 class="text-2xl font-semibold text-indigo-800 mb-6">Test Suite: ${result.suite_name}</h2>
+                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
                         <h3 class="font-semibold text-gray-800 mb-2">Suite Description</h3>
                         <p class="text-gray-700">${result.description}</p>
                     </div>
-
                     <h3 class="text-xl font-semibold mb-4">Test Cases</h3>
                     ${testCasesHtml}
                 </div>
@@ -572,12 +516,18 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h2 class="text-2xl font-semibold mb-4 text-green-800">Optimization Results</h2>
                     
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-blue-800">Optimizations Applied</h3>
+                            <p class="text-2xl font-bold text-blue-600">${result.total_optimizations}</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-green-800">Expected Improvement</h3>
+                            <p class="text-2xl font-bold text-green-600">${result.estimated_improvement ? (result.estimated_improvement * 100).toFixed(1) + '%' : 'N/A'}</p>
                         </div>
                         <div class="bg-purple-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-purple-800">Results Identical</h3>
-                            <p class="text-2xl font-bold ${result.results_identical ? 'text-green-600' : 'text-red-600'}">
-                                ${result.results_identical ? '✓ Yes' : '✗ No'}
-                            </p>
+                            <h3 class="font-semibold text-purple-800">Processing Time</h3>
+                            <p class="text-2xl font-bold text-purple-600">${result.processing_time_seconds ? result.processing_time_seconds.toFixed(1) + 's' : 'N/A'}</p>
                         </div>
                     </div>
 
@@ -587,53 +537,6 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                             ${optimizationsHtml}
                         </div>
                     ` : ''}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                            </div>
-                            
-                            <!-- ALWAYS SHOW BOTH QUERY RESULTS -->
-                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                                <div>
-                                    <h4 class="font-semibold text-blue-800 mb-3 text-center">🔵 ORIGINAL QUERY RESULTS</h4>
-                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                        <p class="text-sm text-blue-700 mb-2 text-center">Rows returned: ${result.detailed_comparison.original_row_count}</p>
-                                        <div class="bg-white rounded border max-h-96 overflow-auto">
-                                            ${formatQueryResultsAsTable(result.detailed_comparison.sample_original, 'Original')}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 class="font-semibold text-green-800 mb-3 text-center">🟢 OPTIMIZED QUERY RESULTS</h4>
-                                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                                        <p class="text-sm text-green-700 mb-2 text-center">Rows returned: ${result.detailed_comparison.optimized_row_count}</p>
-                                        <div class="bg-white rounded border max-h-96 overflow-auto">
-                                            ${formatQueryResultsAsTable(result.detailed_comparison.sample_optimized, 'Optimized')}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        ${result.detailed_comparison ? `
-                            <!-- VALIDATION SUMMARY -->
-                            <div class="text-center p-4 rounded-lg ${result.detailed_comparison.results_identical ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}">
-                                <h4 class="font-bold text-lg ${result.detailed_comparison.results_identical ? 'text-green-800' : 'text-red-800'} mb-2">
-                                    ${result.detailed_comparison.results_identical ? '✅ BUSINESS LOGIC PRESERVED' : '🚨 BUSINESS LOGIC COMPROMISED'}
-                                </h4>
-                                <p class="${result.detailed_comparison.results_identical ? 'text-green-700' : 'text-red-700'}">
-                                    ${result.detailed_comparison.results_identical ? 
-                                        'Both queries return IDENTICAL results - optimization is VALID!' : 
-                                        'Queries return DIFFERENT results - optimization is INVALID!'}
-                                </p>
-                            </div>
-                        ` : ''}
-                    ` : `
-                        <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <h4 class="font-semibold text-yellow-800 mb-2">⚠️ Query Results Not Available</h4>
-                            <p class="text-yellow-700">Query results comparison was not performed or failed to execute.</p>
-                        </div>
-                    `}
 
                     <div class="mb-6">
                         <h3 class="text-lg font-semibold mb-3">Optimized Query</h3>
@@ -727,32 +630,10 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
 
         // Display test results
         function displayTestResults(result) {
-            const statusColor = result.success ? 'green' : 'red';
-            const statusIcon = result.success ? '✓' : '✗';
-
             showResults(`
                 <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-${statusColor}-800">Test Results</h2>
+                    <h2 class="text-2xl font-semibold mb-4 text-blue-800">Test Results</h2>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-${statusColor}-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-${statusColor}-800">Status</h3>
-                            <p class="text-2xl font-bold text-${statusColor}-600">${statusIcon} ${result.success ? 'Passed' : 'Failed'}</p>
-                        </div>
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-blue-800">Total Tests</h3>
-                            <p class="text-2xl font-bold text-blue-600">${result.total_tests}</p>
-                        </div>
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-green-800">Passed</h3>
-                            <p class="text-2xl font-bold text-green-600">${result.passed_tests}</p>
-                        </div>
-                        <div class="bg-red-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-red-800">Failed</h3>
-                            <p class="text-2xl font-bold text-red-600">${result.failed_tests}</p>
-                        </div>
-                    </div>
-
                     ${result.error_message ? `
                         <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                             <h4 class="font-semibold text-red-800 mb-2">Error</h4>
@@ -816,23 +697,15 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
         }
 
         // Format query results for display
-        function formatQueryResultsAsTable(results, queryType = '') {
+        function formatQueryResults(results, queryType = '') {
             if (!results || results.length === 0) {
                 return `<div class="p-4 text-center text-gray-500">No data returned from ${queryType} query</div>`;
             }
             
-            console.log(`${queryType} Query Results (${results.length} rows):`, results);
-            
-            // Limit display to prevent browser hanging with large datasets
-            const maxDisplayRows = 100;
-            const displayResults = results.slice(0, maxDisplayRows);
-            const hasMoreRows = results.length > maxDisplayRows;
-            
             // Create HTML table
-            const headers = Object.keys(displayResults[0]);
+            const headers = Object.keys(results[0]);
             let tableHtml = `<div class="text-sm text-gray-700 mb-3 font-bold bg-gray-100 p-2 rounded">
-                ${queryType} Query Results - Showing ${displayResults.length} of ${results.length} rows
-                ${hasMoreRows ? `<span class="text-orange-600">(Limited to first ${maxDisplayRows} rows for performance)</span>` : ''}
+                ${queryType} Query Results - ${results.length} rows
             </div>`;
             tableHtml += '<table class="w-full text-xs border-collapse border border-gray-300">';
             
@@ -845,8 +718,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             
             // Add data rows
             tableHtml += '<tbody>';
-            // Show limited results to prevent browser hanging
-            displayResults.forEach((row, index) => {
+            results.forEach((row, index) => {
                 tableHtml += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50">`;
                 headers.forEach(header => {
                     const value = row[header];
@@ -866,80 +738,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             });
             tableHtml += '</tbody></table>';
             
-            // Show total count and performance note
-            tableHtml += `<div class="text-center text-gray-600 text-sm mt-3 font-bold bg-gray-50 p-2 rounded">
-                Total query results: ${results.length} rows
-                ${hasMoreRows ? `<br><span class="text-orange-600">⚠️ Showing first ${maxDisplayRows} rows only to prevent browser performance issues</span>` : ''}
-            </div>`;
-            
-            // Add download option for large datasets
-            if (hasMoreRows) {
-                tableHtml += `<div class="text-center mt-3">
-                    <button onclick="downloadFullResults('${queryType}', ${JSON.stringify(results).replace(/"/g, '&quot;')})" 
-                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-                        📥 Download Full Results (${results.length} rows)
-                    </button>
-                </div>`;
-            }
-            
             return tableHtml;
-        }
-        
-        // Download full results as CSV
-        function downloadFullResults(queryType, results) {
-            if (!results || results.length === 0) return;
-            
-            const headers = Object.keys(results[0]);
-            let csvContent = headers.join(',') + '\n';
-            
-            results.forEach(row => {
-                const values = headers.map(header => {
-                    const value = row[header];
-                    if (value === null || value === undefined) return '';
-                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
-                        return `"${value.replace(/"/g, '""')}"`;
-                    }
-                    return String(value);
-                });
-                csvContent += values.join(',') + '\n';
-            });
-            
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${queryType.toLowerCase()}_query_results_${new Date().toISOString().slice(0, 10)}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }
-        
-        // Legacy function for backward compatibility
-        function formatQueryResults(results) {
-            if (!results || results.length === 0) {
-                return 'No data returned';
-            }
-            
-            const headers = Object.keys(results[0]);
-            let output = headers.join('\t') + '\n';
-            output += headers.map(() => '─'.repeat(15)).join('\t') + '\n';
-            
-            results.slice(0, 10).forEach(row => {
-                const values = headers.map(header => {
-                    const value = row[header];
-                    if (value === null || value === undefined) return 'NULL';
-                    if (typeof value === 'number') return value.toString();
-                    return String(value).substring(0, 15);
-                });
-                output += values.join('\t') + '\n';
-            });
-            
-            if (results.length > 10) {
-                output += `... and ${results.length - 10} more rows\n`;
-            }
-            
-            return output;
         }
 
         // Initialize syntax highlighting after content is loaded
