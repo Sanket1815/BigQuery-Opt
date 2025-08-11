@@ -15,8 +15,9 @@
 │   (Port 8080)       │   (Terminal)        │   (Direct Import)  │  (HTTP/JSON) │
 │                     │                     │                     │              │
 │ • Query Input       │ • File Processing   │ • Programmatic     │ • Batch      │
-│ • Real-time Results │ • Batch Operations  │   Integration      │   Processing │
-│ • Visual Comparison │ • Automation        │ • Custom Workflows │ • Webhooks   │
+│ • Test Suites       │ • Batch Operations  │   Integration      │   Processing │
+│ • Manual Validation │ • Automation        │ • Custom Workflows │ • API Access │
+│ • Result Display    │ • Performance       │ • Error Handling   │ • Status     │
 └─────────────────────┴─────────────────────┴─────────────────────┴──────────────┘
                                            │
                                            ▼
@@ -78,9 +79,10 @@
 - **Purpose**: Browser-based interface for interactive query optimization
 - **Features**: 
   - Real-time query input with syntax highlighting
-  - Side-by-side result comparison
-  - Performance metrics visualization
+  - Raw result display without automated comparison
+  - Manual validation approach
   - Test query library
+  - Test suite execution with result display
 - **Technology**: HTML5, Tailwind CSS, JavaScript, Prism.js
 
 #### 💻 CLI Tool (`src/optimizer/main.py`)
@@ -130,13 +132,11 @@
 - **Technology**: Google Generative AI, structured prompting
 
 #### ✅ Result Validator (`src/optimizer/validator.py`)
-- **Purpose**: Ensure 100% functional accuracy
+- **Purpose**: Execute queries and provide raw results for manual validation
 - **Capabilities**:
   - Query result comparison
-  - Row-by-row validation
+  - Raw result extraction
   - Performance measurement
-  - Business logic preservation
-- **Critical Requirement**: Zero tolerance for result differences
 
 ### 3. Knowledge & Data Layer
 
