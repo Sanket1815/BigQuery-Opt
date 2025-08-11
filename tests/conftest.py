@@ -64,6 +64,19 @@ def mock_bigquery_client() -> Generator[Mock, None, None]:
 
 
 @pytest.fixture
+def mock_documentation_processor():
+    """Mock documentation processor for testing."""
+    mock_processor = Mock()
+    mock_processor.get_documentation_summary.return_value = {
+        "total_chunks": 100,
+        "optimization_patterns": 10
+    }
+    mock_processor.search_documentation.return_value = []
+    mock_processor.optimization_patterns = []
+    return mock_processor
+
+
+@pytest.fixture
 def bigquery_emulator():
     """BigQuery emulator for testing."""
     from tests.emulator.bigquery_emulator import BigQueryEmulator

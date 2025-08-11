@@ -10,14 +10,11 @@ from src.optimizer.query_optimizer import BigQueryOptimizer
 from src.common.exceptions import OptimizationError, BigQueryConnectionError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import OptimizationResult, QueryAnalysis
-import subprocess
-import json
-from pathlib import Path
-import subprocess
-import json
-from pathlib import Path
 import os
 import time
+import subprocess
+import json
+from pathlib import Path
 
 router = APIRouter()
 logger = QueryOptimizerLogger(__name__)
@@ -82,7 +79,9 @@ class TestCaseResult(BaseModel):
     name: str
     description: str
     original_query: str
+    original_results: Optional[List[Dict[str, Any]]] = None
     optimization_result: OptimizationResult
+    optimized_results: Optional[List[Dict[str, Any]]] = None
     success: bool
     error: Optional[str] = None
     execution_time: float
@@ -126,7 +125,7 @@ async def optimize_query(request: OptimizeRequest):
         
         optimizer = BigQueryOptimizer(
             project_id=request.project_id,
-            validate_results=request.validate
+            validate_results=request.validate_results
         )
         
         # Test connection first
@@ -241,7 +240,7 @@ async def batch_optimize(request: BatchOptimizeRequest, background_tasks: Backgr
         
         optimizer = BigQueryOptimizer(
             project_id=request.project_id,
-            validate_results=request.validate
+            validate_results=request.validate_results
         )
         
         results = optimizer.batch_optimize_queries(
@@ -715,6 +714,24 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
                     sample_size=100  # Use smaller sample for tests
                 )
                 
+                # Execute original query to get results
+                original_results = None
+                optimized_results = None
+                
+                try:
+                    # Get original query results
+                    original_exec = optimizer.bq_client.execute_query(test_case["query"], dry_run=False)
+                    if original_exec["success"]:
+                        original_results = original_exec["results"][:5]  # First 5 rows
+                    
+                    # Get optimized query results
+                    optimized_exec = optimizer.bq_client.execute_query(optimization_result.optimized_query, dry_run=False)
+                    if optimized_exec["success"]:
+                        optimized_results = optimized_exec["results"][:5]  # First 5 rows
+                        
+                except Exception as e:
+                    print(f"Warning: Could not execute queries for result comparison: {e}")
+                
                 case_execution_time = time.time() - case_start_time
                 
                 # Determine success
@@ -734,7 +751,9 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
                     name=test_case["name"],
                     description=test_case["description"],
                     original_query=test_case["query"],
+                    original_results=original_results,
                     optimization_result=optimization_result,
+                    optimized_results=optimized_results,
                     success=success,
                     error=error_message,
                     execution_time=case_execution_time
@@ -773,7 +792,9 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
                     name=test_case["name"],
                     description=test_case["description"],
                     original_query=test_case["query"],
+                    original_results=None,
                     optimization_result=failed_result,
+                    optimized_results=None,
                     success=False,
                     error=str(e),
                     execution_time=case_execution_time
