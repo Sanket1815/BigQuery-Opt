@@ -243,21 +243,24 @@ class BigQueryOptimizer:
                 validation_error=str(e)
             )
     
-    async def _get_mcp_optimization_suggestions(self, query: str) -> Dict[str, Any]:
+    def _get_mcp_optimization_suggestions_sync(self, query: str) -> Dict[str, Any]:
         """Get optimization suggestions from MCP server."""
         try:
             if not self.mcp_handler:
                 return {}
             
+            # Use asyncio.run to handle async call in sync context
+            import asyncio
+            
             # Get comprehensive optimization suggestions from MCP server
-            suggestions = await self.mcp_handler.get_optimization_suggestions(query)
+            suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
             
             print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
             
             return suggestions
             
         except Exception as e:
-            self.logger.log_error(e, {"operation": "get_mcp_optimization_suggestions"})
+            self.logger.log_error(e, {"operation": "get_mcp_optimization_suggestions_sync"})
             print(f"⚠️ MCP server request failed: {e}")
             return {}
     
