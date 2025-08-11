@@ -10,6 +10,7 @@ from src.optimizer.query_optimizer import BigQueryOptimizer
 from src.common.exceptions import OptimizationError, BigQueryConnectionError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import OptimizationResult, QueryAnalysis
+from src.mcp_server.server import BigQueryMCPServer
 import os
 import time
 import subprocess
@@ -19,6 +20,13 @@ from pathlib import Path
 router = APIRouter()
 logger = QueryOptimizerLogger(__name__)
 
+# Initialize MCP server for documentation access
+try:
+    mcp_server = BigQueryMCPServer()
+    print("✅ MCP server initialized for documentation access")
+except Exception as e:
+    print(f"⚠️ MCP server initialization failed: {e}")
+    mcp_server = None
 
 # Request/Response Models
 class OptimizeRequest(BaseModel):
@@ -117,6 +125,9 @@ async def optimize_query(request: OptimizeRequest):
     try:
         logger.logger.info(f"Optimizing query of length {len(request.query)}")
         
+        # Enhanced workflow with MCP server integration
+        print(f"📡 Using MCP server for enhanced optimization workflow")
+        
         optimizer = BigQueryOptimizer(
             project_id=request.project_id,
             validate_results=request.validate_results
@@ -164,6 +175,9 @@ async def analyze_query(request: AnalyzeRequest):
     try:
         logger.logger.info(f"Analyzing query of length {len(request.query)}")
         
+        # Use MCP server for enhanced analysis
+        print(f"📊 Using MCP server for enhanced query analysis")
+        
         optimizer = BigQueryOptimizer(
             project_id=request.project_id,
             validate_results=False
@@ -192,6 +206,8 @@ async def validate_queries(request: ValidateRequest):
     """
     try:
         logger.logger.info("Validating query optimization")
+        
+        print(f"🔍 Validating optimization with enhanced result comparison")
         
         optimizer = BigQueryOptimizer(
             project_id=request.project_id,
@@ -225,6 +241,8 @@ async def batch_optimize(request: BatchOptimizeRequest, background_tasks: Backgr
     """
     try:
         logger.logger.info(f"Starting batch optimization of {len(request.queries)} queries")
+        
+        print(f"📦 Batch optimization using MCP server workflow")
         
         if len(request.queries) > 50:  # Reasonable limit
             raise HTTPException(
@@ -263,6 +281,7 @@ async def get_status():
     
     This endpoint provides information about the system's health,
     configuration, and available optimization capabilities.
+    Now includes MCP server status.
     """
     try:
         optimizer = BigQueryOptimizer(validate_results=False)
@@ -277,13 +296,16 @@ async def get_status():
             "bigquery_connection": "connected" if connection_ok else "failed",
             "documentation_loaded": stats.get("documentation_chunks", 0) > 0,
             "ai_model_configured": "gemini_api_key" in str(stats),
-            "available_patterns": stats.get("available_patterns", 0)
+            "available_patterns": stats.get("available_patterns", 0),
+            "mcp_server_available": mcp_server is not None,
+            "mcp_server_status": "initialized" if mcp_server else "not_available"
         }
         
         status = "healthy" if all([
             connection_ok,
             components["documentation_loaded"],
-            components["available_patterns"] > 0
+            components["available_patterns"] > 0,
+            components["mcp_server_available"]
         ]) else "degraded"
         
         return StatusResponse(

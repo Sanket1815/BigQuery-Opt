@@ -22,6 +22,8 @@ from src.common.models import OptimizationResult, QueryAnalysis, QueryComplexity
 from src.optimizer.ai_optimizer import GeminiQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
 from src.optimizer.validator import QueryValidator
+from src.mcp_server.handlers import OptimizationHandler
+from src.crawler.documentation_processor import DocumentationProcessor
 
 
 class BigQueryOptimizer:
@@ -41,6 +43,17 @@ class BigQueryOptimizer:
         # Initialize core components
         try:
             self.bq_client = BigQueryClient(project_id)
+            
+            # Initialize MCP server components for documentation access
+            try:
+                self.documentation_processor = DocumentationProcessor()
+                self.mcp_handler = OptimizationHandler(self.documentation_processor)
+                print("✅ MCP server components initialized")
+            except ImportError:
+                print("⚠️ MCP server components not available - using fallback mode")
+                self.documentation_processor = None
+                self.mcp_handler = None
+            
             self.ai_optimizer = GeminiQueryOptimizer()
             
             if validate_results:
@@ -105,9 +118,19 @@ class BigQueryOptimizer:
             print(f"\n🤖 APPLYING GOOGLE'S BIGQUERY BEST PRACTICES")
             print(f"Applicable patterns: {', '.join(analysis.applicable_patterns)}")
             
-            optimization_result = self.ai_optimizer.optimize_with_best_practices(
-                query, analysis, table_metadata
-            )
+            # NEW WORKFLOW: Use MCP server for optimization recommendations
+            if self.mcp_handler:
+                print(f"📡 Getting optimization recommendations from MCP server...")
+                optimization_suggestions = await self._get_mcp_optimization_suggestions(query)
+                
+                optimization_result = self.ai_optimizer.optimize_with_best_practices(
+                    query, analysis, table_metadata, mcp_suggestions=optimization_suggestions
+                )
+            else:
+                print(f"⚠️ Using direct AI optimization (MCP server not available)")
+                optimization_result = self.ai_optimizer.optimize_with_best_practices(
+                    query, analysis, table_metadata
+                )
             
             print(f"✅ OPTIMIZATIONS APPLIED: {optimization_result.total_optimizations}")
             
@@ -220,26 +243,63 @@ class BigQueryOptimizer:
                 validation_error=str(e)
             )
     
+    async def _get_mcp_optimization_suggestions(self, query: str) -> Dict[str, Any]:
+        """Get optimization suggestions from MCP server."""
+        try:
+            if not self.mcp_handler:
+                return {}
+            
+            # Get comprehensive optimization suggestions from MCP server
+            suggestions = await self.mcp_handler.get_optimization_suggestions(query)
+            
+            print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
+            
+            return suggestions
+            
+        except Exception as e:
+            self.logger.log_error(e, {"operation": "get_mcp_optimization_suggestions"})
+            print(f"⚠️ MCP server request failed: {e}")
+            return {}
+    
     def analyze_query_only(self, query: str) -> QueryAnalysis:
-        """Analyze a query without optimizing it."""
-        return self._analyze_query_structure(query)
+        """Analyze a query without optimizing it using MCP server."""
+        try:
+            if self.mcp_handler:
+                # Use MCP server for enhanced analysis
+                import asyncio
+                analysis = asyncio.run(self.mcp_handler.analyze_query(query))
+                print(f"📊 Enhanced analysis from MCP server")
+                return analysis
+            else:
+                # Fallback to direct analysis
+                return self._analyze_query_structure(query)
+        except Exception as e:
+            self.logger.log_error(e, {"operation": "analyze_query_only"})
+            return self._analyze_query_structure(query)
     
     def get_optimization_suggestions(self, query: str) -> Dict[str, Any]:
-        """Get optimization suggestions without applying them."""
+        """Get optimization suggestions from MCP server without applying them."""
         try:
-            analysis = self._analyze_query_structure(query)
-            table_metadata = self._get_table_metadata(query)
-            
-            # Get documentation references for each applicable pattern
-            documentation_references = self._get_documentation_references(analysis.applicable_patterns)
-            
-            return {
-                "analysis": analysis.model_dump(),
-                "applicable_patterns": analysis.applicable_patterns,
-                "specific_suggestions": self._generate_specific_suggestions(query, analysis),
-                "documentation_references": documentation_references,
-                "priority_optimizations": analysis.applicable_patterns[:3]
-            }
+            if self.mcp_handler:
+                # Use MCP server for comprehensive suggestions
+                import asyncio
+                suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
+                print(f"💡 MCP server provided comprehensive optimization suggestions")
+                return suggestions
+            else:
+                # Fallback to direct suggestions
+                analysis = self._analyze_query_structure(query)
+                table_metadata = self._get_table_metadata(query)
+                
+                documentation_references = self._get_documentation_references(analysis.applicable_patterns)
+                
+                return {
+                    "analysis": analysis.model_dump(),
+                    "applicable_patterns": analysis.applicable_patterns,
+                    "specific_suggestions": self._generate_specific_suggestions(query, analysis),
+                    "documentation_references": documentation_references,
+                    "priority_optimizations": analysis.applicable_patterns[:3]
+                }
         except Exception as e:
             self.logger.log_error(e, {"operation": "get_optimization_suggestions"})
             return {"error": str(e)}

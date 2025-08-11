@@ -51,19 +51,24 @@ class GeminiQueryOptimizer:
         self, 
         query: str, 
         analysis: QueryAnalysis,
-        table_metadata: Dict[str, Any]
+        table_metadata: Dict[str, Any],
+        mcp_suggestions: Optional[Dict[str, Any]] = None
     ) -> OptimizationResult:
         """
         Apply Google's official BigQuery best practices to underperforming queries.
         
         CRITICAL BUSINESS REQUIREMENT: The optimized query MUST return IDENTICAL results.
         This is non-negotiable for business logic preservation.
+        
+        Now enhanced with MCP server integration for better documentation access.
         """
         start_time = time.time()
         
         try:
             # Build optimization prompt with Google's best practices
-            prompt = self._build_comprehensive_optimization_prompt(query, analysis, table_metadata)
+            prompt = self._build_comprehensive_optimization_prompt(
+                query, analysis, table_metadata, mcp_suggestions
+            )
             
             # Generate optimization using Gemini
             response = self.model.generate_content(prompt)
@@ -104,7 +109,8 @@ class GeminiQueryOptimizer:
         self, 
         query: str, 
         analysis: QueryAnalysis,
-        table_metadata: Dict[str, Any]
+        table_metadata: Dict[str, Any],
+        mcp_suggestions: Optional[Dict[str, Any]] = None
     ) -> str:
         """Build comprehensive optimization prompt based on Google's BigQuery best practices."""
         
@@ -125,6 +131,34 @@ class GeminiQueryOptimizer:
   Size: {size_gb:.2f} GB
   Clustering fields: {clustering_fields}
   🚨 CRITICAL: ONLY add _PARTITIONDATE if Partitioned=True!
+"""
+        
+        # Add MCP server suggestions if available
+        mcp_context = ""
+        if mcp_suggestions:
+            mcp_context = f"""
+
+📡 MCP SERVER OPTIMIZATION RECOMMENDATIONS:
+
+PRIORITY OPTIMIZATIONS: {', '.join(mcp_suggestions.get('priority_optimizations', []))}
+
+SPECIFIC SUGGESTIONS FROM DOCUMENTATION:
+"""
+            for suggestion in mcp_suggestions.get('specific_suggestions', []):
+                mcp_context += f"""
+• {suggestion.get('pattern_name', 'Unknown')}: {suggestion.get('description', '')}
+  Expected improvement: {suggestion.get('expected_improvement', 0):.1%}
+  Documentation: {suggestion.get('documentation_reference', 'N/A')}
+"""
+            
+            if mcp_suggestions.get('documentation_references'):
+                mcp_context += f"""
+
+RELEVANT DOCUMENTATION CONTEXT:
+"""
+                for doc_ref in mcp_suggestions.get('documentation_references', [])[:3]:
+                    mcp_context += f"""
+• {doc_ref.get('title', 'Unknown')}: {doc_ref.get('content', '')[:200]}...
 """
         
         # Build comprehensive prompt
@@ -234,6 +268,7 @@ UNDERPERFORMING QUERY TO OPTIMIZE:
 ```sql
 {query}
 ```
+{mcp_context}
 
 🚨 CRITICAL PARTITION FILTERING RULES:
 1. ONLY add _PARTITIONDATE if table metadata shows Partitioned=True
