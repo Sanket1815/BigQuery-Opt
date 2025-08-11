@@ -285,7 +285,8 @@ class BigQueryOptimizer:
         try:
             if self.mcp_handler:
                 # Use MCP server for comprehensive suggestions
-                suggestions = self._run_async_safely(self.mcp_handler.get_optimization_suggestions(query))
+                import asyncio
+                suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
                 print(f"💡 MCP server provided comprehensive optimization suggestions")
                 return suggestions
             else:
@@ -563,26 +564,57 @@ class BigQueryOptimizer:
         
         return metadata
     
-    def _get_mcp_optimization_suggestions_sync(self, query: str) -> Dict[str, Any]:
-        """Get optimization suggestions from MCP server."""
+    def _get_mcp_optimization_suggestions_safe(self, query: str) -> Dict[str, Any]:
+        """Get optimization suggestions from MCP server with safe async handling."""
         try:
             if not self.mcp_handler:
                 return {}
             
-            # Use asyncio.run to handle async call in sync context
-            import asyncio
-            
-            # Get comprehensive optimization suggestions from MCP server
-            suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
+            # Use the new safe async runner
+            suggestions = self._run_async_safely(
+                self.mcp_handler.get_optimization_suggestions(query)
+            )
             
             print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
             
             return suggestions
             
         except Exception as e:
-            self.logger.log_error(e, {"operation": "get_mcp_optimization_suggestions_sync"})
+            self.logger.log_error(e, {"operation": "_get_mcp_optimization_suggestions_safe"})
             print(f"⚠️ MCP server request failed: {e}")
             return {}
+    
+    def _run_async_safely(self, coro):
+        """Safely run async coroutine whether or not we're in an event loop."""
+        import asyncio
+        
+        try:
+            # Check if we're already in an event loop
+            loop = asyncio.get_running_loop()
+            # If we're in an event loop, we need to handle this differently
+            # Create a new thread to run the async function
+            import concurrent.futures
+            import threading
+            
+            def run_in_thread():
+                # Create new event loop in thread
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(coro)
+                finally:
+                    new_loop.close()
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(run_in_thread)
+                return future.result(timeout=30)  # 30 second timeout
+                
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            return asyncio.run(coro)
+        except Exception as e:
+            self.logger.log_error(e, {"operation": "_run_async_safely"})
+            raise
     
     def _extract_table_alias(self, query: str, table_name: str) -> Optional[str]:
         """Extract table alias from query for a given table."""
