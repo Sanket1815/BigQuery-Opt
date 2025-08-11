@@ -28,7 +28,7 @@ class OptimizeRequest(BaseModel):
     """Request model for query optimization."""
     query: str = Field(..., description="SQL query to optimize")
     project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
-    validate: bool = Field(True, description="Validate query results")
+    validate_results: bool = Field(True, description="Validate query results")
     measure_performance: bool = Field(False, description="Measure actual performance")
     sample_size: int = Field(1000, description="Sample size for validation")
 
@@ -51,7 +51,7 @@ class BatchOptimizeRequest(BaseModel):
     """Request model for batch optimization."""
     queries: List[str] = Field(..., description="List of SQL queries to optimize")
     project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
-    validate: bool = Field(True, description="Validate query results")
+    validate_results: bool = Field(True, description="Validate query results")
     max_concurrent: int = Field(3, description="Maximum concurrent optimizations")
 
 
@@ -67,6 +67,37 @@ class TestSuiteRequest(BaseModel):
     project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
     test_type: str = Field("sandbox", description="Type of tests to run")
     cleanup: bool = Field(True, description="Clean up test data after tests")
+
+
+class TestSuiteSelectionRequest(BaseModel):
+    """Request model for selecting and running specific test suite."""
+    test_suite: str = Field(..., description="Test suite to run")
+    project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
+    validate_results: bool = Field(True, description="Validate query results")
+    measure_performance: bool = Field(False, description="Measure actual performance")
+
+
+class TestCaseResult(BaseModel):
+    """Result of a single test case."""
+    name: str
+    description: str
+    original_query: str
+    optimization_result: OptimizationResult
+    success: bool
+    error: Optional[str] = None
+    execution_time: float
+
+
+class TestSuiteResult(BaseModel):
+    """Result of running a test suite."""
+    suite_name: str
+    description: str
+    total_tests: int
+    passed_tests: int
+    failed_tests: int
+    execution_time: float
+    overall_success: bool
+    test_cases: List[TestCaseResult]
 
 
 class TestResult(BaseModel):
@@ -107,7 +138,7 @@ async def optimize_query(request: OptimizeRequest):
         
         result = optimizer.optimize_query(
             request.query,
-            validate_results=request.validate,
+            validate_results=request.validate_results,
             measure_performance=request.measure_performance,
             sample_size=request.sample_size
         )
@@ -215,7 +246,7 @@ async def batch_optimize(request: BatchOptimizeRequest, background_tasks: Backgr
         
         results = optimizer.batch_optimize_queries(
             request.queries,
-            validate_results=request.validate,
+            validate_results=request.validate_results,
             max_concurrent=request.max_concurrent
         )
         
