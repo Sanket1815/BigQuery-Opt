@@ -1,22 +1,20 @@
-# BigQuery Query Optimizer - Detailed Code Flow
+# BigQuery Query Optimizer - Detailed Code Flow (Updated)
 
 ## Overview
 
-This document traces the complete journey of a SQL query from user input in the web UI through the backend optimization process and back to the user with optimized results.
+This document traces the complete journey of a SQL query through our **enhanced MCP-integrated workflow with schema validation** from user input to optimized results.
 
 ---
 
 ## 🌐 Sample Query Journey
 
-Let's trace this sample query through the entire system:
-
 **Input Query**: `SELECT * FROM orders WHERE order_date >= '2024-01-01'`
 
-**Expected Output**: Optimized query with column pruning and performance improvements
+**Expected Output**: Schema-validated optimized query with MCP-enhanced documentation references
 
 ---
 
-## 📋 Complete Code Flow Trace
+## 📋 Complete Enhanced Code Flow
 
 ### 1. **Frontend User Interface** (`src/api/templates/index.html`)
 
@@ -59,11 +57,18 @@ async def optimize_query(request: OptimizeRequest):
     logger.logger.info(f"Optimizing query of length {len(request.query)}")
     # Logs: "Optimizing query of length 67"
     
+    # Enhanced workflow with MCP server integration
+    print(f"📡 Using MCP server for enhanced optimization workflow")
+    
     # Creates the main optimizer instance
     optimizer = BigQueryOptimizer(
         project_id=request.project_id,
         validate_results=request.validate_results
     )
+    
+    # Test connection first
+    if not optimizer.test_connection():
+        raise HTTPException(status_code=503, detail="Failed to connect to required services")
     
     # Calls the main optimization function
     result = optimizer.optimize_query(
@@ -78,37 +83,45 @@ async def optimize_query(request: OptimizeRequest):
 
 **What happens**:
 - Receives HTTP request with query and configuration
-- Creates `BigQueryOptimizer` instance
+- Creates `BigQueryOptimizer` instance with MCP integration
+- Tests connections to required services
 - Calls main optimization method
 - Returns structured optimization result
 
 ---
 
-### 3. **Main Query Optimizer** (`src/optimizer/query_optimizer.py`)
+### 3. **Enhanced Query Optimizer** (`src/optimizer/query_optimizer.py`)
 
-#### **Function**: `optimize_query()` - Line 45
+#### **Function**: `optimize_query()` - Line 45 (Enhanced)
 
 ```python
 def optimize_query(self, query: str, validate_results: bool = True, ...):
     # Receives: "SELECT * FROM orders WHERE order_date >= '2024-01-01'"
     
     print(f"🚀 AI-POWERED BIGQUERY QUERY OPTIMIZER")
+    print(f"📡 Enhanced with MCP Server Integration + Schema Validation")
     
     # STEP 1: Analyze the query structure
     analysis = self._analyze_query_structure(query)
     # Returns: QueryAnalysis with complexity, table count, issues, patterns
     
-    # STEP 2: Get table metadata for smart optimizations  
-    table_metadata = self._get_table_metadata(query)
-    # Returns: Dict with table info, partitioning, clustering details
+    # STEP 2: Extract table schema from BigQuery (NEW!)
+    table_metadata = self._get_enhanced_table_metadata(query)
+    # Returns: Dict with schema columns, partitioning, clustering details
     
-    # STEP 3: Apply Google's BigQuery best practices using AI
+    # STEP 3: Get MCP server optimization recommendations (NEW!)
+    if self.mcp_handler:
+        print(f"📡 Getting optimization recommendations from MCP server...")
+        optimization_suggestions = self._get_mcp_optimization_suggestions_safe(query)
+    else:
+        optimization_suggestions = {}
+    
+    # STEP 4: Apply schema-aware AI optimization with MCP context
     optimization_result = self.ai_optimizer.optimize_with_best_practices(
-        query, analysis, table_metadata
+        query, analysis, table_metadata, mcp_suggestions=optimization_suggestions
     )
-    # Returns: OptimizationResult with optimized query and applied patterns
     
-    # STEP 4: Validate business logic preservation (if requested)
+    # STEP 5: Validate business logic preservation with schema validation
     if validate_results and self.validator:
         detailed_comparison = comparator.compare_query_results_detailed(
             query, optimization_result.optimized_query, sample_size=0
@@ -119,61 +132,19 @@ def optimize_query(self, query: str, validate_results: bool = True, ...):
 ```
 
 **What happens**:
-- Orchestrates the entire optimization process
-- Analyzes query structure and identifies issues
-- Gets table metadata from BigQuery
-- Calls AI optimizer with context
-- Validates results if requested
-- Returns complete optimization result
+- **Enhanced**: Now includes MCP server consultation
+- **Enhanced**: Schema extraction and validation
+- **Enhanced**: AI optimization with schema awareness
+- **Enhanced**: Better error prevention and handling
 
 ---
 
-### 4. **Query Structure Analysis** (`src/optimizer/query_optimizer.py`)
+### 4. **Schema Extraction** (`src/optimizer/query_optimizer.py`)
 
-#### **Function**: `_analyze_query_structure()` - Line 200
-
-```python
-def _analyze_query_structure(self, query: str) -> QueryAnalysis:
-    # Receives: "SELECT * FROM orders WHERE order_date >= '2024-01-01'"
-    
-    query_upper = query.upper()
-    
-    # Extract characteristics
-    table_count = len(self._extract_table_names(query))  # Returns: 1
-    join_count = len(re.findall(r'\bJOIN\b', query_upper))  # Returns: 0
-    subquery_count = query.count('(SELECT')  # Returns: 0
-    
-    # Identify performance issues
-    potential_issues = self._identify_performance_issues(query)
-    # Returns: ["Using SELECT * retrieves unnecessary columns", "Consider adding date filters"]
-    
-    # Find applicable patterns
-    applicable_patterns = self._find_applicable_patterns(query)
-    # Returns: ["column_pruning", "partition_filtering"]
-    
-    return QueryAnalysis(
-        original_query=query,
-        complexity=QueryComplexity.SIMPLE,
-        table_count=1,
-        potential_issues=potential_issues,
-        applicable_patterns=applicable_patterns
-    )
-```
-
-**What happens**:
-- Parses SQL to extract structural information
-- Counts tables, JOINs, subqueries, functions
-- Identifies performance issues based on Google's best practices
-- Determines which optimization patterns are applicable
-
----
-
-### 5. **Table Metadata Collection** (`src/optimizer/query_optimizer.py`)
-
-#### **Function**: `_get_table_metadata()` - Line 250
+#### **Function**: `_get_enhanced_table_metadata()` - Line 250 (Enhanced)
 
 ```python
-def _get_table_metadata(self, query: str) -> Dict[str, Any]:
+def _get_enhanced_table_metadata(self, query: str) -> Dict[str, Any]:
     # Receives: "SELECT * FROM orders WHERE order_date >= '2024-01-01'"
     
     table_names = self._extract_table_names(query)  # Returns: ["orders"]
@@ -182,437 +153,419 @@ def _get_table_metadata(self, query: str) -> Dict[str, Any]:
     for table_name in table_names:
         # Construct full table name
         full_table_name = f"{self.bq_client.project_id}.optimizer_test_dataset.{table_name}"
-        # Creates: "user-project.optimizer_test_dataset.orders"
         
-        # Get table info from BigQuery
+        # Get table info from BigQuery (including schema!)
         table_info = self.bq_client.get_table_info(full_table_name)
+        
+        # Extract actual column names from schema (NEW!)
+        schema_columns = []
+        if "schema" in table_info:
+            schema_columns = [field["name"] for field in table_info["schema"]]
+        print(f"    📋 Available columns: {', '.join(schema_columns[:5])}...")
         
         metadata[full_table_name] = {
             "is_partitioned": table_info.get("partitioning", {}).get("type") is not None,
             "partition_field": table_info.get("partitioning", {}).get("field"),
             "num_rows": table_info.get("num_rows", 0),
-            "clustering_fields": table_info.get("clustering", {}).get("fields", [])
+            "clustering_fields": table_info.get("clustering", {}).get("fields", []),
+            "schema_columns": schema_columns,  # NEW: Actual column names
+            "table_name_simple": table_name
         }
     
     return metadata
 ```
 
 **What happens**:
-- Extracts table names from the SQL query
-- Constructs full BigQuery table identifiers
-- Calls BigQuery API to get table metadata
-- Returns partitioning, clustering, and size information
+- **NEW**: Extracts actual column names from BigQuery table schema
+- **NEW**: Validates table structure and available columns
+- **Enhanced**: More comprehensive table metadata
+- **Enhanced**: Better error handling for missing tables
 
 ---
 
-### 6. **BigQuery Client** (`src/optimizer/bigquery_client.py`)
+### 5. **MCP Server Consultation** (`src/optimizer/query_optimizer.py`)
 
-#### **Function**: `get_table_info()` - Line 150
+#### **Function**: `_get_mcp_optimization_suggestions_safe()` - Line 400 (NEW)
 
 ```python
-def get_table_info(self, table_id: str) -> Dict[str, Any]:
-    # Receives: "user-project.optimizer_test_dataset.orders"
+def _get_mcp_optimization_suggestions_safe(self, query: str) -> Dict[str, Any]:
+    # Receives: "SELECT * FROM orders WHERE order_date >= '2024-01-01'"
     
     try:
-        table = self.client.get_table(table_id)
-        # Calls Google Cloud BigQuery API
+        if not self.mcp_handler:
+            return {}
         
-        return {
-            "table_id": table.table_id,  # "orders"
-            "num_rows": table.num_rows,  # 50000
-            "num_bytes": table.num_bytes,  # 5000000
-            "partitioning": {
-                "type": table.time_partitioning.type_ if table.time_partitioning else None,  # "DAY"
-                "field": table.time_partitioning.field if table.time_partitioning else None   # "order_date"
-            },
-            "clustering": {
-                "fields": table.clustering_fields if table.clustering_fields else []  # ["customer_id", "status"]
-            }
-        }
+        # Use safe async runner to handle event loop issues
+        suggestions = self._run_async_safely(
+            self.mcp_handler.get_optimization_suggestions(query)
+        )
+        
+        print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
+        
+        return suggestions
+        # Returns: {
+        #   "priority_optimizations": ["column_pruning"],
+        #   "specific_suggestions": [...],
+        #   "documentation_references": [...]
+        # }
+        
     except Exception as e:
-        return {"error": str(e)}
+        print(f"⚠️ MCP server request failed: {e}")
+        return {}
 ```
 
 **What happens**:
-- Makes API call to Google Cloud BigQuery
-- Retrieves table schema, partitioning, clustering information
-- Returns structured metadata for optimization decisions
+- **NEW**: Consults MCP server for documentation-backed suggestions
+- **NEW**: Gets priority optimizations and specific advice
+- **NEW**: Retrieves relevant documentation context
+- **Enhanced**: Safe async handling for all environments
 
 ---
 
-### 7. **AI Optimizer** (`src/optimizer/ai_optimizer.py`)
+### 6. **Enhanced AI Optimizer** (`src/optimizer/ai_optimizer.py`)
 
-#### **Function**: `optimize_with_best_practices()` - Line 35
+#### **Function**: `optimize_with_best_practices()` - Line 35 (Enhanced)
 
 ```python
-def optimize_with_best_practices(self, query: str, analysis: QueryAnalysis, table_metadata: Dict):
-    # Receives: Query + analysis + table metadata
+def optimize_with_best_practices(
+    self, 
+    query: str, 
+    analysis: QueryAnalysis,
+    table_metadata: Dict[str, Any],
+    mcp_suggestions: Optional[Dict[str, Any]] = None  # NEW parameter
+) -> OptimizationResult:
     
-    # Build comprehensive prompt with Google's best practices
-    prompt = self._build_comprehensive_optimization_prompt(query, analysis, table_metadata)
+    # Build enhanced prompt with schema and MCP context
+    prompt = self._build_comprehensive_optimization_prompt(
+        query, analysis, table_metadata, mcp_suggestions
+    )
     
-    # Generate optimization using Gemini AI
+    # Generate optimization using Gemini with enhanced context
     response = self.model.generate_content(prompt)
-    # Sends to Google Gemini API with structured prompt
     
-    # Parse the AI response
+    # Parse and validate the AI response
     optimization_data = self._parse_ai_response(response.text)
-    # Extracts: optimized_query, optimizations_applied, estimated_improvement
     
-    # Create optimization result
+    # Create schema-validated optimization result
     result = self._create_optimization_result(query, analysis, optimization_data, start_time)
     
     return result
 ```
 
 **What happens**:
-- Builds detailed prompt with query context and Google's best practices
-- Sends prompt to Google Gemini AI API
-- Parses AI response to extract optimized query and explanations
-- Creates structured result with applied optimizations
+- **Enhanced**: Now receives MCP suggestions as input
+- **Enhanced**: Builds prompts with schema and documentation context
+- **Enhanced**: Better AI optimization with more context
+- **Enhanced**: Schema-validated results
 
 ---
 
-### 8. **AI Prompt Building** (`src/optimizer/ai_optimizer.py`)
+### 7. **Enhanced AI Prompt Building** (`src/optimizer/ai_optimizer.py`)
 
-#### **Function**: `_build_comprehensive_optimization_prompt()` - Line 100
+#### **Function**: `_build_comprehensive_optimization_prompt()` - Line 100 (Enhanced)
 
 ```python
-def _build_comprehensive_optimization_prompt(self, query, analysis, table_metadata):
-    # Creates comprehensive prompt including:
+def _build_comprehensive_optimization_prompt(self, query, analysis, table_metadata, mcp_suggestions):
     
+    # Create detailed table metadata with schema (ENHANCED)
+    table_info = ""
+    for table_name, metadata in table_metadata.items():
+        schema_columns = metadata.get('schema_columns', [])
+        table_info += f"""
+- {table_name}:
+  Available columns: {schema_columns}  # NEW: Actual column names
+  Partitioned: {metadata.get('is_partitioned', False)}
+  Row count: {metadata.get('num_rows', 0):,}
+  🚨 CRITICAL: ONLY use columns from 'Available columns' list!
+"""
+    
+    # Add MCP server suggestions (NEW)
+    mcp_context = ""
+    if mcp_suggestions:
+        mcp_context = f"""
+
+📡 MCP SERVER OPTIMIZATION RECOMMENDATIONS:
+
+PRIORITY OPTIMIZATIONS: {', '.join(mcp_suggestions.get('priority_optimizations', []))}
+
+SPECIFIC SUGGESTIONS FROM DOCUMENTATION:
+"""
+        for suggestion in mcp_suggestions.get('specific_suggestions', []):
+            mcp_context += f"""
+• {suggestion.get('pattern_name', 'Unknown')}: {suggestion.get('description', '')}
+  Expected improvement: {suggestion.get('expected_improvement', 0):.1%}
+  Documentation: {suggestion.get('documentation_reference', 'N/A')}
+"""
+    
+    # Build comprehensive prompt with schema validation
     prompt = f"""
-    🚨 BUSINESS PROBLEM: Underperforming BigQuery queries
-    🎯 MISSION: Apply Google's official best practices
-    
-    TABLE METADATA:
-    - orders: Partitioned=True, Partition field=order_date, Rows=50,000
-    
-    QUERY ANALYSIS:
-    - Complexity: simple
-    - Issues: ["Using SELECT *", "Consider adding date filters"]
-    - Patterns: ["column_pruning", "partition_filtering"]
-    
-    UNDERPERFORMING QUERY:
-    SELECT * FROM orders WHERE order_date >= '2024-01-01'
-    
-    Apply Google's BigQuery best practices and return optimized query...
-    """
+🚨 CRITICAL SCHEMA VALIDATION REQUIREMENT 🚨
+- ONLY use columns that ACTUALLY exist in the table schema
+- NEVER generate non-existent column names
+- When replacing SELECT *, use ONLY the columns listed in "Available columns"
+- If unsure about column names, keep the original SELECT clause
+
+TABLE METADATA WITH ACTUAL SCHEMA:
+{table_info}
+
+{mcp_context}
+
+UNDERPERFORMING QUERY TO OPTIMIZE:
+```sql
+{query}
+```
+
+🎯 OPTIMIZATION REQUIREMENTS:
+1. CRITICAL: Use ONLY existing columns from schema
+2. Apply MCP server suggestions where applicable
+3. Include documentation references
+4. Ensure identical results
+5. Target 30-50% performance improvement
+
+Return optimized query using ONLY existing schema columns.
+"""
     
     return prompt
 ```
 
 **What happens**:
-- Combines query, analysis, and table metadata into comprehensive context
-- Includes Google's official BigQuery optimization patterns
-- Provides specific guidance for the AI model
-- Requests structured JSON response
+- **NEW**: Includes actual table schema columns in prompt
+- **NEW**: Adds MCP server suggestions and documentation context
+- **Enhanced**: Clear instructions about column validation
+- **Enhanced**: Better context for AI optimization decisions
 
 ---
 
-### 9. **AI Response Processing** (`src/optimizer/ai_optimizer.py`)
+### 8. **Schema-Validated Result Creation** (`src/optimizer/ai_optimizer.py`)
 
-#### **Function**: `_parse_ai_response()` - Line 180
-
-```python
-def _parse_ai_response(self, response_text: str) -> Dict[str, Any]:
-    # Receives AI response like:
-    """
-    {
-        "optimized_query": "SELECT order_id, customer_id, total_amount FROM orders WHERE order_date >= '2024-01-01'",
-        "optimizations_applied": [
-            {
-                "pattern_id": "column_pruning",
-                "pattern_name": "Column Pruning", 
-                "description": "Replaced SELECT * with specific columns to reduce data transfer",
-                "expected_improvement": 0.25
-            }
-        ],
-        "estimated_improvement": 0.25
-    }
-    """
-    
-    # Cleans and parses JSON
-    optimization_data = json.loads(cleaned_response)
-    
-    return optimization_data
-```
-
-**What happens**:
-- Receives JSON response from Gemini AI
-- Cleans markdown formatting if present
-- Parses JSON to extract optimization details
-- Validates required fields are present
-
----
-
-### 10. **Result Validation** (`src/optimizer/result_comparator.py`)
-
-#### **Function**: `compare_query_results_detailed()` - Line 25
+#### **Function**: `_create_optimization_result()` - Line 200 (Enhanced)
 
 ```python
-def compare_query_results_detailed(self, original_query, optimized_query, sample_size=0):
-    # Executes both queries
-    original_result = self._execute_with_sample(original_query, sample_size)
-    # Returns: {"success": True, "results": [...], "row_count": 150}
+def _create_optimization_result(self, original_query, analysis, optimization_data, start_time):
     
-    optimized_result = self._execute_with_sample(optimized_query, sample_size)  
-    # Returns: {"success": True, "results": [...], "row_count": 150}
+    # Parse applied optimizations with documentation references
+    applied_optimizations = []
+    for opt_data in optimization_data.get('optimizations_applied', []):
+        optimization = AppliedOptimization(
+            pattern_id=opt_data.get('pattern_id', 'unknown'),
+            pattern_name=opt_data.get('pattern_name', 'Unknown Optimization'),
+            description=opt_data.get('description', 'No description provided'),
+            before_snippet=opt_data.get('before_snippet', ''),
+            after_snippet=opt_data.get('after_snippet', ''),
+            documentation_reference=opt_data.get('documentation_reference', ''),  # MCP-enhanced
+            expected_improvement=opt_data.get('expected_improvement'),
+            confidence_score=opt_data.get('confidence_score', 1.0)
+        )
+        applied_optimizations.append(optimization)
     
-    # Creates comparison object with raw results
-    return QueryResultComparison(
-        original_results=original_result["results"],
-        optimized_results=optimized_result["results"],
-        original_row_count=original_result["row_count"],
-        optimized_row_count=optimized_result["row_count"],
-        sample_original=original_result["results"],
-        sample_optimized=optimized_result["results"]
+    # Get schema-validated optimized query
+    optimized_query = optimization_data.get('optimized_query', original_query)
+    
+    # Validate that optimized query uses only existing columns
+    validation_result = self._validate_optimized_query_schema(optimized_query, table_metadata)
+    if not validation_result["valid"]:
+        print(f"⚠️ Schema validation failed: {validation_result['error']}")
+        # Fall back to original query if schema validation fails
+        optimized_query = original_query
+        applied_optimizations = []
+    
+    return OptimizationResult(
+        original_query=original_query,
+        query_analysis=analysis,
+        optimized_query=optimized_query,
+        optimizations_applied=applied_optimizations,
+        total_optimizations=len(applied_optimizations),
+        estimated_improvement=optimization_data.get('estimated_improvement'),
+        processing_time_seconds=time.time() - start_time
     )
 ```
 
 **What happens**:
-- Executes both original and optimized queries
-- Collects raw results from both executions
-- Creates comparison object with all result data
-- Returns for manual user validation
+- **NEW**: Schema validation of optimized query
+- **Enhanced**: Documentation references from MCP server
+- **Enhanced**: Better error handling and fallback
+- **Enhanced**: Validation that only existing columns are used
 
 ---
 
-### 11. **Response Assembly** (`src/optimizer/query_optimizer.py`)
+## 🔄 Enhanced Data Flow
 
-#### **Function**: `optimize_query()` - Final Assembly
-
-```python
-# Assembles final result
-optimization_result.results_identical = detailed_comparison.results_identical
-optimization_result.detailed_comparison = detailed_comparison
-optimization_result.processing_time_seconds = time.time() - start_time
-
-return optimization_result
-# Returns complete OptimizationResult with:
-# - original_query
-# - optimized_query  
-# - optimizations_applied (with explanations)
-# - detailed_comparison (raw results)
+### **Input Data**:
 ```
-
-**What happens**:
-- Combines optimization results with validation data
-- Adds processing time and metadata
-- Returns complete result object
-
----
-
-### 12. **API Response** (`src/api/routes.py`)
-
-#### **Function**: `optimize_query()` - Response
-
-```python
-# Returns OptimizationResult as JSON
-return result
-# FastAPI automatically converts to JSON:
-{
-    "original_query": "SELECT * FROM orders WHERE order_date >= '2024-01-01'",
-    "optimized_query": "SELECT order_id, customer_id, total_amount FROM orders WHERE order_date >= '2024-01-01'",
-    "optimizations_applied": [
-        {
-            "pattern_name": "Column Pruning",
-            "description": "Replaced SELECT * with specific columns to reduce data transfer",
-            "expected_improvement": 0.25
-        }
-    ],
-    "total_optimizations": 1,
-    "detailed_comparison": {
-        "original_results": [...],
-        "optimized_results": [...],
-        "original_row_count": 150,
-        "optimized_row_count": 150
-    }
-}
-```
-
-**What happens**:
-- FastAPI serializes OptimizationResult to JSON
-- Sends HTTP response back to frontend
-- Includes all optimization details and raw results
-
----
-
-### 13. **Frontend Result Display** (`src/api/templates/index.html`)
-
-#### **Function**: `displayOptimizationResult()` - Line 300
-
-```javascript
-function displayOptimizationResult(result) {
-    // Receives the JSON response from backend
-    
-    // Creates HTML for optimizations applied
-    const optimizationsHtml = result.optimizations_applied.map(opt => `
-        <div class="border-l-4 border-blue-500 pl-4 mb-4">
-            <h4 class="font-semibold text-blue-800">${opt.pattern_name}</h4>
-            <p class="text-gray-700 mb-2">${opt.description}</p>
-            ${opt.expected_improvement ? `<p class="text-sm text-green-600">Expected improvement: ${(opt.expected_improvement * 100).toFixed(1)}%</p>` : ''}
-        </div>
-    `).join('');
-    
-    // Displays optimized query with syntax highlighting
-    showResults(`
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-semibold mb-4 text-green-800">Optimization Results</h2>
-            
-            <div class="mb-6">
-                <h3 class="text-lg font-semibold mb-3">Applied Optimizations</h3>
-                ${optimizationsHtml}
-            </div>
-
-            <div class="mb-6">
-                <h3 class="text-lg font-semibold mb-3">Optimized Query</h3>
-                <pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto"><code class="language-sql">${result.optimized_query}</code></pre>
-            </div>
-        </div>
-    `);
-}
-```
-
-**What happens**:
-- Receives optimization result from API
-- Creates HTML display with optimization details
-- Shows applied optimizations with explanations
-- Displays optimized query with syntax highlighting
-- User sees the final optimized result
-
----
-
-## 🔄 Key Function Call Chain
-
-```
-1. optimizeQuery() [JavaScript]
-   ↓ HTTP POST /api/v1/optimize
-   
-2. optimize_query() [routes.py:45]
-   ↓ Creates BigQueryOptimizer
-   
-3. optimize_query() [query_optimizer.py:45]
-   ↓ Calls _analyze_query_structure()
-   
-4. _analyze_query_structure() [query_optimizer.py:200]
-   ↓ Returns QueryAnalysis
-   
-5. _get_table_metadata() [query_optimizer.py:250]
-   ↓ Calls bq_client.get_table_info()
-   
-6. get_table_info() [bigquery_client.py:150]
-   ↓ Google Cloud BigQuery API call
-   
-7. optimize_with_best_practices() [ai_optimizer.py:35]
-   ↓ Calls _build_comprehensive_optimization_prompt()
-   
-8. _build_comprehensive_optimization_prompt() [ai_optimizer.py:100]
-   ↓ Returns structured prompt
-   
-9. model.generate_content() [ai_optimizer.py:120]
-   ↓ Google Gemini AI API call
-   
-10. _parse_ai_response() [ai_optimizer.py:180]
-    ↓ Returns optimization data
-    
-11. compare_query_results_detailed() [result_comparator.py:25]
-    ↓ Executes both queries for validation
-    
-12. displayOptimizationResult() [JavaScript]
-    ↓ Shows results to user
-```
-
----
-
-## 📊 Data Transformation Journey
+User Query: "SELECT * FROM orders WHERE order_date >= '2024-01-01'"
 Config: {project_id: "user-project", validate: true}
 ```
 
-### **After Analysis**:
+### **After Enhanced Analysis**:
 ```
 QueryAnalysis: {
     complexity: "simple",
     table_count: 1,
     potential_issues: ["Using SELECT *", "Consider adding date filters"],
-    applicable_patterns: ["column_pruning", "partition_filtering"]
+    applicable_patterns: ["column_pruning", "clustering_optimization"]
 }
 ```
 
-### **After Table Metadata**:
+### **After Schema Extraction** (NEW):
 ```
-TableMetadata: {
+Enhanced TableMetadata: {
     "user-project.optimizer_test_dataset.orders": {
         is_partitioned: true,
         partition_field: "order_date", 
         num_rows: 50000,
         clustering_fields: ["customer_id", "status"],
-        schema_columns: ["order_id", "customer_id", "order_date", "total_amount", "status", "product_id"]
+        schema_columns: ["order_id", "customer_id", "order_date", "total_amount", "status", "product_id"]  # NEW
     }
 }
 ```
 
-### **After MCP Server Consultation**:
+### **After MCP Server Consultation** (NEW):
 ```
 MCP Suggestions: {
-    priority_optimizations: ["column_pruning", "partition_filtering"],
+    priority_optimizations: ["column_pruning", "clustering_optimization"],
     specific_suggestions: [
         {
             pattern_name: "Column Pruning",
-            description: "Replace SELECT * with specific columns",
+            description: "Replace SELECT * with specific columns to reduce data transfer",
             expected_improvement: 0.25,
-            documentation_reference: "https://cloud.google.com/bigquery/docs/..."
+            documentation_reference: "https://cloud.google.com/bigquery/docs/best-practices-performance-input",
+            specific_advice: "Specify only the columns you need instead of using SELECT *"
         }
     ],
-    documentation_references: [...]
+    documentation_references: [
+        {
+            title: "BigQuery Performance Best Practices",
+            content: "Avoid SELECT * to reduce data transfer...",
+            optimization_patterns: ["column_pruning"]
+        }
+    ]
 }
 ```
 
-### **After AI Optimization**:
+### **After Enhanced AI Optimization**:
 ```
 OptimizationResult: {
     optimized_query: "SELECT order_id, customer_id, order_date, total_amount, status FROM orders WHERE order_date >= '2024-01-01'",
     optimizations_applied: [
         {
             pattern_name: "Column Pruning",
-            description: "Replaced SELECT * with existing table columns",
-            expected_improvement: 0.25
+            description: "Replaced SELECT * with existing table columns to reduce data transfer",
+            expected_improvement: 0.25,
+            documentation_reference: "https://cloud.google.com/bigquery/docs/best-practices-performance-input",
+            before_snippet: "SELECT *",
+            after_snippet: "SELECT order_id, customer_id, order_date, total_amount, status"
         }
     ],
-    total_optimizations: 1
+    total_optimizations: 1,
+    estimated_improvement: 0.25
 }
 ```
 
-### **After Validation**:
+### **After Schema Validation** (NEW):
+```
+Schema Validation: {
+    valid: true,
+    columns_used: ["order_id", "customer_id", "order_date", "total_amount", "status"],
+    all_columns_exist: true,
+    validation_message: "All columns exist in table schema"
+}
+```
+
+### **After Result Validation**:
 ```
 QueryResultComparison: {
-    original_results: [{order_id: 1, customer_id: 1, total_amount: 150.75}, ...],
-    optimized_results: [{order_id: 1, customer_id: 1, total_amount: 150.75}, ...],
+    original_results: [
+        {order_id: 1, customer_id: 1, order_date: "2024-01-01", total_amount: 150.75, status: "completed", product_id: 1},
+        {order_id: 2, customer_id: 2, order_date: "2024-01-02", total_amount: 89.50, status: "processing", product_id: 2}
+    ],
+    optimized_results: [
+        {order_id: 1, customer_id: 1, order_date: "2024-01-01", total_amount: 150.75, status: "completed"},
+        {order_id: 2, customer_id: 2, order_date: "2024-01-02", total_amount: 89.50, status: "processing"}
+    ],
     original_row_count: 150,
-    optimized_row_count: 150
+    optimized_row_count: 150,
+    results_identical: true,
+    comparison_summary: "✅ Results are identical (150 rows)"
 }
-```
-
-### **Final Output**:
-```
-Complete optimization result with:
-- Optimized SQL query
-- Applied optimization explanations  
-- Raw query results for manual validation
-- Performance metadata
 ```
 
 ---
 
-## 🎯 Critical Success Points
+## 🎯 Enhanced Success Points
 
-1. **Query Analysis**: Identifies `SELECT *` and missing filters
-2. **Table Metadata**: Discovers table is partitioned by `order_date` and extracts actual column names
-3. **MCP Server Consultation**: Gets documentation-backed optimization suggestions
-4. **Schema Validation**: Ensures only existing columns are used in optimized query
-5. **AI Optimization**: Applies column pruning using actual schema columns
-6. **Enhanced Results**: Documentation references and schema-validated optimizations
-4. **Result Validation**: Executes both queries and provides raw results
-5. **User Display**: Shows optimization details and lets user manually validate
+### 1. **Schema Awareness** (NEW)
+- ✅ Extracts actual column names from BigQuery tables
+- ✅ AI only uses existing columns in optimized queries
+- ✅ Prevents "column not found" errors
+- ✅ Schema validation before query execution
 
-This complete flow ensures that underperforming queries are transformed using Google's official BigQuery best practices with actual table schemas while preserving business logic through manual validation.
+### 2. **MCP Server Integration** (NEW)
+- ✅ Documentation-backed optimization suggestions
+- ✅ Enhanced AI context with official BigQuery docs
+- ✅ Better explanation quality with references
+- ✅ Priority optimization recommendations
+
+### 3. **Enhanced Error Prevention**
+- ✅ Column validation prevents BigQuery errors
+- ✅ Graceful fallback if MCP server unavailable
+- ✅ Robust async handling for all environments
+- ✅ Better logging and debugging
+
+### 4. **Improved User Experience**
+- ✅ More reliable optimizations
+- ✅ Better explanations with documentation links
+- ✅ Fewer errors and failures
+- ✅ Enhanced result display
+
+## 🔄 Complete Enhanced Function Call Chain
+
+```
+1. optimizeQuery() [JavaScript]
+   ↓ HTTP POST /api/v1/optimize
+   
+2. optimize_query() [routes.py:45] - Enhanced with MCP logging
+   ↓ Creates BigQueryOptimizer with MCP integration
+   
+3. optimize_query() [query_optimizer.py:45] - Enhanced workflow
+   ↓ Calls _analyze_query_structure()
+   
+4. _analyze_query_structure() [query_optimizer.py:200]
+   ↓ Returns QueryAnalysis
+   
+5. _get_enhanced_table_metadata() [query_optimizer.py:250] - NEW: Schema extraction
+   ↓ Calls bq_client.get_table_info() + extracts schema
+   
+6. get_table_info() [bigquery_client.py:150] - Enhanced with schema
+   ↓ Google Cloud BigQuery API call + schema extraction
+   
+7. _get_mcp_optimization_suggestions_safe() [query_optimizer.py:400] - NEW: MCP consultation
+   ↓ Calls MCP server for documentation-backed suggestions
+   
+8. optimize_with_best_practices() [ai_optimizer.py:35] - Enhanced with MCP + schema
+   ↓ Calls _build_comprehensive_optimization_prompt() with MCP context
+   
+9. _build_comprehensive_optimization_prompt() [ai_optimizer.py:100] - Enhanced prompt
+   ↓ Returns structured prompt with schema + MCP suggestions
+   
+10. model.generate_content() [ai_optimizer.py:120] - Enhanced context
+    ↓ Google Gemini AI API call with schema awareness
+    
+11. _parse_ai_response() [ai_optimizer.py:180] - Enhanced validation
+    ↓ Returns optimization data + validates schema usage
+    
+12. compare_query_results_detailed() [result_comparator.py:25] - Enhanced comparison
+    ↓ Executes both queries with schema validation
+    
+13. displayOptimizationResult() [JavaScript] - Enhanced display
+    ↓ Shows MCP-enhanced results with documentation references
+```
+
+## 🎉 Enhanced Benefits
+
+✅ **No Column Errors**: AI only uses existing table columns  
+✅ **MCP Integration**: Documentation-backed optimization suggestions  
+✅ **Better Context**: Enhanced AI optimization with official docs  
+✅ **Error Prevention**: Schema validation prevents BigQuery failures  
+✅ **Enhanced UX**: Better explanations and documentation references  
+
+This enhanced workflow ensures reliable, schema-aware optimization with proper MCP server integration and comprehensive error prevention!

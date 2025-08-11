@@ -1,6 +1,6 @@
-# BigQuery Query Optimizer - Code Flow Flowchart
+# BigQuery Query Optimizer - Enhanced Code Flow Flowchart
 
-## 🔄 Complete System Flow Diagram
+## 🔄 Complete Enhanced System Flow Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -15,9 +15,13 @@
     │ "SELECT * FROM  │
     │  orders WHERE   │
     │  date >= '2024' │
+    │                 │
+    │ Enhanced with:  │
+    │ • MCP integration│
+    │ • Schema display│
     └─────────────────┘
             │
-            │ optimizeQuery()
+            │ optimizeQuery() - Enhanced
             │ JavaScript Function
             ▼
     ┌─────────────────┐
@@ -28,6 +32,7 @@
     │   query: "...", │
     │   project_id,   │
     │   validate: true│
+    │   mcp_enabled   │
     │ }               │
     └─────────────────┘
             │
@@ -35,7 +40,7 @@
             ▼
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              API LAYER                                          │
+│                         ENHANCED API LAYER                                      │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
@@ -47,37 +52,46 @@
     │                 │
     │ optimize_query()│
     │ Line 45         │
+    │                 │
+    │ Enhanced with:  │
+    │ • MCP logging   │
+    │ • Schema checks │
     └─────────────────┘
             │
-            │ Creates BigQueryOptimizer
+            │ Creates Enhanced BigQueryOptimizer
             ▼
     ┌─────────────────┐
-    │ 🏗️ Optimizer    │
+    │ 🏗️ Enhanced     │
+    │ Optimizer       │
     │ Instance        │
     │                 │
     │ BigQueryOptimizer(│
     │   project_id,   │
-    │   validate_results│
+    │   validate_results,│
+    │   mcp_integration│
     │ )               │
     └─────────────────┘
             │
-            │ optimizer.optimize_query()
+            │ optimizer.optimize_query() - Enhanced
             ▼
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                         OPTIMIZATION ENGINE                                     │
+│                    ENHANCED OPTIMIZATION ENGINE                                 │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
-    │ 🧠 Query        │
-    │ Optimizer       │
+    │ 🧠 Enhanced     │
+    │ Query Optimizer │
     │ query_optimizer │
     │ .py:45          │
     │                 │
     │ optimize_query()│
+    │                 │
+    │ NEW: MCP +      │
+    │ Schema workflow │
     └─────────────────┘
             │
-            │ Step 1: Analyze Structure
+            │ Step 1: Enhanced Analysis
             ▼
     ┌─────────────────┐
     │ 📊 Structure    │
@@ -92,24 +106,29 @@
     │ • JOINs: 0      │
     │ • Issues: 2     │
     │ • Patterns: 2   │
+    │                 │
+    │ Enhanced with   │
+    │ MCP context     │
     └─────────────────┘
             │
-            │ Step 2: Get Table Metadata
+            │ Step 2: NEW - Schema Extraction
             ▼
     ┌─────────────────┐
-    │ 🗃️ Table        │
-    │ Metadata        │
+    │ 🔍 Schema       │
+    │ Extractor       │
     │                 │
-    │ _get_table_     │
-    │ metadata()      │
+    │ _get_enhanced_  │
+    │ table_metadata()│
     │ Line 250        │
     │                 │
-    │ Calls BigQuery  │
-    │ API for table   │
-    │ information     │
+    │ NEW Features:   │
+    │ • Extract schema│
+    │ • Get columns   │
+    │ • Validate      │
+    │   structure     │
     └─────────────────┘
             │
-            │ BigQuery API Call
+            │ BigQuery API Call + Schema
             ▼
     ┌─────────────────┐
     │ ☁️ BigQuery     │
@@ -118,49 +137,70 @@
     │ get_table_info()│
     │ Line 150        │
     │                 │
-    │ Returns:        │
+    │ Enhanced Returns│
     │ • Partitioned   │
     │ • Clustering    │
     │ • Row count     │
+    │ • SCHEMA COLUMNS│
     └─────────────────┘
             │
-            │ Table metadata returned
+            │ Step 3: NEW - MCP Server Consultation
             ▼
     ┌─────────────────┐
-    │ 🤖 AI           │
+    │ 📡 MCP Server   │
+    │ Consultation    │
+    │                 │
+    │ _get_mcp_       │
+    │ optimization_   │
+    │ suggestions_safe│
+    │ Line 400        │
+    │                 │
+    │ NEW: Gets       │
+    │ documentation-  │
+    │ backed          │
+    │ suggestions     │
+    └─────────────────┘
+            │
+            │ MCP Suggestions + Documentation
+            ▼
+    ┌─────────────────┐
+    │ 🤖 Enhanced AI  │
     │ Optimizer       │
     │                 │
     │ optimize_with_  │
     │ best_practices()│
     │ Line 35         │
     │                 │
-    │ Step 3: AI      │
-    │ Optimization    │
+    │ Enhanced with:  │
+    │ • Schema data   │
+    │ • MCP context   │
+    │ • Doc references│
     └─────────────────┘
             │
-            │ Build AI Prompt
+            │ Build Enhanced AI Prompt
             ▼
     ┌─────────────────┐
-    │ 📝 Prompt       │
-    │ Builder         │
+    │ 📝 Enhanced     │
+    │ Prompt Builder  │
     │                 │
     │ _build_comprehensive│
     │ _optimization_  │
     │ prompt()        │
     │ Line 100        │
     │                 │
-    │ Combines:       │
-    │ • Query         │
-    │ • Analysis      │
-    │ • Table data    │
-    │ • Best practices│
+    │ Enhanced with:  │
+    │ • Actual schema │
+    │ • MCP suggestions│
+    │ • Doc context   │
+    │ • Column        │
+    │   validation    │
     └─────────────────┘
             │
-            │ Structured prompt sent
+            │ Enhanced prompt sent
             ▼
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           EXTERNAL AI SERVICE                                   │
+│                      ENHANCED EXTERNAL AI SERVICE                               │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
@@ -170,62 +210,74 @@
     │ model.generate_ │
     │ content()       │
     │                 │
-    │ Applies Google's│
-    │ BigQuery best   │
-    │ practices:      │
-    │ • Column pruning│
-    │ • Filtering     │
-    │ • JOIN ordering │
+    │ Enhanced with:  │
+    │ • Schema        │
+    │   awareness     │
+    │ • MCP context   │
+    │ • Documentation │
+    │   references    │
+    │ • Column        │
+    │   validation    │
     └─────────────────┘
             │
-            │ AI Response (JSON)
+            │ Enhanced AI Response (JSON)
             ▼
     ┌─────────────────┐
-    │ 📋 AI Response  │
+    │ 📋 Enhanced AI  │
+    │ Response        │
     │                 │
     │ {               │
     │   optimized_query│
+    │   (schema-valid)│
     │   optimizations │
-    │   improvement   │
+    │   (MCP-enhanced)│
+    │   documentation │
+    │   references    │
     │ }               │
     └─────────────────┘
             │
-            │ Parse AI response
+            │ Parse + Validate Schema
             ▼
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                         VALIDATION & RESULTS                                    │
+│                    ENHANCED VALIDATION & RESULTS                                │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
-    │ 📊 Response     │
-    │ Parser          │
+    │ 📊 Enhanced     │
+    │ Response Parser │
     │                 │
     │ _parse_ai_      │
     │ response()      │
     │ Line 180        │
     │                 │
-    │ Extracts:       │
-    │ • Optimized SQL │
-    │ • Applied patterns│
-    │ • Improvements  │
+    │ Enhanced with:  │
+    │ • Schema        │
+    │   validation    │
+    │ • Column checks │
+    │ • MCP context   │
+    │   parsing       │
     └─────────────────┘
             │
-            │ Step 4: Execute Queries
+            │ Step 4: Enhanced Query Execution
             ▼
     ┌─────────────────┐
-    │ ✅ Result       │
+    │ ✅ Enhanced     │
+    │ Result          │
     │ Comparator      │
     │                 │
     │ compare_query_  │
     │ results_detailed│
     │ Line 25         │
     │                 │
-    │ Executes both   │
-    │ queries         │
+    │ Enhanced with:  │
+    │ • Schema        │
+    │   validation    │
+    │ • Better error  │
+    │   handling      │
     └─────────────────┘
             │
-            │ Execute Original Query
+            │ Execute Schema-Validated Original Query
             ▼
     ┌─────────────────┐
     │ 🔵 Original     │
@@ -235,10 +287,17 @@
     │ execute_query() │
     │                 │
     │ Returns:        │
-    │ 150 rows of data│
+    │ 150 rows with   │
+    │ ALL columns     │
+    │ [order_id,      │
+    │  customer_id,   │
+    │  order_date,    │
+    │  total_amount,  │
+    │  status,        │
+    │  product_id]    │
     └─────────────────┘
             │
-            │ Execute Optimized Query  
+            │ Execute Schema-Validated Optimized Query  
             ▼
     ┌─────────────────┐
     │ 🟢 Optimized    │
@@ -248,581 +307,282 @@
     │ execute_query() │
     │                 │
     │ Returns:        │
-    │ 150 rows of data│
+    │ 150 rows with   │
+    │ SELECTED columns│
+    │ [order_id,      │
+    │  customer_id,   │
+    │  order_date,    │
+    │  total_amount,  │
+    │  status]        │
+    │ (product_id     │
+    │  removed)       │
     └─────────────────┘
             │
-            │ Combine Results
+            │ Combine Enhanced Results
             ▼
     ┌─────────────────┐
-    │ 📋 Final        │
-    │ Result          │
+    │ 📋 Enhanced     │
+    │ Final Result    │
     │                 │
     │ OptimizationResult│
     │ with:           │
-    │ • Original query│
-    │ • Optimized query│
-    │ • Applied patterns│
+    │ • Schema-valid  │
+    │   optimized query│
+    │ • MCP-enhanced  │
+    │   explanations  │
+    │ • Documentation │
+    │   references    │
     │ • Raw results   │
+    │ • Performance   │
+    │   metrics       │
     └─────────────────┘
             │
-            │ HTTP Response (JSON)
+            │ HTTP Response (Enhanced JSON)
             ▼
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           USER DISPLAY                                          │
+│                        ENHANCED USER DISPLAY                                    │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
-    │ 🎨 Result       │
-    │ Display         │
+    │ 🎨 Enhanced     │
+    │ Result Display  │
     │                 │
     │ displayOptimization│
     │ Result()        │
     │ Line 300        │
     │                 │
-    │ Shows:          │
-    │ • Optimizations │
-    │ • Explanations  │
-    │ • Optimized SQL │
+    │ Enhanced Shows: │
+    │ • MCP-enhanced  │
+    │   optimizations │
+    │ • Documentation │
+    │   references    │
+    │ • Schema-valid  │
+    │   SQL           │
+    │ • Raw results   │
     └─────────────────┘
             │
-            │ User sees final result
+            │ User sees enhanced results
             ▼
     ┌─────────────────┐
-    │ 👤 User         │
-    │ Validation      │
+    │ 👤 Enhanced     │
+    │ User Validation │
     │                 │
-    │ User manually   │
-    │ reviews:        │
-    │ • Applied changes│
-    │ • Query results │
-    │ • Decides if    │
-    │   acceptable    │
+    │ User reviews:   │
+    │ • MCP-enhanced  │
+    │   explanations  │
+    │ • Schema-valid  │
+    │   queries       │
+    │ • Documentation │
+    │   references    │
+    │ • Raw results   │
+    │   comparison    │
     └─────────────────┘
 ```
 
 ---
 
-## 🔍 Detailed Function Flow for Sample Query
+## 🔍 Enhanced Detailed Function Flow
 
 ### **Input**: `SELECT * FROM orders WHERE order_date >= '2024-01-01'`
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ 1. User Input   │───▶│ 2. HTTP Request │───▶│ 3. API Router   │
-│                 │    │                 │    │                 │
-│ • Query entered │    │ POST /optimize  │    │ optimize_query()│
-│ • Config set    │    │ JSON payload    │    │ routes.py:45    │
-│ • Button clicked│    │ Content-Type    │    │ Creates optimizer│
+│ 1. Enhanced     │───▶│ 2. HTTP Request │───▶│ 3. Enhanced API │
+│ User Input      │    │                 │    │ Router          │
+│                 │    │ POST /optimize  │    │                 │
+│ • Query entered │    │ JSON payload    │    │ optimize_query()│
+│ • Config set    │    │ Content-Type    │    │ routes.py:45    │
+│ • MCP enabled   │    │ MCP headers     │    │ MCP integration │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                                         │
                                                         ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ 6. Table Meta   │◀───│ 5. Query Analysis│◀───│ 4. Main Optimizer│
+│ 6. Enhanced     │◀───│ 5. Enhanced     │◀───│ 4. Enhanced Main│
+│ Schema Extract  │    │ Query Analysis  │    │ Optimizer       │
 │                 │    │                 │    │                 │
-│ get_table_info()│    │ _analyze_query_ │    │ optimize_query()│
-│ bigquery_client │    │ structure()     │    │ query_optimizer │
-│ :150            │    │ Line 200        │    │ .py:45          │
+│ _get_enhanced_  │    │ _analyze_query_ │    │ optimize_query()│
+│ table_metadata()│    │ structure()     │    │ query_optimizer │
+│ Line 250        │    │ Line 200        │    │ .py:45          │
 │                 │    │                 │    │                 │
-│ Returns:        │    │ Returns:        │    │ Orchestrates    │
-│ • Partitioned   │    │ • Complexity    │    │ entire process  │
-│ • Clustering    │    │ • Issues found  │    │                 │
-│ • Row count     │    │ • Patterns      │    │                 │
+│ NEW: Extracts   │    │ Enhanced with   │    │ Enhanced with   │
+│ • Table schema  │    │ MCP context     │    │ MCP + Schema    │
+│ • Column names  │    │ • Complexity    │    │ integration     │
+│ • Partitioning  │    │ • Issues found  │    │                 │
+│ • Clustering    │    │ • Patterns      │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          └───────────────────────┼───────────────────────┘
                                  ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ 9. AI Response  │◀───│ 8. Gemini AI    │◀───│ 7. AI Optimizer │
+│ 9. Enhanced AI  │◀───│ 8. MCP Server   │◀───│ 7. NEW: MCP     │
+│ Optimization    │    │ Response        │    │ Consultation    │
 │                 │    │                 │    │                 │
-│ _parse_ai_      │    │ model.generate_ │    │ optimize_with_  │
-│ response()      │    │ content()       │    │ best_practices()│
-│ Line 180        │    │                 │    │ Line 35         │
-│                 │    │ Google AI API   │    │                 │
-│ Extracts:       │    │ call with       │    │ Builds prompt   │
-│ • Optimized SQL │    │ structured      │    │ with context    │
-│ • Applied patterns│   │ prompt          │    │                 │
-│ • Improvements  │    │                 │    │                 │
+│ optimize_with_  │    │ Documentation   │    │ _get_mcp_       │
+│ best_practices()│    │ suggestions +   │    │ optimization_   │
+│ Line 35         │    │ patterns +      │    │ suggestions_safe│
+│                 │    │ references      │    │ Line 400        │
+│ Enhanced with:  │    │                 │    │                 │
+│ • Schema data   │    │ MCP Server API  │    │ NEW: Gets       │
+│ • MCP context   │    │ call with       │    │ documentation-  │
+│ • Column        │    │ semantic search │    │ backed          │
+│   validation    │    │                 │    │ suggestions     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │
+         │ Enhanced prompt to Gemini AI
          ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ 12. Final Result│◀───│ 11. Raw Results │◀───│ 10. Query       │
-│                 │    │                 │    │ Execution       │
-│ OptimizationResult│   │ QueryResult     │    │                 │
-│ with all data   │    │ Comparison      │    │ compare_query_  │
-│                 │    │                 │    │ results_detailed│
-│ • Original query│    │ • Original data │    │ Line 25         │
-│ • Optimized query│   │ • Optimized data│    │                 │
-│ • Applied patterns│   │ • Row counts    │    │ Executes both   │
-│ • Raw results   │    │ • No comparison │    │ queries in      │
-│ • Explanations  │    │   logic         │    │ BigQuery        │
+│ 12. Enhanced    │◀───│ 11. Enhanced    │◀───│ 10. Enhanced    │
+│ Final Result    │    │ Schema          │    │ Query Execution │
+│                 │    │ Validation      │    │                 │
+│ OptimizationResult│   │                 │    │ compare_query_  │
+│ with enhanced   │    │ _validate_      │    │ results_detailed│
+│ data:           │    │ optimized_query_│    │ Line 25         │
+│                 │    │ schema()        │    │                 │
+│ • Schema-valid  │    │ Line 300        │    │ Enhanced with:  │
+│   optimized query│   │                 │    │ • Schema checks │
+│ • MCP-enhanced  │    │ NEW: Validates  │    │ • Better error  │
+│   explanations  │    │ • Column names  │    │   handling      │
+│ • Documentation │    │ • Table exists  │    │ • Raw results   │
+│   references    │    │ • Query syntax  │    │   display       │
+│ • Raw results   │    │                 │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │
-         │ HTTP Response (JSON)
+         │ HTTP Response (Enhanced JSON)
          ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ 15. User Sees   │◀───│ 14. HTML Display│◀───│ 13. JavaScript  │
-│ Results         │    │                 │    │ Processing      │
-│                 │    │ • Optimization  │    │                 │
-│ Manual validation│    │   details       │    │ displayOptimization│
-│ of:             │    │ • SQL queries   │    │ Result()        │
-│ • Applied changes│    │ • Raw results   │    │ Line 300        │
-│ • Query results │    │ • Clean layout  │    │                 │
-│ • Performance   │    │                 │    │ Creates HTML    │
-│   impact        │    │                 │    │ for display     │
+│ 15. Enhanced    │◀───│ 14. Enhanced    │◀───│ 13. Enhanced    │
+│ User Display    │    │ HTML Display    │    │ JavaScript      │
+│                 │    │                 │    │ Processing      │
+│ Enhanced shows: │    │ Enhanced with:  │    │                 │
+│ • MCP-backed    │    │ • Schema info   │    │ displayOptimization│
+│   optimizations │    │ • Documentation │    │ Result()        │
+│ • Documentation │    │   references    │    │ Line 300        │
+│   references    │    │ • MCP badges    │    │                 │
+│ • Schema-valid  │    │ • Enhanced      │    │ Enhanced with:  │
+│   queries       │    │   explanations  │    │ • MCP context   │
+│ • Column        │    │ • Raw results   │    │ • Schema info   │
+│   validation    │    │   comparison    │    │ • Doc links     │
+│ • Raw results   │    │                 │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ---
 
-## 🎯 Detailed Process Flow with Function Calls
+## 🎯 Enhanced Decision Points in Flow
 
-### **Phase 1: User Input & Request Processing**
-
+### **Enhanced Decision Point 1**: Query Analysis + MCP
 ```
-┌─────────────────┐
-│ 👤 USER ACTION  │
-│                 │
-│ 1. Types query  │
-│ 2. Sets config  │
-│ 3. Clicks button│
-└─────────────────┘
-         │
-         │ DOM Event
-         ▼
-┌─────────────────┐
-│ 🖱️ JavaScript   │
-│ Event Handler   │
-│                 │
-│ optimizeQuery() │
-│ • Gets query    │
-│ • Gets config   │
-│ • Makes request │
-└─────────────────┘
-         │
-         │ fetch('/api/v1/optimize')
-         ▼
-┌─────────────────┐
-│ 🌐 HTTP Request │
-│                 │
-│ POST /api/v1/   │
-│ optimize        │
-│                 │
-│ Headers:        │
-│ Content-Type:   │
-│ application/json│
-│                 │
-│ Body:           │
-│ {query, config} │
-└─────────────────┘
+IF "SELECT *" found → Add "column_pruning" pattern + Get MCP suggestions
+IF "COUNT(DISTINCT" found → Add "approximate_aggregation" + Get documentation
+IF "JOIN" found → Add "join_reordering" + Get best practices
+IF no schema available → Skip column pruning to prevent errors
 ```
 
-### **Phase 2: Backend Processing**
-
+### **Enhanced Decision Point 2**: Schema Extraction (NEW)
 ```
-┌─────────────────┐
-│ 📡 FastAPI      │
-│ Route Handler   │
-│                 │
-│ @router.post    │
-│ ("/optimize")   │
-│                 │
-│ Function:       │
-│ optimize_query()│
-│ File: routes.py │
-│ Line: 45        │
-└─────────────────┘
-         │
-         │ Creates optimizer instance
-         ▼
-┌─────────────────┐
-│ 🏗️ Optimizer    │
-│ Initialization  │
-│                 │
-│ BigQueryOptimizer(│
-│   project_id=   │
-│   "user-project"│
-│   validate_results=│
-│   True          │
-│ )               │
-│                 │
-│ File: query_    │
-│ optimizer.py    │
-└─────────────────┘
-         │
-         │ optimizer.optimize_query()
-         ▼
-┌─────────────────┐
-│ 🧠 Main         │
-│ Optimization    │
-│ Controller      │
-│                 │
-│ Function:       │
-│ optimize_query()│
-│ File: query_    │
-│ optimizer.py    │
-│ Line: 45        │
-│                 │
-│ Orchestrates    │
-│ entire process  │
-└─────────────────┘
+FOR each table in query:
+  Extract actual column names from BigQuery schema
+  IF schema available → Enable schema-aware optimization
+  IF schema missing → Use conservative optimization
+  ALWAYS validate columns exist before using
 ```
 
-### **Phase 3: Query Analysis**
-
+### **Enhanced Decision Point 3**: MCP Server Consultation (NEW)
 ```
-┌─────────────────┐
-│ 📊 Step 1:      │
-│ Structure       │
-│ Analysis        │
-│                 │
-│ Function:       │
-│ _analyze_query_ │
-│ structure()     │
-│ Line: 200       │
-│                 │
-│ Input:          │
-│ "SELECT * FROM  │
-│  orders WHERE   │
-│  date >= '2024'"│
-└─────────────────┘
-         │
-         │ SQL parsing & analysis
-         ▼
-┌─────────────────┐
-│ 🔍 Analysis     │
-│ Results         │
-│                 │
-│ QueryAnalysis:  │
-│ • complexity:   │
-│   "simple"      │
-│ • table_count: 1│
-│ • join_count: 0 │
-│ • issues: [     │
-│   "Using SELECT*"│
-│   "Missing filters"│
-│ ]               │
-│ • patterns: [   │
-│   "column_pruning"│
-│   "partition_filtering"│
-│ ]               │
-└─────────────────┘
+IF MCP server available:
+  Get documentation-backed suggestions
+  Get priority optimization patterns
+  Get relevant BigQuery best practices
+  Enhance AI context with official docs
+ELSE:
+  Use fallback optimization without MCP enhancement
 ```
 
-### **Phase 4: Table Metadata Collection**
-
+### **Enhanced Decision Point 4**: Schema-Aware AI Optimization
 ```
-┌─────────────────┐
-│ 🗃️ Step 2:      │
-│ Table Metadata  │
-│                 │
-│ Function:       │
-│ _get_table_     │
-│ metadata()      │
-│ Line: 250       │
-│                 │
-│ Extracts tables:│
-│ ["orders"]      │
-└─────────────────┘
-         │
-         │ For each table
-         ▼
-┌─────────────────┐
-│ ☁️ BigQuery     │
-│ API Call        │
-│                 │
-│ Function:       │
-│ get_table_info()│
-│ File: bigquery_ │
-│ client.py       │
-│ Line: 150       │
-│                 │
-│ API Call:       │
-│ client.get_table│
-│ ("user-project. │
-│ dataset.orders")│
-└─────────────────┘
-         │
-         │ BigQuery response
-         ▼
-┌─────────────────┐
-│ 📋 Table        │
-│ Information     │
-│                 │
-│ Returns:        │
-│ {               │
-│   "is_partitioned":│
-│   true,         │
-│   "partition_field":│
-│   "order_date", │
-│   "num_rows":   │
-│   50000,        │
-│   "clustering_  │
-│   fields": [    │
-│   "customer_id"]│
-│ }               │
-└─────────────────┘
+AI analyzes enhanced context:
+- Schema-Aware Column Pruning: Use ONLY existing columns from schema
+- MCP-Enhanced Patterns: Apply documentation-backed optimizations
+- Validation: Ensure optimized query uses valid columns
+- Documentation: Include official BigQuery references
 ```
 
-### **Phase 5: AI Optimization**
-
-```
-┌─────────────────┐
-│ 🤖 Step 3:      │
-│ AI Optimization │
-│                 │
-│ Function:       │
-│ optimize_with_  │
-│ best_practices()│
-│ File: ai_       │
-│ optimizer.py    │
-│ Line: 35        │
-│                 │
-│ Combines all    │
-│ context data    │
-└─────────────────┘
-         │
-         │ Build comprehensive prompt
-         ▼
-┌─────────────────┐
-│ 📝 Prompt       │
-│ Construction    │
-│                 │
-│ Function:       │
-│ _build_comprehensive│
-│ _optimization_  │
-│ prompt()        │
-│ Line: 100       │
-│                 │
-│ Creates:        │
-│ • Query context │
-│ • Table metadata│
-│ • Best practices│
-│ • Instructions  │
-└─────────────────┘
-         │
-         │ Send to Gemini AI
-         ▼
-┌─────────────────┐
-│ 🧠 Google       │
-│ Gemini AI       │
-│                 │
-│ API Call:       │
-│ model.generate_ │
-│ content(prompt) │
-│                 │
-│ AI Processing:  │
-│ • Analyzes query│
-│ • Applies patterns│
-│ • Generates     │
-│   optimized SQL │
-│ • Creates       │
-│   explanations  │
-└─────────────────┘
-         │
-         │ AI response (JSON)
-         ▼
-┌─────────────────┐
-│ 📊 AI Response  │
-│                 │
-│ JSON:           │
-│ {               │
-│   "optimized_   │
-│   query": "SELECT│
-│   order_id,     │
-│   customer_id   │
-│   FROM orders   │
-│   WHERE date >= │
-│   '2024-01-01'",│
-│   "optimizations│
-│   _applied": [  │
-│     {           │
-│       "pattern_name":│
-│       "Column   │
-│       Pruning", │
-│       "description":│
-│       "Replaced │
-│       SELECT *" │
-│     }           │
-│   ]             │
-│ }               │
-└─────────────────┘
-```
-
-### **Phase 6: Result Validation & Assembly**
-
-```
-┌─────────────────┐
-│ ✅ Step 4:      │
-│ Result          │
-│ Validation      │
-│                 │
-│ Function:       │
-│ compare_query_  │
-│ results_detailed│
-│ File: result_   │
-│ comparator.py   │
-│ Line: 25        │
-└─────────────────┘
-         │
-         │ Execute original query
-         ▼
-┌─────────────────┐
-│ 🔵 Execute      │
-│ Original        │
-│                 │
-│ Query:          │
-│ "SELECT * FROM  │
-│  orders WHERE   │
-│  order_date >=  │
-│  '2024-01-01'"  │
-│                 │
-│ Returns:        │
-│ 150 rows with   │
-│ all columns     │
-└─────────────────┘
-         │
-         │ Execute optimized query
-         ▼
-┌─────────────────┐
-│ 🟢 Execute      │
-│ Optimized       │
-│                 │
-│ Query:          │
-│ "SELECT order_id│
-│  customer_id    │
-│  FROM orders    │
-│  WHERE date >=  │
-│  '2024-01-01'"  │
-│                 │
-│ Returns:        │
-│ 150 rows with   │
-│ specific columns│
-└─────────────────┘
-         │
-         │ Combine all data
-         ▼
-┌─────────────────┐
-│ 📋 Complete     │
-│ Result Assembly │
-│                 │
-│ OptimizationResult│
-│ {               │
-│   original_query│
-│   optimized_query│
-│   optimizations_│
-│   applied: [    │
-│     {           │
-│       pattern_name│
-│       description│
-│       improvement│
-│     }           │
-│   ],            │
-│   detailed_     │
-│   comparison: { │
-│     original_   │
-│     results,    │
-│     optimized_  │
-│     results     │
-│   }             │
-│ }               │
-└─────────────────┘
-```
-
-### **Phase 7: Response & Display**
-
-```
-┌─────────────────┐
-│ 📤 HTTP         │
-│ Response        │
-│                 │
-│ FastAPI auto-   │
-│ serializes      │
-│ OptimizationResult│
-│ to JSON         │
-│                 │
-│ Status: 200     │
-│ Content-Type:   │
-│ application/json│
-└─────────────────┘
-         │
-         │ Network response
-         ▼
-┌─────────────────┐
-│ 🎨 Frontend     │
-│ Processing      │
-│                 │
-│ Function:       │
-│ displayOptimization│
-│ Result()        │
-│ Line: 300       │
-│                 │
-│ Creates HTML:   │
-│ • Optimization  │
-│   details       │
-│ • SQL queries   │
-│ • Raw results   │
-└─────────────────┘
-         │
-         │ DOM manipulation
-         ▼
-┌─────────────────┐
-│ 👁️ User Display │
-│                 │
-│ Shows:          │
-│ 🔧 Applied:     │
-│ "Column Pruning"│
-│ "Replaced SELECT│
-│  * with specific│
-│  columns"       │
-│                 │
-│ 🔴 Original SQL │
-│ 🟢 Optimized SQL│
-│ 🔵 Original Data│
-│ 🟢 Optimized Data│
-│                 │
-│ User manually   │
-│ validates results│
-└─────────────────┘
-```
-
----
-
-## 🔄 Key Decision Points in Flow
-
-### **Decision Point 1**: Query Analysis
-```
-IF "SELECT *" found → Add "column_pruning" pattern
-IF "COUNT(DISTINCT" found → Add "approximate_aggregation" pattern  
-IF "JOIN" found → Add "join_reordering" pattern
-IF no "_PARTITIONDATE" → Add "partition_filtering" pattern
-```
-
-### **Decision Point 2**: Table Metadata
-```
-IF table.is_partitioned = True → Enable partition filtering
-IF table.clustering_fields exists → Enable clustering optimization
-IF table.num_rows > 1M → Prioritize high-impact optimizations
-```
-
-### **Decision Point 3**: AI Optimization
-```
-AI analyzes context and applies Google's best practices:
-- Column Pruning: Replace SELECT * with specific columns
-- Partition Filtering: Add date filters for partitioned tables
-- JOIN Reordering: Place smaller tables first
-- Approximate Aggregation: Use APPROX functions for large datasets
-```
-
-### **Decision Point 4**: Result Display
+### **Enhanced Decision Point 5**: Enhanced Result Display
 ```
 ALWAYS show:
-- Applied optimization details (pattern name + description)
-- Original SQL query with syntax highlighting
-- Optimized SQL query with syntax highlighting  
-- Raw results from both queries
-- Let user manually validate
+- Applied optimization details with MCP enhancement
+- Documentation references from MCP server
+- Schema-validated SQL queries with syntax highlighting
+- Raw results from both queries for manual validation
+- Column validation status and schema information
 ```
 
-This detailed flow shows exactly how your sample query travels through every function and component in the system, from the moment you click "Optimize Query" until you see the final results with optimization details!
+---
+
+## 🔄 Enhanced Key Function Call Chain
+
+```
+1. optimizeQuery() [JavaScript] - Enhanced UI
+   ↓ HTTP POST /api/v1/optimize
+   
+2. optimize_query() [routes.py:45] - MCP integration logging
+   ↓ Creates Enhanced BigQueryOptimizer
+   
+3. optimize_query() [query_optimizer.py:45] - Enhanced workflow
+   ↓ Calls _analyze_query_structure()
+   
+4. _analyze_query_structure() [query_optimizer.py:200] - MCP-aware
+   ↓ Returns enhanced QueryAnalysis
+   
+5. _get_enhanced_table_metadata() [query_optimizer.py:250] - NEW: Schema extraction
+   ↓ Calls bq_client.get_table_info() + extracts schema
+   
+6. get_table_info() [bigquery_client.py:150] - Enhanced with schema
+   ↓ Google Cloud BigQuery API call + schema extraction
+   
+7. _get_mcp_optimization_suggestions_safe() [query_optimizer.py:400] - NEW: MCP consultation
+   ↓ Calls MCP server for documentation-backed suggestions
+   
+8. optimize_with_best_practices() [ai_optimizer.py:35] - Enhanced with MCP + schema
+   ↓ Calls _build_comprehensive_optimization_prompt() with enhanced context
+   
+9. _build_comprehensive_optimization_prompt() [ai_optimizer.py:100] - Enhanced prompt
+   ↓ Returns structured prompt with schema + MCP suggestions
+   
+10. model.generate_content() [ai_optimizer.py:120] - Enhanced context
+    ↓ Google Gemini AI API call with schema awareness + MCP context
+    
+11. _parse_ai_response() [ai_optimizer.py:180] - Enhanced validation
+    ↓ Returns optimization data + validates schema usage
+    
+12. _validate_optimized_query_schema() [ai_optimizer.py:300] - NEW: Schema validation
+    ↓ Validates optimized query uses only existing columns
+    
+13. compare_query_results_detailed() [result_comparator.py:25] - Enhanced comparison
+    ↓ Executes both queries with schema validation
+    
+14. displayOptimizationResult() [JavaScript] - Enhanced display
+    ↓ Shows MCP-enhanced results with documentation references
+```
+
+---
+
+## 🎉 Enhanced Benefits Summary
+
+### **Schema Validation** (NEW)
+✅ **No Column Errors**: AI only uses existing table columns  
+✅ **BigQuery Compatibility**: Prevents "column not found" errors  
+✅ **Schema Awareness**: Optimization based on actual table structure  
+
+### **MCP Server Integration** (NEW)
+✅ **Documentation Context**: AI gets official BigQuery best practices  
+✅ **Enhanced Explanations**: Each optimization backed by official docs  
+✅ **Better Suggestions**: Priority recommendations from documentation  
+
+### **Improved Reliability**
+✅ **Error Prevention**: Schema validation prevents query failures  
+✅ **Graceful Fallbacks**: System works even if MCP server unavailable  
+✅ **Better UX**: More reliable optimizations with fewer errors  
+
+This enhanced architecture ensures reliable, schema-aware optimization with proper MCP server integration and comprehensive error prevention!

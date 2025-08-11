@@ -1,11 +1,11 @@
-# BigQuery Query Optimizer - Architecture Diagram
+# BigQuery Query Optimizer - Architecture Diagram (Updated)
 
 ## System Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                        BigQuery Query Optimizer System                          │
-│                     AI-Powered SQL Optimization Platform                        │
+│                   AI-Powered SQL Optimization with MCP Integration              │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -15,44 +15,62 @@
 │   (Port 8080)       │   (Terminal)        │   (Direct Import)  │  (HTTP/JSON) │
 │                     │                     │                     │              │
 │ • Query Input       │ • File Processing   │ • Programmatic     │ • Batch      │
-│ • Test Suites       │ • Batch Operations  │   Integration      │   Processing │
-│ • Manual Validation │ • Automation        │ • Custom Workflows │ • API Access │
+│ • Schema Validation │ • Batch Operations  │   Integration      │   Processing │
+│ • MCP Integration   │ • Automation        │ • Custom Workflows │ • API Access │
 │ • Result Display    │ • Performance       │ • Error Handling   │ • Status     │
 └─────────────────────┴─────────────────────┴─────────────────────┴──────────────┘
                                            │
                                            ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           CORE OPTIMIZATION ENGINE                              │
+│                      ENHANCED OPTIMIZATION ENGINE                               │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────────────┐  │
-│  │  📊 Query       │    │  🤖 AI          │    │  ✅ Result                  │  │
-│  │  Analyzer       │    │  Optimizer      │    │  Validator                  │  │
-│  │                 │    │                 │    │                             │  │
-│  │ • Parse SQL     │    │ • Gemini API    │    │ • Execute Both Queries      │  │
-│  │ • Extract       │    │ • Apply 20+     │    │ • Compare Results           │  │
-│  │   Patterns      │    │   Patterns      │    │ • Ensure 100% Accuracy      │  │
-│  │ • Complexity    │    │ • Generate      │    │ • Performance Measurement   │  │
-│  │   Assessment    │    │   Explanations  │    │ • Business Logic Check      │  │
+│  │  📊 Query       │    │  🔍 Schema      │    │  📡 MCP Server              │  │
+│  │  Analyzer       │    │  Extractor      │    │  Integration                │  │
+│  │                 │    │                 │    │  (Port 8001)                │  │
+│  │ • Parse SQL     │    │ • Extract Table │    │ • Documentation Search      │  │
+│  │ • Extract       │    │   Names         │    │ • Pattern Suggestions      │  │
+│  │   Patterns      │    │ • Get Schema    │    │ • Context Enhancement      │  │
+│  │ • Complexity    │    │   from BigQuery │    │ • Best Practice References │  │
+│  │   Assessment    │    │ • Validate      │    │ • Semantic Search          │  │
+│  │                 │    │   Columns       │    │                             │  │
 │  └─────────────────┘    └─────────────────┘    └─────────────────────────────┘  │
 │           │                       │                           │                  │
 │           └───────────────────────┼───────────────────────────┘                  │
 │                                   │                                              │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐  │
+│  │                    🤖 Enhanced AI Optimizer                                 │  │
+│  │                                                                             │  │
+│  │ • Schema-Aware Optimization    • MCP Context Integration                   │  │
+│  │ • Column Validation            • Documentation References                  │  │
+│  │ • Google Best Practices        • Pattern Application                       │  │
+│  │ • Error Prevention             • Performance Targeting                     │  │
+│  └─────────────────────────────────────────────────────────────────────────────┘  │
+│                                   │                                              │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐  │
+│  │                    ✅ Result Validator & Comparator                        │  │
+│  │                                                                             │  │
+│  │ • Execute Both Queries         • Raw Result Display                        │  │
+│  │ • Schema Validation            • Manual Validation                         │  │
+│  │ • Business Logic Check         • Performance Measurement                   │  │
+│  │ • 100% Accuracy Requirement    • Error Detection                           │  │
+│  └─────────────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                         KNOWLEDGE & DATA LAYER                                  │
+│                      KNOWLEDGE & DATA LAYER                                     │
 ├─────────────────────┬─────────────────────┬─────────────────────┬──────────────┤
 │  📚 Documentation   │  🗄️ Vector Database │  🔍 Pattern         │  📈 BigQuery │
 │  Crawler            │  (ChromaDB)         │  Matcher            │  Client      │
 │                     │                     │                     │              │
-│ • Web Scraping      │ • Semantic Search   │ • 20+ Patterns      │ • Query      │
-│ • Content           │ • Embeddings        │ • Smart Matching    │   Execution  │
-│   Processing        │ • Similarity        │ • Priority Scoring  │ • Performance│
-│ • Pattern           │   Scoring           │ • Documentation     │   Metrics    │
-│   Extraction        │ • Context           │   References        │ • Validation │
-│                     │   Retrieval         │                     │ • Metadata   │
+│ • Web Scraping      │ • Semantic Search   │ • 22+ Patterns      │ • Schema     │
+│ • Content           │ • Embeddings        │ • Smart Matching    │   Extraction │
+│   Processing        │ • Similarity        │ • Priority Scoring  │ • Query      │
+│ • Pattern           │   Scoring           │ • Documentation     │   Execution  │
+│   Extraction        │ • Context           │   References        │ • Performance│
+│                     │   Retrieval         │                     │   Metrics    │
 └─────────────────────┴─────────────────────┴─────────────────────┴──────────────┘
                                     │
                                     ▼
@@ -62,408 +80,115 @@
 │  🤖 Google Gemini   │  ☁️ Google Cloud    │  📊 BigQuery        │  📚 Google   │
 │  AI API             │  Platform           │  Service            │  Cloud Docs  │
 │                     │                     │                     │              │
-│ • Query             │ • Authentication    │ • Query Execution   │ • Best       │
-│   Optimization      │ • Project           │ • Performance       │   Practices  │
-│ • Pattern           │   Management        │   Metrics           │ • Official   │
-│   Recognition       │ • IAM & Security    │ • Result Sets       │   Guidelines │
-│ • Explanation       │ • Resource          │ • Table Metadata    │ • Updates    │
-│   Generation        │   Management        │ • Cost Tracking     │ • Examples   │
+│ • Schema-Aware      │ • Authentication    │ • Query Execution   │ • Best       │
+│   Optimization      │ • Project           │ • Schema Metadata   │   Practices  │
+│ • Pattern           │   Management        │ • Performance       │ • Official   │
+│   Recognition       │ • IAM & Security    │   Metrics           │   Guidelines │
+│ • MCP-Enhanced      │ • Resource          │ • Result Sets       │ • Updates    │
+│   Context           │   Management        │ • Cost Tracking     │ • Examples   │
 └─────────────────────┴─────────────────────┴─────────────────────┴──────────────┘
 ```
 
-## Detailed Component Architecture
+## Enhanced Workflow Integration
 
-### 1. User Interface Layer
-
-#### 🌐 Web UI (`src/api/templates/index.html`)
-- **Purpose**: Browser-based interface for interactive query optimization
-- **Features**: 
-  - Real-time query input with syntax highlighting
-  - Raw result display without automated comparison
-  - Manual validation approach
-  - Test query library
-  - Test suite execution with result display
-- **Technology**: HTML5, Tailwind CSS, JavaScript, Prism.js
-
-#### 💻 CLI Tool (`src/optimizer/main.py`)
-- **Purpose**: Command-line interface for automation and scripting
-- **Features**:
-  - Single query optimization
-  - Batch processing
-  - File input/output
-  - JSON/text/table output formats
-- **Technology**: Click, Rich (for formatting)
-
-#### 🐍 Python API (`src/optimizer/query_optimizer.py`)
-- **Purpose**: Direct programmatic access for integration
-- **Features**:
-  - Object-oriented interface
-  - Async support
-  - Custom configuration
-  - Exception handling
-
-#### 📊 REST API (`src/api/routes.py`)
-- **Purpose**: HTTP API for web services and integrations
-- **Features**:
-  - RESTful endpoints
-  - JSON request/response
-  - Batch operations
-  - Status monitoring
-- **Technology**: FastAPI, Pydantic, Uvicorn
-
-### 2. Core Optimization Engine
-
-#### 📊 Query Analyzer (`src/mcp_server/handlers.py`)
-- **Purpose**: Parse and analyze SQL query structure
-- **Capabilities**:
-  - SQL parsing using sqlparse
-  - Complexity assessment (Simple/Moderate/Complex/Very Complex)
-  - Pattern identification (20+ patterns)
-  - Performance issue detection
-- **Output**: QueryAnalysis object with detailed metrics
-
-#### 🤖 AI Optimizer (`src/optimizer/ai_optimizer.py`)
-- **Purpose**: Apply Google's BigQuery best practices using AI
-- **Capabilities**:
-  - Gemini API integration
-  - Context-aware optimization
-  - Multi-pattern application
-  - Documentation-backed suggestions
-- **Technology**: Google Generative AI, structured prompting
-
-#### ✅ Result Validator (`src/optimizer/validator.py`)
-- **Purpose**: Execute queries and provide raw results for manual validation
-- **Capabilities**:
-  - Query result comparison
-  - Raw result extraction
-  - Performance measurement
-
-### 3. Knowledge & Data Layer
-
-#### 📚 Documentation Crawler (`src/crawler/bigquery_docs_crawler.py`)
-- **Purpose**: Harvest BigQuery optimization knowledge
-- **Process**:
-  1. Crawl Google Cloud BigQuery documentation
-  2. Extract optimization patterns and best practices
-  3. Convert HTML to structured markdown
-  4. Cache locally for offline access
-- **Output**: Structured documentation sections
-
-#### 🗄️ Vector Database (`src/crawler/documentation_processor.py`)
-- **Purpose**: Semantic search over documentation
-- **Technology**: ChromaDB, Sentence Transformers
-- **Capabilities**:
-  - Embedding generation (all-MiniLM-L6-v2)
-  - Similarity search
-  - Context retrieval
-  - Pattern matching
-
-#### 🔍 Pattern Matcher (`src/common/models.py`)
-- **Purpose**: Match queries to applicable optimization patterns
-- **Features**:
-  - 20+ distinct patterns
-  - Priority scoring
-  - Condition-based matching
-  - Documentation linking
-
-#### 📈 BigQuery Client (`src/optimizer/bigquery_client.py`)
-- **Purpose**: Interface with BigQuery service
-- **Capabilities**:
-  - Query execution and validation
-  - Performance metrics collection
-  - Table metadata retrieval
-  - Connection management
-
-## Data Flow Architecture
-
-### Optimization Request Flow
+### 1. **Documentation Crawler → MCP Server → Schema-Aware Optimization**
 
 ```
-1. User Input
-   ├── Query: "SELECT * FROM orders WHERE date > '2024-01-01'"
-   ├── Configuration: project_id, validation settings
-   └── Options: performance measurement, sample size
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        ENHANCED OPTIMIZATION WORKFLOW                           │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-2. Query Analysis
-   ├── Parse SQL structure
-   ├── Identify tables, JOINs, subqueries
-   ├── Assess complexity level
-   ├── Detect performance issues
-   └── Find applicable patterns
-
-3. Context Gathering
-   ├── Search documentation for relevant patterns
-   ├── Retrieve table metadata from BigQuery
-   ├── Build optimization context
-   └── Prioritize optimization opportunities
-
-4. AI Optimization
-   ├── Send structured prompt to Gemini
-   ├── Include query + analysis + documentation
-   ├── Apply 20+ optimization patterns
-   ├── Generate optimized query
-   └── Provide detailed explanations
-
-5. Validation & Measurement
-   ├── Execute both original and optimized queries
-   ├── Compare results row-by-row
-   ├── Measure performance improvement
-   ├── Verify business logic preservation
-   └── Generate comprehensive report
-
-6. Response Delivery
-   ├── Optimization results with explanations
-   ├── Performance metrics and improvements
-   ├── Validation status and any issues
-   └── Documentation references
+    ┌─────────────────┐
+    │ 📚 Documentation│
+    │ Crawler         │
+    │                 │
+    │ • Crawls Google │
+    │   Cloud Docs    │
+    │ • Extracts      │
+    │   Patterns      │
+    │ • Creates       │
+    │   Knowledge Base│
+    └─────────────────┘
+            │
+            │ Documentation Data
+            ▼
+    ┌─────────────────┐
+    │ 📡 MCP Server   │
+    │ (Port 8001)     │
+    │                 │
+    │ • Vector DB     │
+    │ • Semantic      │
+    │   Search        │
+    │ • Pattern       │
+    │   Matching      │
+    │ • Context       │
+    │   Serving       │
+    └─────────────────┘
+            │
+            │ Optimization Suggestions
+            ▼
+    ┌─────────────────┐
+    │ 🔍 Schema       │
+    │ Extractor       │
+    │                 │
+    │ • Extract Table │
+    │   Names         │
+    │ • Get BigQuery  │
+    │   Schema        │
+    │ • Validate      │
+    │   Columns       │
+    └─────────────────┘
+            │
+            │ Schema + MCP Context
+            ▼
+    ┌─────────────────┐
+    │ 🤖 Enhanced AI  │
+    │ Optimizer       │
+    │                 │
+    │ • Schema-Aware  │
+    │ • MCP-Enhanced  │
+    │ • Column        │
+    │   Validation    │
+    │ • Google Best   │
+    │   Practices     │
+    └─────────────────┘
+            │
+            │ Validated Optimized Query
+            ▼
+    ┌─────────────────┐
+    │ ✅ Result       │
+    │ Validator       │
+    │                 │
+    │ • Execute Both  │
+    │ • Compare       │
+    │ • Display Raw   │
+    │   Results       │
+    │ • Manual        │
+    │   Validation    │
+    └─────────────────┘
 ```
 
-### Test Suite Execution Flow
+## Port Configuration
 
-```
-1. User Interface Flow
-   ├── Test Suite Selection (5 available suites)
-   ├── Configuration: project_id, validation settings
-   └── Execute Test Cases (3 per suite with manual validation)
+- **Main API Server**: Port 8080 (Web UI + REST API)
+- **MCP Server**: Port 8001 (Documentation Service)
+- **No Port Conflicts**: Services run independently
 
-2. Test Case Execution
-   ├── Execute Original Query → Get Raw Results
-   ├── Apply AI Optimization → Get Optimized Query
-   ├── Execute Optimized Query → Get Raw Results
-   └── Display Both Results → User Manual Validation
+## Key Enhancements
 
-3. Results Display (Simplified)
-   ├── Test Case Name & Description
-   ├── Applied Optimizations (Pattern + Reason)
-   ├── Original SQL Query (Syntax Highlighted)
-   ├── Optimized SQL Query (Syntax Highlighted)
-   ├── Original Query Results (Raw Data Table)
-   ├── Optimized Query Results (Raw Data Table)
-   └── Manual Validation by User
-```
+### 1. **Schema Validation**
+- Extracts actual column names from BigQuery tables
+- AI only uses existing columns in optimized queries
+- Prevents "column not found" errors
 
-### Documentation Processing Flow
+### 2. **MCP Integration**
+- Documentation-backed optimization suggestions
+- Enhanced AI context with official BigQuery docs
+- Better explanation quality with references
 
-```
-1. Documentation Crawling
-   ├── Fetch BigQuery documentation pages
-   ├── Extract optimization content
-   ├── Convert HTML to markdown
-   └── Cache locally
+### 3. **Error Prevention**
+- Column validation before query generation
+- Graceful fallback if MCP server unavailable
+- Robust async handling for all environments
 
-2. Content Processing
-   ├── Split into semantic chunks
-   ├── Extract optimization patterns
-   ├── Generate embeddings
-   └── Store in vector database
-
-3. Pattern Recognition
-   ├── Identify 20+ optimization patterns
-   ├── Map to query characteristics
-   ├── Create applicability rules
-   └── Link to documentation
-
-4. Semantic Search
-   ├── Query embedding generation
-   ├── Similarity search in vector DB
-   ├── Context retrieval
-   └── Relevance scoring
-```
-
-## Success Metrics Architecture
-
-### 1. Functional Accuracy (100% Target)
-```
-┌─────────────────────────────────────────┐
-│           Validation Pipeline           │
-├─────────────────────────────────────────┤
-│ 1. Execute Original Query               │
-│ 2. Execute Optimized Query              │
-│ 3. Compare Results Row-by-Row           │
-│ 4. Verify Identical Business Logic     │
-│ 5. Report Any Differences              │
-│                                         │
-│ ✅ PASS: Results 100% Identical         │
-│ ❌ FAIL: Any Difference Found           │
-└─────────────────────────────────────────┘
-```
-
-### 2. Performance Improvement (30-50% Target)
-```
-┌─────────────────────────────────────────┐
-│        Performance Measurement         │
-├─────────────────────────────────────────┤
-│ 1. Measure Original Query Time         │
-│ 2. Measure Optimized Query Time        │
-│ 3. Calculate Improvement Percentage    │
-│ 4. Track Bytes Processed Reduction     │
-│ 5. Monitor Cost Savings                │
-│                                         │
-│ 🎯 TARGET: 30-50% Improvement          │
-│ 📊 ACTUAL: Measured per Query          │
-└─────────────────────────────────────────┘
-```
-
-### 3. Documentation Coverage (20+ Patterns)
-```
-┌─────────────────────────────────────────┐
-│         Pattern Coverage Matrix        │
-├─────────────────────────────────────────┤
-│ ✅ Column Pruning                       │
-│ ✅ JOIN Reordering                      │
-│ ✅ Subquery to JOIN Conversion          │
-│ ✅ Approximate Aggregation              │
-│ ✅ Window Function Optimization         │
-│ ✅ Predicate Pushdown                   │
-│ ✅ Clustering Optimization              │
-│ ✅ Materialized View Suggestions        │
-│ ✅ LIMIT Optimization                   │
-│ ✅ UNION Optimization                   │
-│ ✅ CASE WHEN Optimization               │
-│ ✅ String Function Optimization         │
-│ ✅ Date Function Optimization           │
-│ ✅ Array Optimization                   │
-│ ✅ STRUCT Optimization                  │
-│ ✅ JSON Optimization                    │
-│ ✅ Regular Expression Optimization      │
-│ ✅ CTE Optimization                     │
-│ ✅ HAVING to WHERE Conversion           │
-│ ✅ CROSS JOIN Elimination               │
-│ ✅ NULL Handling Optimization           │
-│ ✅ DISTINCT Optimization                │
-│                                         │
-│ 📊 TOTAL: 22+ Distinct Patterns        │
-└─────────────────────────────────────────┘
-```
-
-## Technology Stack
-
-### Backend Technologies
-- **Python 3.8+**: Core application language
-- **FastAPI**: REST API framework
-- **Pydantic**: Data validation and serialization
-- **SQLParse**: SQL query parsing and analysis
-- **Pandas**: Data manipulation and comparison
-
-### AI & Machine Learning
-- **Google Gemini API**: AI-powered query optimization
-- **Sentence Transformers**: Text embeddings for semantic search
-- **ChromaDB**: Vector database for documentation storage
-- **NumPy**: Numerical computations
-
-### Google Cloud Integration
-- **BigQuery Client**: Query execution and metadata
-- **Google Cloud Authentication**: Secure API access
-- **BigQuery API**: Performance metrics and validation
-
-### Frontend Technologies
-- **HTML5**: Modern web interface
-- **Tailwind CSS**: Utility-first styling
-- **JavaScript (ES6+)**: Interactive functionality
-- **Prism.js**: SQL syntax highlighting
-
-### Development & Testing
-- **pytest**: Comprehensive testing framework
-- **Mock/Patch**: Unit testing with isolation
-- **Coverage.py**: Code coverage measurement
-- **Black/isort**: Code formatting
-- **MyPy**: Type checking
-
-## Deployment Architecture
-
-### Local Development
-```
-┌─────────────────────────────────────────┐
-│         Developer Machine               │
-├─────────────────────────────────────────┤
-│ • Python Virtual Environment           │
-│ • Local ChromaDB Storage               │
-│ • Cached Documentation                 │
-│ • Development Server (Port 8080)       │
-│ • Google Cloud Credentials             │
-└─────────────────────────────────────────┘
-```
-
-### Production Deployment
-```
-┌─────────────────────────────────────────┐
-│           Cloud Infrastructure          │
-├─────────────────────────────────────────┤
-│ • Container Orchestration (K8s/Docker) │
-│ • Load Balancer                         │
-│ • Auto-scaling Groups                  │
-│ • Persistent Vector Database           │
-│ • Monitoring & Logging                 │
-│ • Security & Authentication            │
-└─────────────────────────────────────────┘
-```
-
-## Security Architecture
-
-### Authentication & Authorization
-```
-┌─────────────────────────────────────────┐
-│            Security Layer               │
-├─────────────────────────────────────────┤
-│ • Google Cloud IAM Integration         │
-│ • Service Account Authentication       │
-│ • API Key Management (Gemini)          │
-│ • Role-Based Access Control            │
-│ • Audit Logging                        │
-│ • Data Privacy Protection              │
-└─────────────────────────────────────────┘
-```
-
-### Data Protection
-- **No Query Storage**: Queries processed in memory only
-- **Secure Transmission**: HTTPS/TLS for all communications
-- **Credential Management**: Secure handling of API keys
-- **Access Control**: BigQuery IAM integration
-- **Audit Trail**: Comprehensive logging
-
-## Scalability Architecture
-
-### Horizontal Scaling
-```
-┌─────────────────────────────────────────┐
-│          Load Distribution              │
-├─────────────────────────────────────────┤
-│ • Multiple API Server Instances        │
-│ • Shared Vector Database               │
-│ • Distributed Caching                 │
-│ • Queue-based Batch Processing        │
-│ • Auto-scaling Based on Load          │
-└─────────────────────────────────────────┘
-```
-
-### Performance Optimization
-- **Caching Strategy**: Documentation and embeddings cached
-- **Connection Pooling**: Efficient BigQuery connections
-- **Async Processing**: Non-blocking operations
-- **Batch Operations**: Concurrent query processing
-- **Resource Management**: Memory and CPU optimization
-
-## Monitoring & Observability
-
-### System Health Monitoring
-```
-┌─────────────────────────────────────────┐
-│           Health Dashboard              │
-├─────────────────────────────────────────┤
-│ • BigQuery Connection Status           │
-│ • Gemini API Availability             │
-│ • Documentation Freshness             │
-│ • Vector Database Health               │
-│ • Performance Metrics                 │
-│ • Error Rates & Alerts                │
-└─────────────────────────────────────────┘
-```
-
-### Key Performance Indicators
-- **Optimization Success Rate**: % of queries successfully optimized
-- **Average Performance Improvement**: Mean improvement across all queries
-- **Functional Accuracy Rate**: % of optimizations preserving business logic
-- **System Response Time**: End-to-end processing time
-- **Documentation Coverage**: Number of patterns and references
-
-This architecture ensures robust, scalable, and reliable query optimization while maintaining the critical requirements of functional accuracy and performance improvement.
+This architecture ensures reliable, schema-aware optimization with proper MCP server integration!
