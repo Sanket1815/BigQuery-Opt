@@ -387,6 +387,395 @@ async def get_table_suggestions(
     except Exception as e:
         logger.log_error(e, {"endpoint": "/table-suggestions"})
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+@router.post("/run-test-suite", response_model=TestSuiteResult)
+async def run_test_suite(request: TestSuiteSelectionRequest):
+    """
+    Run a specific test suite with 3 test cases each.
+    
+    Available test suites:
+    - simple_query: Basic SELECT with inefficient WHERE clause
+    - complex_join: Multi-table JOIN with suboptimal ordering  
+    - aggregation: GROUP BY without proper partitioning
+    - window_function: Inefficient window specifications
+    - nested_query: Deeply nested subqueries that can be flattened
+    """
+    try:
+        logger.logger.info(f"Running test suite: {request.test_suite}")
+        
+        # Define test suites with 3 test cases each
+        test_suites = {
+            "simple_query": {
+                "name": "Simple Query Test",
+                "description": "Basic SELECT queries with inefficient WHERE clauses that need column pruning and filtering optimization",
+                "test_cases": [
+                    {
+                        "name": "SELECT * with Date Filter",
+                        "description": "Basic SELECT * query that needs column pruning optimization",
+                        "query": f"""SELECT *
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+WHERE order_date >= '2024-06-01'
+AND status = 'completed'
+ORDER BY total_amount DESC
+LIMIT 100"""
+                    },
+                    {
+                        "name": "SELECT * with Multiple Filters",
+                        "description": "SELECT * with multiple WHERE conditions needing optimization",
+                        "query": f"""SELECT *
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers`
+WHERE customer_tier = 'Premium'
+AND region IN ('US-East', 'US-West')
+AND signup_date >= '2020-01-01'"""
+                    },
+                    {
+                        "name": "SELECT * with Aggregation",
+                        "description": "SELECT * in subquery with aggregation that needs column pruning",
+                        "query": f"""SELECT customer_tier, COUNT(*) as customer_count
+FROM (
+    SELECT * FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers`
+    WHERE region = 'US-East'
+) 
+GROUP BY customer_tier"""
+                    }
+                ]
+            },
+            "complex_join": {
+                "name": "Complex JOIN Test", 
+                "description": "Multi-table JOIN queries with suboptimal ordering that need JOIN reordering and optimization",
+                "test_cases": [
+                    {
+                        "name": "4-Table JOIN with Large Table First",
+                        "description": "Complex JOIN starting with largest table - needs reordering",
+                        "query": f"""SELECT 
+    c.customer_name,
+    o.order_id,
+    o.total_amount,
+    p.product_name,
+    oi.quantity
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o 
+    ON oi.order_id = o.order_id
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c 
+    ON o.customer_id = c.customer_id
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p 
+    ON oi.product_id = p.product_id
+WHERE o.order_date >= '2024-06-01'
+AND c.customer_tier = 'Premium'
+AND p.category = 'Electronics'"""
+                    },
+                    {
+                        "name": "LEFT JOIN with SELECT *",
+                        "description": "LEFT JOIN query with SELECT * needing both JOIN and column optimization",
+                        "query": f"""SELECT *
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+LEFT JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+    ON c.customer_id = o.customer_id
+LEFT JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+    ON o.product_id = p.product_id
+WHERE c.region = 'Europe'"""
+                    },
+                    {
+                        "name": "Cross JOIN Pattern",
+                        "description": "Implicit cross join that needs conversion to proper JOIN",
+                        "query": f"""SELECT c.customer_name, p.product_name
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c,
+     `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+WHERE c.customer_tier = 'Gold'
+AND p.category = 'Electronics'
+LIMIT 50"""
+                    }
+                ]
+            },
+            "aggregation": {
+                "name": "Aggregation Test",
+                "description": "GROUP BY queries without proper optimization that need approximate aggregation and better filtering",
+                "test_cases": [
+                    {
+                        "name": "COUNT DISTINCT without Optimization",
+                        "description": "COUNT DISTINCT that should use approximate aggregation",
+                        "query": f"""SELECT 
+    c.region,
+    COUNT(*) as total_orders,
+    COUNT(DISTINCT o.customer_id) as unique_customers,
+    SUM(o.total_amount) as total_revenue,
+    AVG(o.total_amount) as avg_order_value
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c 
+    ON o.customer_id = c.customer_id
+WHERE o.order_date >= '2024-01-01'
+GROUP BY c.region
+ORDER BY total_revenue DESC"""
+                    },
+                    {
+                        "name": "Multiple COUNT DISTINCT",
+                        "description": "Query with multiple COUNT DISTINCT operations needing optimization",
+                        "query": f"""SELECT 
+    p.category,
+    COUNT(DISTINCT oi.order_id) as unique_orders,
+    COUNT(DISTINCT o.customer_id) as unique_customers,
+    COUNT(DISTINCT oi.product_id) as unique_products
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p ON oi.product_id = p.product_id
+WHERE o.order_date >= '2024-01-01'
+GROUP BY p.category"""
+                    },
+                    {
+                        "name": "Heavy Aggregation with SELECT *",
+                        "description": "Complex aggregation with SELECT * needing multiple optimizations",
+                        "query": f"""SELECT *,
+    COUNT(DISTINCT customer_id) as unique_customers
+FROM (
+    SELECT *
+    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+    WHERE order_date >= '2024-01-01'
+    AND status = 'completed'
+) completed_orders
+GROUP BY order_date"""
+                    }
+                ]
+            },
+            "window_function": {
+                "name": "Window Function Test",
+                "description": "Window function queries with inefficient specifications that need partitioning and optimization",
+                "test_cases": [
+                    {
+                        "name": "ROW_NUMBER without PARTITION",
+                        "description": "ROW_NUMBER without PARTITION BY clause - needs optimization",
+                        "query": f"""SELECT 
+    customer_id,
+    order_id,
+    order_date,
+    total_amount,
+    ROW_NUMBER() OVER (ORDER BY total_amount DESC) as overall_rank,
+    RANK() OVER (ORDER BY order_date) as date_rank
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+WHERE order_date >= '2024-06-01'
+ORDER BY total_amount DESC
+LIMIT 1000"""
+                    },
+                    {
+                        "name": "Multiple Window Functions",
+                        "description": "Multiple window functions that can be optimized with better partitioning",
+                        "query": f"""SELECT 
+    customer_id,
+    order_date,
+    total_amount,
+    LAG(total_amount) OVER (ORDER BY order_date) as prev_amount,
+    LEAD(total_amount) OVER (ORDER BY order_date) as next_amount,
+    SUM(total_amount) OVER (ORDER BY order_date ROWS UNBOUNDED PRECEDING) as running_total
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+WHERE customer_id <= 100"""
+                    },
+                    {
+                        "name": "Window Function with SELECT *",
+                        "description": "Window function query with SELECT * needing both optimizations",
+                        "query": f"""SELECT *,
+    NTILE(4) OVER (ORDER BY total_amount) as quartile,
+    PERCENT_RANK() OVER (ORDER BY order_date) as date_percentile
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+WHERE order_date >= '2024-01-01'
+LIMIT 500"""
+                    }
+                ]
+            },
+            "nested_query": {
+                "name": "Nested Query Test",
+                "description": "Deeply nested subqueries that can be flattened into JOINs for better performance",
+                "test_cases": [
+                    {
+                        "name": "Triple Nested IN Subqueries",
+                        "description": "Deeply nested IN subqueries that should be converted to JOINs",
+                        "query": f"""SELECT 
+    customer_name
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+WHERE customer_id IN (
+    SELECT customer_id 
+    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o1
+    WHERE order_id IN (
+        SELECT order_id
+        FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
+        WHERE product_id IN (
+            SELECT product_id
+            FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+            WHERE category = 'Electronics'
+        )
+        AND quantity > 2
+    )
+    AND o1.order_date >= '2024-06-01'
+    AND o1.status = 'completed'
+)"""
+                    },
+                    {
+                        "name": "EXISTS with Nested Subquery",
+                        "description": "EXISTS subquery with nested conditions that can be flattened",
+                        "query": f"""SELECT *
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+WHERE EXISTS (
+    SELECT 1 
+    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+    WHERE o.customer_id = c.customer_id
+    AND o.order_date >= '2024-01-01'
+    AND EXISTS (
+        SELECT 1 
+        FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
+        WHERE oi.order_id = o.order_id
+        AND oi.quantity > 3
+    )
+)"""
+                    },
+                    {
+                        "name": "Correlated Subquery in SELECT",
+                        "description": "Correlated subquery in SELECT clause that can be optimized",
+                        "query": f"""SELECT 
+    customer_id,
+    customer_name,
+    (SELECT COUNT(*) 
+     FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o 
+     WHERE o.customer_id = c.customer_id 
+     AND o.status = 'completed') as completed_orders,
+    (SELECT SUM(total_amount) 
+     FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o2 
+     WHERE o2.customer_id = c.customer_id 
+     AND o2.order_date >= '2024-01-01') as total_spent_2024
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+WHERE c.customer_tier IN ('Premium', 'Gold')"""
+                    }
+                ]
+            }
+        }
+        
+        if request.test_suite not in test_suites:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown test suite: {request.test_suite}. Available: {list(test_suites.keys())}"
+            )
+        
+        suite_config = test_suites[request.test_suite]
+        start_time = time.time()
+        
+        # Initialize optimizer
+        optimizer = BigQueryOptimizer(
+            project_id=request.project_id,
+            validate_results=request.validate_results
+        )
+        
+        # Test connection
+        if not optimizer.test_connection():
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to connect to BigQuery service"
+            )
+        
+        # Run test cases
+        test_results = []
+        passed_tests = 0
+        failed_tests = 0
+        
+        for test_case in suite_config["test_cases"]:
+            case_start_time = time.time()
+            
+            try:
+                # Run optimization on the test query
+                optimization_result = optimizer.optimize_query(
+                    test_case["query"],
+                    validate_results=request.validate_results,
+                    measure_performance=request.measure_performance,
+                    sample_size=100  # Use smaller sample for tests
+                )
+                
+                case_execution_time = time.time() - case_start_time
+                
+                # Determine success
+                success = True
+                error_message = None
+                
+                if request.validate_results and not optimization_result.results_identical:
+                    success = False
+                    error_message = optimization_result.validation_error or "Results not identical"
+                
+                if success:
+                    passed_tests += 1
+                else:
+                    failed_tests += 1
+                
+                test_results.append(TestCaseResult(
+                    name=test_case["name"],
+                    description=test_case["description"],
+                    original_query=test_case["query"],
+                    optimization_result=optimization_result,
+                    success=success,
+                    error=error_message,
+                    execution_time=case_execution_time
+                ))
+                
+                logger.logger.info(
+                    f"Test case completed: {test_case['name']} - {'PASSED' if success else 'FAILED'}"
+                )
+                
+            except Exception as e:
+                case_execution_time = time.time() - case_start_time
+                failed_tests += 1
+                
+                # Create a minimal optimization result for failed cases
+                failed_result = OptimizationResult(
+                    original_query=test_case["query"],
+                    query_analysis=QueryAnalysis(
+                        original_query=test_case["query"],
+                        query_hash="failed",
+                        complexity="unknown",
+                        table_count=0,
+                        join_count=0,
+                        subquery_count=0,
+                        window_function_count=0,
+                        aggregate_function_count=0,
+                        potential_issues=[],
+                        applicable_patterns=[]
+                    ),
+                    optimized_query=test_case["query"],
+                    optimizations_applied=[],
+                    total_optimizations=0,
+                    validation_error=str(e)
+                )
+                
+                test_results.append(TestCaseResult(
+                    name=test_case["name"],
+                    description=test_case["description"],
+                    original_query=test_case["query"],
+                    optimization_result=failed_result,
+                    success=False,
+                    error=str(e),
+                    execution_time=case_execution_time
+                ))
+                
+                logger.log_error(e, {"test_case": test_case["name"], "test_suite": request.test_suite})
+        
+        total_execution_time = time.time() - start_time
+        overall_success = failed_tests == 0
+        
+        logger.logger.info(
+            f"Test suite completed: {request.test_suite} - {passed_tests}/{len(test_results)} passed"
+        )
+        
+        return TestSuiteResult(
+            suite_name=suite_config["name"],
+            description=suite_config["description"],
+            total_tests=len(test_results),
+            passed_tests=passed_tests,
+            failed_tests=failed_tests,
+            execution_time=total_execution_time,
+            overall_success=overall_success,
+            test_cases=test_results
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.log_error(e, {"endpoint": "/run-test-suite", "test_suite": request.test_suite})
+        raise HTTPException(
+            status_code=500,
+            detail=f"Test suite execution failed: {str(e)}"
+        )
 
 
 @router.post("/run-tests", response_model=TestResult)

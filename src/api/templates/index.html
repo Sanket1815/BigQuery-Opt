@@ -83,11 +83,38 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                         Get Suggestions
                     </button>
                     <button onclick="runTests()" class="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                        Run Tests
+                        Run Test Suite
                     </button>
                     <button onclick="showStatus()" class="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
                         System Status
                     </button>
+                </div>
+            </div>
+
+            <!-- Test Suite Selection -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Test Suite Selection</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Test Suite</label>
+                        <select id="testSuiteSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Choose a test suite...</option>
+                            <option value="simple_query">Simple Query Test - Basic SELECT with inefficient WHERE</option>
+                            <option value="complex_join">Complex JOIN Test - Multi-table JOIN with suboptimal ordering</option>
+                            <option value="aggregation">Aggregation Test - GROUP BY without proper partitioning</option>
+                            <option value="window_function">Window Function Test - Inefficient window specifications</option>
+                            <option value="nested_query">Nested Query Test - Deeply nested subqueries</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="runSelectedTestSuite()" class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-semibold">
+                            Run Selected Test Suite
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-gray-600">
+                    <p>Each test suite contains 3 test cases that demonstrate different optimization scenarios.</p>
+                    <p>You'll see both the unoptimized and optimized queries with detailed comparison results.</p>
                 </div>
             </div>
 
@@ -348,6 +375,149 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             } finally {
                 hideLoading();
             }
+        }
+
+        // Run selected test suite
+        async function runSelectedTestSuite() {
+            const testSuite = document.getElementById('testSuiteSelect').value;
+            if (!testSuite) {
+                showError('Please select a test suite');
+                return;
+            }
+
+            showLoading();
+            try {
+                const config = getRequestConfig();
+                const response = await fetch('/api/v1/run-test-suite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        test_suite: testSuite,
+                        project_id: config.project_id,
+                        validate_results: config.validate,
+                        measure_performance: config.measure_performance
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Test suite execution failed');
+                }
+
+                displayTestSuiteResults(result);
+            } catch (error) {
+                showError('Test suite execution failed: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Display test suite results
+        function displayTestSuiteResults(result) {
+            const testCasesHtml = result.test_cases.map((testCase, index) => `
+                <div class="border border-gray-200 rounded-lg p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="text-lg font-semibold text-blue-800">Test Case ${index + 1}: ${testCase.name}</h4>
+                        <span class="px-3 py-1 rounded-full text-sm font-medium ${testCase.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${testCase.success ? '✅ PASSED' : '❌ FAILED'}
+                        </span>
+                    </div>
+                    
+                    <p class="text-gray-700 mb-4">${testCase.description}</p>
+                    
+                    <!-- Optimization Results -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="bg-blue-50 p-3 rounded">
+                            <h5 class="font-semibold text-blue-800">Optimizations Applied</h5>
+                            <p class="text-xl font-bold text-blue-600">${testCase.optimization_result.total_optimizations}</p>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded">
+                            <h5 class="font-semibold text-green-800">Expected Improvement</h5>
+                            <p class="text-xl font-bold text-green-600">${testCase.optimization_result.estimated_improvement ? (testCase.optimization_result.estimated_improvement * 100).toFixed(1) + '%' : 'N/A'}</p>
+                        </div>
+                        <div class="bg-purple-50 p-3 rounded">
+                            <h5 class="font-semibold text-purple-800">Results Identical</h5>
+                            <p class="text-xl font-bold ${testCase.optimization_result.results_identical ? 'text-green-600' : 'text-red-600'}">
+                                ${testCase.optimization_result.results_identical ? '✓ Yes' : '✗ No'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Applied Optimizations -->
+                    ${testCase.optimization_result.optimizations_applied && testCase.optimization_result.optimizations_applied.length > 0 ? `
+                        <div class="mb-4">
+                            <h5 class="font-semibold text-gray-800 mb-2">Applied Optimizations:</h5>
+                            <div class="space-y-2">
+                                ${testCase.optimization_result.optimizations_applied.map(opt => `
+                                    <div class="border-l-4 border-blue-500 pl-3 py-1">
+                                        <span class="font-medium text-blue-800">${opt.pattern_name}</span>
+                                        <p class="text-sm text-gray-600">${opt.description}</p>
+                                        ${opt.expected_improvement ? `<p class="text-xs text-green-600">Expected: ${(opt.expected_improvement * 100).toFixed(1)}%</p>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Query Comparison -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div>
+                            <h5 class="font-semibold text-red-800 mb-2">🔴 Original Query (Unoptimized)</h5>
+                            <pre class="bg-red-50 border border-red-200 p-3 rounded text-xs overflow-x-auto"><code class="language-sql">${testCase.original_query}</code></pre>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold text-green-800 mb-2">🟢 Optimized Query</h5>
+                            <pre class="bg-green-50 border border-green-200 p-3 rounded text-xs overflow-x-auto"><code class="language-sql">${testCase.optimization_result.optimized_query}</code></pre>
+                        </div>
+                    </div>
+
+                    ${testCase.error ? `
+                        <div class="mt-4 bg-red-50 border border-red-200 rounded p-3">
+                            <h5 class="font-semibold text-red-800 mb-1">Error:</h5>
+                            <p class="text-red-700 text-sm">${testCase.error}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+
+            showResults(`
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-semibold text-indigo-800">Test Suite Results: ${result.suite_name}</h2>
+                        <span class="px-4 py-2 rounded-full text-lg font-bold ${result.overall_success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${result.overall_success ? '✅ ALL PASSED' : '❌ SOME FAILED'}
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-blue-800">Total Tests</h3>
+                            <p class="text-2xl font-bold text-blue-600">${result.total_tests}</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-green-800">Passed</h3>
+                            <p class="text-2xl font-bold text-green-600">${result.passed_tests}</p>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-red-800">Failed</h3>
+                            <p class="text-2xl font-bold text-red-600">${result.failed_tests}</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-purple-800">Execution Time</h3>
+                            <p class="text-2xl font-bold text-purple-600">${result.execution_time.toFixed(1)}s</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-semibold text-gray-800 mb-2">Suite Description</h3>
+                        <p class="text-gray-700">${result.description}</p>
+                    </div>
+
+                    <h3 class="text-xl font-semibold mb-4">Test Cases</h3>
+                    ${testCasesHtml}
+                </div>
+            `);
         }
 
         // Run tests
