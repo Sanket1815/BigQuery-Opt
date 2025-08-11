@@ -121,7 +121,7 @@ class BigQueryOptimizer:
             # NEW WORKFLOW: Use MCP server for optimization recommendations
             if self.mcp_handler:
                 print(f"📡 Getting optimization recommendations from MCP server...")
-                optimization_suggestions = await self._get_mcp_optimization_suggestions(query)
+                optimization_suggestions = self._get_mcp_optimization_suggestions_sync(query)
                 
                 optimization_result = self.ai_optimizer.optimize_with_best_practices(
                     query, analysis, table_metadata, mcp_suggestions=optimization_suggestions
@@ -563,6 +563,27 @@ class BigQueryOptimizer:
                 metadata[full_table_name] = {"is_partitioned": False}
         
         return metadata
+    
+    def _get_mcp_optimization_suggestions_sync(self, query: str) -> Dict[str, Any]:
+        """Get optimization suggestions from MCP server."""
+        try:
+            if not self.mcp_handler:
+                return {}
+            
+            # Use asyncio.run to handle async call in sync context
+            import asyncio
+            
+            # Get comprehensive optimization suggestions from MCP server
+            suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
+            
+            print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
+            
+            return suggestions
+            
+        except Exception as e:
+            self.logger.log_error(e, {"operation": "get_mcp_optimization_suggestions_sync"})
+            print(f"⚠️ MCP server request failed: {e}")
+            return {}
     
     def _extract_table_alias(self, query: str, table_name: str) -> Optional[str]:
         """Extract table alias from query for a given table."""
