@@ -200,7 +200,9 @@ Enhanced AI Optimizer → Gemini API (with MCP context) → Optimized Query
 ### **1. Start the System**:
 ```bash
 python run_api_server.py
-# Now initializes both main optimizer AND MCP server components
+# Initializes main optimizer with embedded MCP server components
+# Main API: http://localhost:8080
+# MCP Server (if run separately): http://localhost:8001
 ```
 
 ### **2. The Enhanced Flow**:

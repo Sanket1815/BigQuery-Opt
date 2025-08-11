@@ -209,7 +209,7 @@ class BigQueryMCPServer:
     async def start_server(self):
         """Start the MCP server."""
         self.logger.logger.info(
-            f"Starting MCP server on {self.settings.mcp_host}:{self.settings.mcp_port}"
+            f"Starting MCP server on {self.settings.mcp_host}:{self.settings.mcp_port} (separate from FastAPI)"
         )
         
         config = uvicorn.Config(

@@ -41,6 +41,12 @@ AI-powered BigQuery query optimizer that:
    ```bash
    python run_api_server.py
    ```
+   
+   **Optional - Start MCP Server separately** (for advanced usage):
+   ```bash
+   python -m src.mcp_server.server
+   # Runs on http://localhost:8001 (different from main API on 8080)
+   ```
 
 4. **Open http://localhost:8080** and start optimizing queries!
 

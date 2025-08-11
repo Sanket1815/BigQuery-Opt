@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     
     # MCP Server settings
     mcp_host: str = Field(default="localhost", description="MCP server host")
-    mcp_port: int = Field(default=8000, description="MCP server port")
+    mcp_port: int = Field(default=8001, description="MCP server port")
     
     # Documentation crawler settings
     docs_base_url: str = Field(

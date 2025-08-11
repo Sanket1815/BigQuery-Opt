@@ -570,7 +570,7 @@ class BigQueryOptimizer:
             if not self.mcp_handler:
                 return {}
             
-            # Use the new safe async runner
+            # Use the safe async runner
             suggestions = self._run_async_safely(
                 self.mcp_handler.get_optimization_suggestions(query)
             )
