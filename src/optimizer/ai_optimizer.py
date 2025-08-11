@@ -122,14 +122,18 @@ class GeminiQueryOptimizer:
             row_count = metadata.get('num_rows', 0)
             size_gb = metadata.get('num_bytes', 0) / (1024**3) if metadata.get('num_bytes') else 0
             clustering_fields = metadata.get('clustering_fields', [])
+            schema_columns = metadata.get('schema_columns', [])
+            table_name_simple = metadata.get('table_name_simple', table_name.split('.')[-1])
             
             table_info += f"""
 - {table_name}:
+  Table name: {table_name_simple}
   Partitioned: {is_partitioned}
   Partition field: {partition_field}
   Row count: {row_count:,}
   Size: {size_gb:.2f} GB
   Clustering fields: {clustering_fields}
+  Available columns: {schema_columns}
   🚨 CRITICAL: ONLY add _PARTITIONDATE if Partitioned=True!
 """
         
@@ -193,6 +197,13 @@ The optimized query MUST return EXACTLY THE SAME RESULTS as the original query.
 - Replace ANY placeholder project IDs with the REAL project ID
 - Ensure ALL table references use the correct project ID
 
+🚨 CRITICAL COLUMN VALIDATION REQUIREMENT 🚨
+- ONLY use columns that ACTUALLY exist in the table schema
+- NEVER generate non-existent column names
+- When replacing SELECT *, use ONLY the columns listed in "Available columns"
+- If unsure about column names, keep the original SELECT clause
+- Example: If Available columns: [order_id, customer_id, total_amount], use these EXACT names
+
 📋 GOOGLE'S BIGQUERY BEST PRACTICES (20+ PATTERNS):
 
 1. **PARTITION FILTERING** (High Impact - 50-80% improvement)
@@ -204,6 +215,8 @@ The optimized query MUST return EXACTLY THE SAME RESULTS as the original query.
 
 2. **COLUMN PRUNING** (Medium Impact - 20-40% improvement)
    - Replace SELECT * with specific column names
+   - 🚨 CRITICAL: ONLY use columns that exist in the table schema
+   - Use the exact column names from "Available columns" in table metadata
    - Reduces data transfer and processing costs
    - Documentation: https://cloud.google.com/bigquery/docs/best-practices-performance-input
 
@@ -327,6 +340,8 @@ RESPONSE FORMAT (JSON ONLY):
 - ALWAYS replace placeholder project IDs with the actual project ID from table metadata
 - NEVER add _PARTITIONDATE to non-partitioned tables
 - ALWAYS use table alias with _PARTITIONDATE (e.g., o._PARTITIONDATE)
+- ONLY use column names that exist in the table schema (see "Available columns")
+- When doing column pruning, use EXACT column names from table metadata
 - Results must be 100% identical
 - Apply multiple optimizations when possible
 - Include documentation references

@@ -52,13 +52,22 @@ AI-powered BigQuery query optimizer that:
 
 ## Architecture
 
+### **Complete Workflow Integration**:
+
 1. **Documentation Crawler** (`src/crawler/`): Crawls Google Cloud BigQuery documentation for best practices
-2. **MCP Server** (`src/mcp_server/`): Model Context Protocol server that serves documentation and optimization suggestions
-3. **Query Optimizer** (`src/optimizer/`): Main optimization engine with MCP integration
-4. **AI Optimizer** (`src/optimizer/ai_optimizer.py`): Gemini-powered optimization enhanced with MCP context
-5. **BigQuery Client** (`src/optimizer/bigquery_client.py`): BigQuery service wrapper with performance measurement
-6. **Result Validator** (`src/optimizer/validator.py`): Ensures optimized queries return identical results
-7. **Web Interface** (`src/api/`): REST API and web UI for easy interaction
+2. **MCP Server** (`src/mcp_server/`): Model Context Protocol server (Port 8001) that serves documentation and optimization suggestions  
+3. **Schema Extractor** (`src/optimizer/query_optimizer.py`): Extracts actual table schemas and column names from BigQuery
+4. **Query Optimizer** (`src/optimizer/`): Main optimization engine with MCP integration and schema validation
+5. **AI Optimizer** (`src/optimizer/ai_optimizer.py`): Gemini-powered optimization enhanced with MCP context and schema awareness
+6. **BigQuery Client** (`src/optimizer/bigquery_client.py`): BigQuery service wrapper with performance measurement
+7. **Result Validator** (`src/optimizer/validator.py`): Ensures optimized queries return identical results
+8. **Web Interface** (`src/api/`): REST API (Port 8080) and web UI for easy interaction
+
+### **Key Enhancements**:
+- ✅ **Schema Validation**: Only uses existing table columns in optimized queries
+- ✅ **MCP Integration**: Documentation-backed optimization suggestions
+- ✅ **Port Separation**: Main API (8080) and MCP Server (8001) on different ports
+- ✅ **Error Prevention**: No more "column not found" errors
 
 ## Optimization Patterns (20+ Supported)
 

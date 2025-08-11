@@ -547,20 +547,36 @@ class BigQueryOptimizer:
                     # Extract table alias from query for proper _PARTITIONDATE usage
                     table_alias = self._extract_table_alias(query, full_table_name)
                     
+                    # Extract actual column names from schema
+                    schema_columns = []
+                    if "schema" in table_info:
+                        schema_columns = [field["name"] for field in table_info["schema"]]
+                    print(f"    📋 Available columns: {', '.join(schema_columns[:5])}{'...' if len(schema_columns) > 5 else ''}")
+                    
                     metadata[full_table_name] = {
                         "is_partitioned": is_partitioned,
                         "partition_field": table_info.get("partitioning", {}).get("field"),
                         "num_rows": table_info.get("num_rows", 0),
                         "num_bytes": table_info.get("num_bytes", 0),
                         "clustering_fields": table_info.get("clustering", {}).get("fields", []),
-                        "table_alias": table_alias
+                        "table_alias": table_alias,
+                        "schema_columns": schema_columns,
+                        "table_name_simple": table_name
                     }
                 else:
                     print(f"    ⚠️ Could not get metadata: {table_info.get('error', 'Unknown error')}")
-                    metadata[full_table_name] = {"is_partitioned": False}
+                    metadata[full_table_name] = {
+                        "is_partitioned": False,
+                        "schema_columns": [],
+                        "table_name_simple": table_name
+                    }
             except Exception as e:
                 print(f"    ❌ Error getting metadata for {table_name}: {e}")
-                metadata[full_table_name] = {"is_partitioned": False}
+                metadata[full_table_name] = {
+                    "is_partitioned": False,
+                    "schema_columns": [],
+                    "table_name_simple": table_name
+                }
         
         return metadata
     

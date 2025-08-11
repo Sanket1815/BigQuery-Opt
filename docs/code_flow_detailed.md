@@ -546,19 +546,36 @@ TableMetadata: {
         is_partitioned: true,
         partition_field: "order_date", 
         num_rows: 50000,
-        clustering_fields: ["customer_id", "status"]
+        clustering_fields: ["customer_id", "status"],
+        schema_columns: ["order_id", "customer_id", "order_date", "total_amount", "status", "product_id"]
     }
+}
+```
+
+### **After MCP Server Consultation**:
+```
+MCP Suggestions: {
+    priority_optimizations: ["column_pruning", "partition_filtering"],
+    specific_suggestions: [
+        {
+            pattern_name: "Column Pruning",
+            description: "Replace SELECT * with specific columns",
+            expected_improvement: 0.25,
+            documentation_reference: "https://cloud.google.com/bigquery/docs/..."
+        }
+    ],
+    documentation_references: [...]
 }
 ```
 
 ### **After AI Optimization**:
 ```
 OptimizationResult: {
-    optimized_query: "SELECT order_id, customer_id, total_amount FROM orders WHERE order_date >= '2024-01-01'",
+    optimized_query: "SELECT order_id, customer_id, order_date, total_amount, status FROM orders WHERE order_date >= '2024-01-01'",
     optimizations_applied: [
         {
             pattern_name: "Column Pruning",
-            description: "Replaced SELECT * with specific columns",
+            description: "Replaced SELECT * with existing table columns",
             expected_improvement: 0.25
         }
     ],
@@ -590,9 +607,12 @@ Complete optimization result with:
 ## 🎯 Critical Success Points
 
 1. **Query Analysis**: Identifies `SELECT *` and missing filters
-2. **Table Metadata**: Discovers table is partitioned by `order_date`
-3. **AI Optimization**: Applies column pruning based on Google's best practices
+2. **Table Metadata**: Discovers table is partitioned by `order_date` and extracts actual column names
+3. **MCP Server Consultation**: Gets documentation-backed optimization suggestions
+4. **Schema Validation**: Ensures only existing columns are used in optimized query
+5. **AI Optimization**: Applies column pruning using actual schema columns
+6. **Enhanced Results**: Documentation references and schema-validated optimizations
 4. **Result Validation**: Executes both queries and provides raw results
 5. **User Display**: Shows optimization details and lets user manually validate
 
-This complete flow ensures that underperforming queries are transformed using Google's official BigQuery best practices while preserving business logic through manual validation.
+This complete flow ensures that underperforming queries are transformed using Google's official BigQuery best practices with actual table schemas while preserving business logic through manual validation.

@@ -208,14 +208,15 @@ AND order_date >= '2024-01-01';
 **Pattern ID**: `column_pruning`
 **Performance Impact**: 20-40% improvement
 **Use Case**: Queries using SELECT *
+**Schema Validation**: Only uses existing table columns
 
 **What it optimizes**:
 ```sql
 -- Before (Retrieves all columns)
 SELECT * FROM wide_table WHERE date > '2024-01-01';
 
--- After (Only needed columns)
-SELECT customer_id, order_date, total_amount 
+-- After (Only existing columns from actual schema)
+SELECT order_id, customer_id, total_amount 
 FROM wide_table 
 WHERE date > '2024-01-01';
 ```
@@ -224,6 +225,7 @@ WHERE date > '2024-01-01';
 - `SELECT *` statements
 - Wide tables with many columns
 - Network transfer optimization needed
+- **CRITICAL**: Only when actual column names are known from schema
 
 **Documentation**: [Input Best Practices](https://cloud.google.com/bigquery/docs/best-practices-performance-input)
 

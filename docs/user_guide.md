@@ -12,6 +12,7 @@ The BigQuery Query Optimizer is an AI-powered tool that automatically optimizes 
    ```bash
    python run_api_server.py
    ```
+   This starts the main API on port 8080 with embedded MCP components.
 
 2. **Open your browser**: http://localhost:8080
 
@@ -21,6 +22,22 @@ The BigQuery Query Optimizer is an AI-powered tool that automatically optimizes 
    - Enable/disable result validation
 
 4. **Enter your SQL query** and click "Optimize Query"
+
+### 1b. Separate MCP Server (Advanced)
+
+For advanced usage, you can run the MCP server separately:
+
+1. **Start MCP server**:
+   ```bash
+   python -m src.mcp_server.server
+   # Runs on http://localhost:8001
+   ```
+
+2. **Start main API**:
+   ```bash
+   python run_api_server.py
+   # Runs on http://localhost:8080
+   ```
 
 ### 2. Command Line Interface
 
