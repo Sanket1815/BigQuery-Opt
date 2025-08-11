@@ -14,7 +14,15 @@
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">BigQuery Query Optimizer</h1>
-            <p class="text-gray-600">AI-powered SQL query optimization for better performance</p>
+            <p class="text-gray-600">AI-powered SQL query optimization with MCP server integration</p>
+            <div class="mt-2 text-sm text-blue-600">
+                <span class="inline-flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Enhanced with Model Context Protocol (MCP) Server
+                </span>
+            </div>
         </div>
 
         <!-- Main Interface -->
@@ -541,14 +549,17 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                         <div class="bg-blue-50 p-4 rounded-lg">
                             <h3 class="font-semibold text-blue-800">Optimizations Applied</h3>
                             <p class="text-2xl font-bold text-blue-600">${result.total_optimizations}</p>
+                            <p class="text-xs text-blue-600 mt-1">via MCP Server</p>
                         </div>
                         <div class="bg-green-50 p-4 rounded-lg">
                             <h3 class="font-semibold text-green-800">Expected Improvement</h3>
                             <p class="text-2xl font-bold text-green-600">${result.estimated_improvement ? (result.estimated_improvement * 100).toFixed(1) + '%' : 'N/A'}</p>
+                            <p class="text-xs text-green-600 mt-1">AI + Documentation</p>
                         </div>
                         <div class="bg-purple-50 p-4 rounded-lg">
                             <h3 class="font-semibold text-purple-800">Processing Time</h3>
                             <p class="text-2xl font-bold text-purple-600">${result.processing_time_seconds ? result.processing_time_seconds.toFixed(1) + 's' : 'N/A'}</p>
+                            <p class="text-xs text-purple-600 mt-1">End-to-End</p>
                         </div>
                     </div>
 

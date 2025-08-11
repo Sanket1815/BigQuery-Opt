@@ -46,11 +46,13 @@ AI-powered BigQuery query optimizer that:
 
 ## Architecture
 
-1. **Query Optimizer** (`src/optimizer/`): Main optimization engine with AI integration
-2. **AI Optimizer** (`src/optimizer/ai_optimizer.py`): Gemini-powered optimization using Google's best practices
-3. **BigQuery Client** (`src/optimizer/bigquery_client.py`): BigQuery service wrapper with performance measurement
-4. **Result Validator** (`src/optimizer/validator.py`): Ensures optimized queries return identical results
-5. **Web Interface** (`src/api/`): REST API and web UI for easy interaction
+1. **Documentation Crawler** (`src/crawler/`): Crawls Google Cloud BigQuery documentation for best practices
+2. **MCP Server** (`src/mcp_server/`): Model Context Protocol server that serves documentation and optimization suggestions
+3. **Query Optimizer** (`src/optimizer/`): Main optimization engine with MCP integration
+4. **AI Optimizer** (`src/optimizer/ai_optimizer.py`): Gemini-powered optimization enhanced with MCP context
+5. **BigQuery Client** (`src/optimizer/bigquery_client.py`): BigQuery service wrapper with performance measurement
+6. **Result Validator** (`src/optimizer/validator.py`): Ensures optimized queries return identical results
+7. **Web Interface** (`src/api/`): REST API and web UI for easy interaction
 
 ## Optimization Patterns (20+ Supported)
 
@@ -74,7 +76,7 @@ The optimizer applies Google's official BigQuery best practices:
 2. Enter your BigQuery SQL query
 3. Configure your Google Cloud Project ID
 4. Click "Optimize Query"
-5. View optimized query with performance improvements and identical results validation
+5. View optimized query with MCP-enhanced suggestions and documentation references
 
 ### Command Line
 ```bash
@@ -104,6 +106,7 @@ result = optimizer.optimize_query("""
 print(f"Optimized Query:\n{result.optimized_query}")
 print(f"Optimizations Applied: {result.total_optimizations}")
 print(f"Expected Improvement: {result.estimated_improvement:.1%}")
+print(f"Documentation References: {len(result.optimizations_applied)} patterns with official docs")
 ```
 
 ## Testing
@@ -125,13 +128,16 @@ python -m pytest --cov=src tests/
 ### Test Scenarios
 
 The test suite includes:
-1. **Simple Query Test**: Basic SELECT with inefficient WHERE clause
-2. **Complex JOIN Test**: Multi-table JOIN with suboptimal ordering
-3. **Aggregation Test**: GROUP BY without proper partitioning
-4. **Window Function Test**: Inefficient window specifications
-5. **Nested Query Test**: Deeply nested subqueries that can be flattened
-6. **Business Logic Preservation**: Ensures 100% identical results
-7. **Performance Benchmarks**: Validates 30-50% improvement targets
+1. **Documentation Crawler Test**: Verifies Google Cloud docs are properly crawled
+2. **MCP Server Test**: Tests Model Context Protocol server functionality
+3. **Simple Query Test**: Basic SELECT with inefficient WHERE clause
+4. **Complex JOIN Test**: Multi-table JOIN with suboptimal ordering
+5. **Aggregation Test**: GROUP BY without proper partitioning
+6. **Window Function Test**: Inefficient window specifications
+7. **Nested Query Test**: Deeply nested subqueries that can be flattened
+8. **Business Logic Preservation**: Ensures 100% identical results
+9. **Performance Benchmarks**: Validates 30-50% improvement targets
+10. **MCP Integration Test**: Verifies MCP server enhances optimization quality
 
 ## Key Features
 
@@ -149,6 +155,7 @@ The test suite includes:
 
 ### AI-Powered Intelligence
 - **Google's Best Practices**: Applies official BigQuery optimization patterns
+- **MCP Server Integration**: Enhanced with Model Context Protocol for better documentation access
 - **Context Awareness**: Considers table metadata and query structure
 - **Documentation References**: Each optimization links to official docs
 - **Explanation Quality**: Clear explanations of why optimizations were applied

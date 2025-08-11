@@ -102,6 +102,7 @@ def main():
     except Exception as e:
         print(f"❌ Server failed to start: {e}")
         print("🔧 Check that all dependencies are installed and ports are available")
+        print("📡 Note: MCP server integration requires additional dependencies")
         sys.exit(1)
 
 
