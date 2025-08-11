@@ -461,13 +461,9 @@ class BigQueryOptimizer:
             try:
                 print(f"  📊 Checking table: {table_name}")
                 
-                # If table_name doesn't include project, add it
-                if '.' not in table_name:
-                    full_table_name = f"{self.bq_client.project_id}.optimizer_test_dataset.{table_name}"
-                else:
-                    full_table_name = table_name
-                
-                print(f"    🔍 Full table name: {full_table_name}")
+                # table_name is already fully qualified from _extract_table_names
+                full_table_name = table_name
+                print(f"    🔍 Using table name: {full_table_name}")
                 
                 table_info = self.bq_client.get_table_info(full_table_name)
                 if "error" not in table_info:
@@ -490,7 +486,7 @@ class BigQueryOptimizer:
                     metadata[full_table_name] = {"is_partitioned": False}
             except Exception as e:
                 print(f"    ❌ Error getting metadata for {table_name}: {e}")
-                metadata[table_name] = {"is_partitioned": False}
+                metadata[full_table_name] = {"is_partitioned": False}
         
         return metadata
     
@@ -518,18 +514,24 @@ class BigQueryOptimizer:
     
     def _extract_table_names(self, query: str) -> List[str]:
         """Extract table names from SQL query."""
-        patterns = [
-            r'`([^`]+\.[^`]+\.[^`]+)`',  # Fully qualified with backticks
-            r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)',
-            r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)',
+        # Extract simple table names and construct full names with correct project ID
+        simple_patterns = [
+            r'FROM\s+`[^`]*\.([^`\.]+)`',  # Extract table name from backticks
+            r'JOIN\s+`[^`]*\.([^`\.]+)`',  # Extract table name from JOIN backticks
             r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names
             r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names in JOINs
         ]
         
         tables = set()
-        for pattern in patterns:
+        for pattern in simple_patterns:
             matches = re.findall(pattern, query, re.IGNORECASE)
-            tables.update(matches)
+            for match in matches:
+                # Always construct full table name with correct project ID
+                if '.' not in match:  # Simple table name
+                    full_table_name = f"{self.bq_client.project_id}.optimizer_test_dataset.{match}"
+                else:
+                    full_table_name = match
+                tables.add(full_table_name)
         
         return list(tables)
     
