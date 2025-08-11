@@ -285,8 +285,7 @@ class BigQueryOptimizer:
         try:
             if self.mcp_handler:
                 # Use MCP server for comprehensive suggestions
-                import asyncio
-                suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
+                suggestions = self._run_async_safely(self.mcp_handler.get_optimization_suggestions(query))
                 print(f"💡 MCP server provided comprehensive optimization suggestions")
                 return suggestions
             else:
