@@ -583,6 +583,41 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                     ` : ''}
                 </div>
             `);
+            
+            // Display query results if available
+            if (result.original_query_results || result.optimized_query_results) {
+                const resultsHtml = `
+                    <div class="mt-6">
+                        <h3 class="text-lg font-semibold mb-4">Query Results Comparison</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="font-semibold text-blue-800 mb-3">🔵 Original Query Results</h4>
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-h-96 overflow-auto">
+                                    ${formatQueryResults(result.original_query_results, 'Original', result.original_row_count)}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-green-800 mb-3">🟢 Optimized Query Results</h4>
+                                <div class="bg-green-50 border border-green-200 rounded-lg p-4 max-h-96 overflow-auto">
+                                    ${formatQueryResults(result.optimized_query_results, 'Optimized', result.optimized_row_count)}
+                                </div>
+                            </div>
+                        </div>
+                        ${result.query_execution_error ? `
+                            <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                                <h5 class="font-semibold text-red-800 mb-2">Query Execution Error</h5>
+                                <p class="text-red-700">${result.query_execution_error}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                // Insert results HTML before the closing div
+                const resultDiv = document.querySelector('#resultsArea .bg-white.rounded-lg.shadow-md');
+                if (resultDiv) {
+                    resultDiv.insertAdjacentHTML('beforeend', resultsHtml);
+                }
+            }
         }
 
         // Display analysis result
@@ -729,15 +764,16 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
         }
 
         // Format query results for display
-        function formatQueryResults(results, queryType = '') {
+        function formatQueryResults(results, queryType = '', rowCount = null) {
             if (!results || results.length === 0) {
-                return `<div class="p-4 text-center text-gray-500">No data returned from ${queryType} query</div>`;
+                return `<div class="p-4 text-center text-gray-500">No data returned from ${queryType} query${rowCount !== null ? ` (${rowCount} rows)` : ''}</div>`;
             }
             
             // Create HTML table
             const headers = Object.keys(results[0]);
-            let tableHtml = `<div class="text-sm text-gray-700 mb-3 font-bold bg-gray-100 p-2 rounded">
-                ${queryType} Query Results - ${results.length} rows
+            let tableHtml = `<div class="text-sm text-gray-700 mb-3 font-bold bg-gray-100 p-2 rounded flex justify-between items-center">
+                <span>${queryType} Query Results</span>
+                <span class="text-blue-600">${rowCount !== null ? rowCount : results.length} rows</span>
             </div>`;
             tableHtml += '<table class="w-full text-xs border-collapse border border-gray-300">';
             
@@ -750,7 +786,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             
             // Add data rows
             tableHtml += '<tbody>';
-            results.forEach((row, index) => {
+            results.slice(0, 20).forEach((row, index) => {  // Show max 20 rows
                 tableHtml += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50">`;
                 headers.forEach(header => {
                     const value = row[header];
@@ -769,6 +805,10 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 tableHtml += '</tr>';
             });
             tableHtml += '</tbody></table>';
+            
+            if (results.length > 20) {
+                tableHtml += `<div class="text-center text-gray-500 text-sm mt-2">Showing first 20 rows of ${results.length} total rows</div>`;
+            }
             
             return tableHtml;
         }

@@ -154,11 +154,7 @@ class BigQueryOptimizer:
                 print(f"\n📊 DISPLAYING QUERY RESULTS FOR COMPARISON")
                 print(f"🔍 Validation logic temporarily disabled - showing results only")
                 
-                # Use enhanced result comparator to show actual query results
-                from src.optimizer.result_comparator import EnhancedResultComparator
-                comparator = EnhancedResultComparator(self.bq_client)
-                
-                # Execute both queries and display results without validation
+                # Execute both queries and store results for API response
                 try:
                     print(f"\n🔵 Executing original query...")
                     original_result = self.bq_client.execute_query(query, dry_run=False)
@@ -166,7 +162,24 @@ class BigQueryOptimizer:
                     print(f"🟢 Executing optimized query...")
                     optimized_result = self.bq_client.execute_query(optimization_result.optimized_query, dry_run=False)
                     
-                    # Display results side by side
+                    # Store results in optimization result for API response
+                    if original_result["success"]:
+                        optimization_result.original_query_results = original_result["results"]
+                        optimization_result.original_row_count = original_result["row_count"]
+                        print(f"✅ Original query executed: {original_result['row_count']} rows")
+                    else:
+                        optimization_result.query_execution_error = f"Original query failed: {original_result.get('error', 'Unknown error')}"
+                        print(f"❌ Original query failed: {original_result.get('error', 'Unknown error')}")
+                    
+                    if optimized_result["success"]:
+                        optimization_result.optimized_query_results = optimized_result["results"]
+                        optimization_result.optimized_row_count = optimized_result["row_count"]
+                        print(f"✅ Optimized query executed: {optimized_result['row_count']} rows")
+                    else:
+                        optimization_result.query_execution_error = f"Optimized query failed: {optimized_result.get('error', 'Unknown error')}"
+                        print(f"❌ Optimized query failed: {optimized_result.get('error', 'Unknown error')}")
+                    
+                    # Display results in console for debugging
                     self._display_query_results_comparison(original_result, optimized_result)
                     
                     # Set as identical for now (validation disabled)

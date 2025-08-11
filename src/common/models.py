@@ -212,10 +212,26 @@ class OptimizationResult(BaseModel):
         description="Detailed comparison results (QueryResultComparison object)"
     )
     
-    # Enhanced result comparison
-    detailed_comparison: Optional[Any] = Field(
+    # Query execution results for display
+    original_query_results: Optional[List[Dict[str, Any]]] = Field(
         default=None,
-        description="Detailed comparison results (QueryResultComparison object)"
+        description="Results from executing the original query"
+    )
+    optimized_query_results: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Results from executing the optimized query"
+    )
+    original_row_count: Optional[int] = Field(
+        default=None,
+        description="Number of rows returned by original query"
+    )
+    optimized_row_count: Optional[int] = Field(
+        default=None,
+        description="Number of rows returned by optimized query"
+    )
+    query_execution_error: Optional[str] = Field(
+        default=None,
+        description="Error message if query execution failed"
     )
     
     def get_summary(self) -> str:
