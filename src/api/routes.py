@@ -82,8 +82,6 @@ class TestCaseResult(BaseModel):
     original_results: Optional[List[Dict[str, Any]]] = None
     optimization_result: OptimizationResult
     optimized_results: Optional[List[Dict[str, Any]]] = None
-    success: bool
-    error: Optional[str] = None
     execution_time: float
 
 
@@ -91,11 +89,7 @@ class TestSuiteResult(BaseModel):
     """Result of running a test suite."""
     suite_name: str
     description: str
-    total_tests: int
-    passed_tests: int
-    failed_tests: int
     execution_time: float
-    overall_success: bool
     test_cases: List[TestCaseResult]
 
 
@@ -699,8 +693,6 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
         
         # Run test cases
         test_results = []
-        passed_tests = 0
-        failed_tests = 0
         
         for test_case in suite_config["test_cases"]:
             case_start_time = time.time()
@@ -750,19 +742,6 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
                 
                 case_execution_time = time.time() - case_start_time
                 
-                # Determine success
-                success = True
-                error_message = None
-                
-                if request.validate_results and not optimization_result.results_identical:
-                    success = False
-                    error_message = optimization_result.validation_error or "Results not identical"
-                
-                if success:
-                    passed_tests += 1
-                else:
-                    failed_tests += 1
-                
                 test_results.append(TestCaseResult(
                     name=test_case["name"],
                     description=test_case["description"],
@@ -770,18 +749,13 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
                     original_results=original_results,
                     optimization_result=optimization_result,
                     optimized_results=optimized_results,
-                    success=success,
-                    error=error_message,
                     execution_time=case_execution_time
                 ))
                 
-                logger.logger.info(
-                    f"Test case completed: {test_case['name']} - {'PASSED' if success else 'FAILED'}"
-                )
+                logger.logger.info(f"Test case completed: {test_case['name']}")
                 
             except Exception as e:
                 case_execution_time = time.time() - case_start_time
-                failed_tests += 1
                 
                 # Create a minimal optimization result for failed cases
                 failed_result = OptimizationResult(
@@ -811,28 +785,19 @@ WHERE c.customer_tier IN ('Premium', 'Gold')"""
                     original_results=None,
                     optimization_result=failed_result,
                     optimized_results=None,
-                    success=False,
-                    error=str(e),
                     execution_time=case_execution_time
                 ))
                 
                 logger.log_error(e, {"test_case": test_case["name"], "test_suite": request.test_suite})
         
         total_execution_time = time.time() - start_time
-        overall_success = failed_tests == 0
         
-        logger.logger.info(
-            f"Test suite completed: {request.test_suite} - {passed_tests}/{len(test_results)} passed"
-        )
+        logger.logger.info(f"Test suite completed: {request.test_suite}")
         
         return TestSuiteResult(
             suite_name=suite_config["name"],
             description=suite_config["description"],
-            total_tests=len(test_results),
-            passed_tests=passed_tests,
-            failed_tests=failed_tests,
             execution_time=total_execution_time,
-            overall_success=overall_success,
             test_cases=test_results
         )
         

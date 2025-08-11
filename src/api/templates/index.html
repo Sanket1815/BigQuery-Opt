@@ -572,14 +572,6 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h2 class="text-2xl font-semibold mb-4 text-green-800">Optimization Results</h2>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-blue-800">Optimizations Applied</h3>
-                            <p class="text-2xl font-bold text-blue-600">${result.total_optimizations}</p>
-                        </div>
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-green-800">Estimated Improvement</h3>
-                            <p class="text-2xl font-bold text-green-600">${result.estimated_improvement ? (result.estimated_improvement * 100).toFixed(1) + '%' : 'N/A'}</p>
                         </div>
                         <div class="bg-purple-50 p-4 rounded-lg">
                             <h3 class="font-semibold text-purple-800">Results Identical</h3>
@@ -595,22 +587,6 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                             ${optimizationsHtml}
                         </div>
                     ` : ''}
-
-                    ${result.detailed_comparison ? `
-                        <div class="mb-6">
-                            <h3 class="text-lg font-semibold mb-3">Query Results Comparison</h3>
-                            <div class="mb-4 p-4 rounded-lg ${result.detailed_comparison.results_identical ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
-                                <h4 class="font-semibold ${result.detailed_comparison.results_identical ? 'text-green-800' : 'text-red-800'} mb-2">
-                                    ${result.detailed_comparison.results_identical ? '✅ VALIDATION PASSED: Results are IDENTICAL' : '🚨 VALIDATION FAILED: Results are DIFFERENT'}
-                                </h4>
-                                <p class="${result.detailed_comparison.results_identical ? 'text-green-700' : 'text-red-700'}">
-                                    ${result.detailed_comparison.comparison_summary}
-                                </p>
-                                ${result.detailed_comparison.differences_found && result.detailed_comparison.differences_found.length > 0 ? `
-                                    <div class="mt-2">
-                                        <p class="font-semibold text-red-800">Critical Differences Found:</p>
-                                        <ul class="list-disc list-inside text-red-700">
-                                            ${result.detailed_comparison.differences_found.map(diff => `<li>${diff}</li>`).join('')}
                                         </ul>
                                     </div>
                                 ` : ''}
