@@ -121,7 +121,7 @@ class BigQueryOptimizer:
             # NEW WORKFLOW: Use MCP server for optimization recommendations
             if self.mcp_handler:
                 print(f"📡 Getting optimization recommendations from MCP server...")
-                optimization_suggestions = self._get_mcp_optimization_suggestions_sync(query)
+                optimization_suggestions = self._get_mcp_optimization_suggestions_safe(query)
                 
                 optimization_result = self.ai_optimizer.optimize_with_best_practices(
                     query, analysis, table_metadata, mcp_suggestions=optimization_suggestions
