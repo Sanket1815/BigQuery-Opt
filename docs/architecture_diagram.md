@@ -218,6 +218,30 @@
    └── Documentation references
 ```
 
+### Test Suite Execution Flow
+
+```
+1. User Interface Flow
+   ├── Test Suite Selection (5 available suites)
+   ├── Configuration: project_id, validation settings
+   └── Execute Test Cases (3 per suite with manual validation)
+
+2. Test Case Execution
+   ├── Execute Original Query → Get Raw Results
+   ├── Apply AI Optimization → Get Optimized Query
+   ├── Execute Optimized Query → Get Raw Results
+   └── Display Both Results → User Manual Validation
+
+3. Results Display (Simplified)
+   ├── Test Case Name & Description
+   ├── Applied Optimizations (Pattern + Reason)
+   ├── Original SQL Query (Syntax Highlighted)
+   ├── Optimized SQL Query (Syntax Highlighted)
+   ├── Original Query Results (Raw Data Table)
+   ├── Optimized Query Results (Raw Data Table)
+   └── Manual Validation by User
+```
+
 ### Documentation Processing Flow
 
 ```
