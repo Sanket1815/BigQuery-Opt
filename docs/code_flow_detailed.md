@@ -526,10 +526,6 @@ function displayOptimizationResult(result) {
 ---
 
 ## 📊 Data Transformation Journey
-
-### **Input Data**:
-```
-Query: "SELECT * FROM orders WHERE order_date >= '2024-01-01'"
 Config: {project_id: "user-project", validate: true}
 ```
 
