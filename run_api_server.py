@@ -40,7 +40,7 @@ def check_os_module():
             print("⚠️  os module missing chmod attribute - limited environment detected")
             print("⚠️  File permission operations will be skipped")
             return True  # Continue execution despite limitation
-        print("✅ os module working correctly")
+        print("⚠️  os module partially functional (chmod missing)")
         return True
     except Exception as e:
         print(f"❌ os module check failed: {e}")
