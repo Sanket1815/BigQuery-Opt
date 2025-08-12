@@ -534,17 +534,15 @@ class BigQueryOptimizer:
             try:
                 print(f"  📊 Checking table: {table_name}")
                 
-                # Always construct the correct full table name
-                if table_name.count('.') >= 2:
-                    # Already fully qualified, but might have wrong project ID
-                    parts = table_name.split('.')
-                    if len(parts) >= 3:
-                        # Replace project ID with actual one
-                        full_table_name = f"{self.bq_client.project_id}.{parts[-2]}.{parts[-1]}"
-                    else:
-                        full_table_name = table_name
+                # Construct the correct full table name
+                if table_name.count('.') == 2:
+                    # Already fully qualified (project.dataset.table)
+                    full_table_name = table_name
+                elif table_name.count('.') == 1:
+                    # dataset.table format
+                    full_table_name = f"{self.bq_client.project_id}.{table_name}"
                 else:
-                    # Simple table name, construct full name
+                    # Simple table name only
                     full_table_name = f"{self.bq_client.project_id}.optimizer_test_dataset.{table_name}"
                 
                 print(f"    🔍 Using table name: {full_table_name}")
@@ -697,21 +695,35 @@ class BigQueryOptimizer:
     
     def _extract_table_names(self, query: str) -> List[str]:
         """Extract table names from SQL query."""
-        # Extract table names from various SQL patterns
+        # Extract table names from SQL query, handling both simple and fully qualified names
         patterns = [
-            r'FROM\s+`([^`]+)`',  # FROM `project.dataset.table`
-            r'JOIN\s+`([^`]+)`',  # JOIN `project.dataset.table`
-            r'FROM\s+`[^`]*\.([^`\.]+)`',  # Extract table name from backticks
-            r'JOIN\s+`[^`]*\.([^`\.]+)`',  # Extract table name from JOIN backticks
-            r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names
-            r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names in JOINs
+            r'FROM\s+`([^`]+)`',  # FROM `project.dataset.table` - keep full name
+            r'JOIN\s+`([^`]+)`',  # JOIN `project.dataset.table` - keep full name
+            r'FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*?)(?:\s+[a-zA-Z_]|\s*$|\s*WHERE|\s*GROUP|\s*ORDER|\s*LIMIT)',  # Table names without alias
+            r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_\.]*?)(?:\s+[a-zA-Z_]|\s+ON|\s*$)',  # Table names in JOINs without alias
         ]
         
         tables = set()
         for pattern in patterns:
             matches = re.findall(pattern, query, re.IGNORECASE)
             for match in matches:
-                tables.add(match)
+                # Clean up table name
+                table_name = match.strip()
+                if table_name and not table_name.upper() in ['ON', 'WHERE', 'GROUP', 'ORDER', 'LIMIT', 'AS']:
+                    tables.add(table_name)
+        
+        # Also try to extract from simple patterns without backticks
+        simple_patterns = [
+            r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)\s',  # Simple table names
+            r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)\s',  # Simple table names in JOINs
+        ]
+        
+        for pattern in simple_patterns:
+            matches = re.findall(pattern, query + ' ', re.IGNORECASE)  # Add space for matching
+            for match in matches:
+                table_name = match.strip()
+                if table_name and not table_name.upper() in ['ON', 'WHERE', 'GROUP', 'ORDER', 'LIMIT', 'AS']:
+                tables.add(table_name)
         
         return list(tables)
     

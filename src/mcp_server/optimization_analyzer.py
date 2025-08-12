@@ -100,33 +100,33 @@ class OptimizationAnalyzer:
                 elif line.startswith('---'):
                     # End of section
                     break
-                elif current_section:
+                elif current_section and line:
                     current_content.append(line)
+            
+            # Process final accumulated content
+            if current_section and current_content:
+                content_text = '\n'.join(current_content).strip()
                 
-                # Process accumulated content
-                if current_section and (line.startswith('###') or line.startswith('---')):
-                    content_text = '\n'.join(current_content).strip()
-                    
-                    if current_section == 'description':
-                        pattern_data['description'] = content_text
-                    elif current_section == 'when_to_apply':
-                        # Extract bullet points
-                        pattern_data['when_to_apply'] = [
-                            item.strip('- ').strip() 
-                            for item in content_text.split('\n') 
-                            if item.strip().startswith('-')
-                        ]
-                    elif current_section == 'example':
-                        # Extract before/after examples
-                        if '-- Before' in content_text and '-- After' in content_text:
-                            parts = content_text.split('-- After')
-                            if len(parts) == 2:
-                                pattern_data['example_before'] = parts[0].replace('-- Before', '').strip()
-                                pattern_data['example_after'] = parts[1].strip()
-                    elif current_section == 'expected_improvement':
-                        pattern_data['expected_improvement'] = content_text
-                    elif current_section == 'documentation_reference':
-                        pattern_data['documentation_reference'] = content_text.strip()
+                if current_section == 'description':
+                    pattern_data['description'] = content_text
+                elif current_section == 'when_to_apply':
+                    # Extract bullet points
+                    pattern_data['when_to_apply'] = [
+                        item.strip('- ').strip() 
+                        for item in content_text.split('\n') 
+                        if item.strip().startswith('-')
+                    ]
+                elif current_section == 'example':
+                    # Extract before/after examples
+                    if '-- Before' in content_text and '-- After' in content_text:
+                        parts = content_text.split('-- After')
+                        if len(parts) == 2:
+                            pattern_data['example_before'] = parts[0].replace('-- Before', '').strip()
+                            pattern_data['example_after'] = parts[1].strip()
+                elif current_section == 'expected_improvement':
+                    pattern_data['expected_improvement'] = content_text
+                elif current_section == 'documentation_reference':
+                    pattern_data['documentation_reference'] = content_text.strip()
             
             return pattern_data if pattern_data['pattern_id'] else None
             
@@ -157,7 +157,7 @@ class OptimizationAnalyzer:
                     })
             
             # Sort by priority score
-            applicable_patterns.sort(key=lambda x: x['priority_score'], reverse=True)
+            applicable_patterns.sort(key=lambda x: x.get('priority_score', 0), reverse=True)
             
             return {
                 'sql_query': sql_query,
@@ -200,7 +200,7 @@ class OptimizationAnalyzer:
         
         elif pattern_id == 'predicate_pushdown':
             return ('WHERE' in query_upper and 
-                    ('JOIN' in query_upper or 'SELECT' in query_upper.count('SELECT') > 1))
+                    ('JOIN' in query_upper or query_upper.count('SELECT') > 1))
         
         elif pattern_id == 'clustering_optimization':
             return 'WHERE' in query_upper and ('=' in query_upper or 'IN (' in query_upper)
@@ -220,8 +220,11 @@ class OptimizationAnalyzer:
         """Calculate priority score for an optimization pattern."""
         score = 0
         
+        # Ensure pattern_data values are strings for string operations
+        pattern_id = str(pattern_data.get('pattern_id', ''))
+        
         # Base score from performance impact
-        performance_impact = pattern_data.get('performance_impact', '')
+        performance_impact = str(pattern_data.get('performance_impact', ''))
         if '40-70%' in performance_impact or '60-90%' in performance_impact:
             score += 50  # High impact
         elif '30-60%' in performance_impact or '25-45%' in performance_impact:
@@ -234,13 +237,13 @@ class OptimizationAnalyzer:
         # Boost score for common performance issues
         query_upper = sql_query.upper()
         
-        if pattern_data['pattern_id'] == 'column_pruning' and 'SELECT *' in query_upper:
+        if pattern_id == 'column_pruning' and 'SELECT *' in query_upper:
             score += 20  # Very common issue
         
-        if pattern_data['pattern_id'] == 'approximate_aggregation' and 'COUNT(DISTINCT' in query_upper:
+        if pattern_id == 'approximate_aggregation' and 'COUNT(DISTINCT' in query_upper:
             score += 25  # High impact on large datasets
         
-        if pattern_data['pattern_id'] == 'subquery_to_join' and ('EXISTS' in query_upper or 'IN (SELECT' in query_upper):
+        if pattern_id == 'subquery_to_join' and ('EXISTS' in query_upper or 'IN (SELECT' in query_upper):
             score += 30  # Often significant improvement
         
         return score
@@ -250,9 +253,9 @@ class OptimizationAnalyzer:
         if not applicable_patterns:
             return "No optimization patterns found for this query. The query may already be well-optimized."
         
-        high_priority = [p for p in applicable_patterns if p['priority_score'] >= 40]
-        medium_priority = [p for p in applicable_patterns if 20 <= p['priority_score'] < 40]
-        low_priority = [p for p in applicable_patterns if p['priority_score'] < 20]
+        high_priority = [p for p in applicable_patterns if p.get('priority_score', 0) >= 40]
+        medium_priority = [p for p in applicable_patterns if 20 <= p.get('priority_score', 0) < 40]
+        low_priority = [p for p in applicable_patterns if p.get('priority_score', 0) < 20]
         
         summary_parts = []
         
