@@ -381,6 +381,229 @@
             margin-top: 16px;
         }
 
+        /* Query Results Styles */
+        .query-results-section {
+            margin-top: 40px;
+            padding: 30px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .results-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .result-panel {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .result-header {
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .result-header.original {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .result-header.optimized {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .result-content {
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        .result-table th,
+        .result-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 11px;
+        }
+
+        .result-table th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .result-table td {
+            color: #334155;
+        }
+
+        .result-count {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        /* Test Suites Styles */
+        .test-suites-section {
+            margin-top: 50px;
+            padding: 40px;
+            background: #fafbfc;
+            border-radius: 16px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .section-description {
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+
+        .test-suite-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .test-suite-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .test-suite-card:hover {
+            border-color: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15);
+        }
+
+        .test-suite-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .test-suite-header h4 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+        }
+
+        .test-badge {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .test-suite-card p {
+            color: #6b7280;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .btn-test {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-test:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .test-results {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .test-case-item {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            margin-bottom: 16px;
+        }
+
+        .test-case-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .test-case-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .test-case-name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .test-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .test-status.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .test-status.error {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .test-case-description {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .test-case-metrics {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
         @media (max-width: 768px) {
             .config-grid {
                 grid-template-columns: 1fr;
@@ -392,6 +615,14 @@
             
             .btn {
                 justify-content: center;
+            }
+            
+            .results-comparison {
+                grid-template-columns: 1fr;
+            }
+            
+            .test-suite-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -488,6 +719,80 @@ ORDER BY total_amount DESC"
 
                 <div id="optimizationsList" class="optimizations-list" style="display: none;">
                     <!-- Optimizations will be populated by JavaScript -->
+                </div>
+
+                <div id="queryResults" class="query-results-section" style="display: none;">
+                    <h3 class="results-title">📊 Query Results Comparison</h3>
+                    <div class="results-comparison">
+                        <div class="result-panel">
+                            <div class="result-header original">🔵 Original Query Results</div>
+                            <div id="originalResults" class="result-content">
+                                <!-- Original query results will be populated -->
+                            </div>
+                        </div>
+                        <div class="result-panel">
+                            <div class="result-header optimized">🟢 Optimized Query Results</div>
+                            <div id="optimizedResults" class="result-content">
+                                <!-- Optimized query results will be populated -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="testSuites" class="test-suites-section">
+                    <h3 class="section-title">🧪 Test Optimization Patterns</h3>
+                    <p class="section-description">Run predefined test suites to verify optimization patterns work correctly</p>
+                    
+                    <div class="test-suite-grid">
+                        <div class="test-suite-card" data-suite="simple_query">
+                            <div class="test-suite-header">
+                                <h4>📝 Simple Query Test</h4>
+                                <span class="test-badge">3 test cases</span>
+                            </div>
+                            <p>Basic SELECT queries with inefficient WHERE clauses that need column pruning optimization</p>
+                            <button class="btn btn-test" onclick="runTestSuite('simple_query')">Run Tests</button>
+                        </div>
+                        
+                        <div class="test-suite-card" data-suite="complex_join">
+                            <div class="test-suite-header">
+                                <h4>🔗 Complex JOIN Test</h4>
+                                <span class="test-badge">3 test cases</span>
+                            </div>
+                            <p>Multi-table JOIN queries with suboptimal ordering that need JOIN reordering optimization</p>
+                            <button class="btn btn-test" onclick="runTestSuite('complex_join')">Run Tests</button>
+                        </div>
+                        
+                        <div class="test-suite-card" data-suite="aggregation">
+                            <div class="test-suite-header">
+                                <h4>📊 Aggregation Test</h4>
+                                <span class="test-badge">3 test cases</span>
+                            </div>
+                            <p>GROUP BY queries without proper optimization that need approximate aggregation</p>
+                            <button class="btn btn-test" onclick="runTestSuite('aggregation')">Run Tests</button>
+                        </div>
+                        
+                        <div class="test-suite-card" data-suite="window_function">
+                            <div class="test-suite-header">
+                                <h4>🪟 Window Function Test</h4>
+                                <span class="test-badge">3 test cases</span>
+                            </div>
+                            <p>Window function queries with inefficient specifications that need partitioning optimization</p>
+                            <button class="btn btn-test" onclick="runTestSuite('window_function')">Run Tests</button>
+                        </div>
+                        
+                        <div class="test-suite-card" data-suite="nested_query">
+                            <div class="test-suite-header">
+                                <h4>🔄 Nested Query Test</h4>
+                                <span class="test-badge">3 test cases</span>
+                            </div>
+                            <p>Deeply nested subqueries that can be flattened into JOINs for better performance</p>
+                            <button class="btn btn-test" onclick="runTestSuite('nested_query')">Run Tests</button>
+                        </div>
+                    </div>
+                    
+                    <div id="testResults" class="test-results" style="display: none;">
+                        <!-- Test results will be populated by JavaScript -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -810,6 +1115,12 @@ LIMIT 100`;
                 displayOptimizations(result.optimizations_applied);
             }
             
+            // Display query results comparison
+            if (result.original_query_results || result.optimized_query_results) {
+                console.log('📊 Displaying query results comparison...');
+                displayQueryResults(result);
+            }
+            
             // Show success message
             const improvement = result.actual_improvement || result.estimated_improvement;
             if (improvement) {
@@ -1002,6 +1313,206 @@ LIMIT 100`;
                     </div>
                 `).join('')}
             `;
+        }
+
+        function displayQueryResults(result) {
+            console.log('📊 Displaying query results comparison...');
+            
+            const queryResultsDiv = document.getElementById('queryResults');
+            queryResultsDiv.style.display = 'block';
+            
+            const originalResultsDiv = document.getElementById('originalResults');
+            const optimizedResultsDiv = document.getElementById('optimizedResults');
+            
+            // Display original query results
+            if (result.original_query_results && result.original_query_results.length > 0) {
+                const originalCount = result.original_row_count || result.original_query_results.length;
+                originalResultsDiv.innerHTML = `
+                    <div class="result-count">📊 ${originalCount} rows returned</div>
+                    ${formatResultsAsTable(result.original_query_results)}
+                `;
+            } else {
+                originalResultsDiv.innerHTML = `
+                    <div class="result-count">No results available</div>
+                    <div style="color: #6b7280; font-style: italic;">
+                        ${result.query_execution_error ? 'Error: ' + result.query_execution_error : 'Query did not return results'}
+                    </div>
+                `;
+            }
+            
+            // Display optimized query results
+            if (result.optimized_query_results && result.optimized_query_results.length > 0) {
+                const optimizedCount = result.optimized_row_count || result.optimized_query_results.length;
+                optimizedResultsDiv.innerHTML = `
+                    <div class="result-count">📊 ${optimizedCount} rows returned</div>
+                    ${formatResultsAsTable(result.optimized_query_results)}
+                `;
+            } else {
+                optimizedResultsDiv.innerHTML = `
+                    <div class="result-count">No results available</div>
+                    <div style="color: #6b7280; font-style: italic;">
+                        ${result.query_execution_error ? 'Error: ' + result.query_execution_error : 'Query did not return results'}
+                    </div>
+                `;
+            }
+            
+            // Show comparison status
+            const identical = result.results_identical;
+            const comparisonStatus = identical ? 
+                '<span style="color: #059669; font-weight: 600;">✅ Results are identical - optimization preserves business logic!</span>' :
+                '<span style="color: #dc2626; font-weight: 600;">⚠️ Results differ - please review carefully</span>';
+            
+            queryResultsDiv.querySelector('.results-title').innerHTML = `📊 Query Results Comparison - ${comparisonStatus}`;
+        }
+
+        function formatResultsAsTable(results) {
+            if (!results || results.length === 0) {
+                return '<div style="color: #6b7280; font-style: italic;">No data returned</div>';
+            }
+            
+            // Get column headers from first row
+            const headers = Object.keys(results[0]);
+            
+            // Limit to first 10 rows for display
+            const displayResults = results.slice(0, 10);
+            
+            let tableHtml = '<table class="result-table"><thead><tr>';
+            
+            // Add headers
+            headers.forEach(header => {
+                tableHtml += `<th>${escapeHtml(header)}</th>`;
+            });
+            tableHtml += '</tr></thead><tbody>';
+            
+            // Add data rows
+            displayResults.forEach(row => {
+                tableHtml += '<tr>';
+                headers.forEach(header => {
+                    const value = row[header];
+                    const displayValue = value === null || value === undefined ? 'NULL' : String(value);
+                    tableHtml += `<td>${escapeHtml(displayValue)}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            
+            tableHtml += '</tbody></table>';
+            
+            // Add note if there are more rows
+            if (results.length > 10) {
+                tableHtml += `<div style="margin-top: 8px; color: #6b7280; font-size: 0.8rem;">... and ${results.length - 10} more rows</div>`;
+            }
+            
+            return tableHtml;
+        }
+
+        function runTestSuite(suiteType) {
+            console.log(`🧪 Running test suite: ${suiteType}`);
+            
+            if (isProcessing) {
+                console.log('⚠️ Already processing, ignoring test suite click');
+                return;
+            }
+            
+            const config = getRequestConfig();
+            
+            setLoading(true);
+            
+            const requestData = {
+                test_suite: suiteType,
+                project_id: config.project_id,
+                validate_results: config.validate_results,
+                measure_performance: config.measure_performance
+            };
+            
+            console.log('🌐 Making API request to /api/v1/run-test-suite...');
+            console.log('📤 Test suite request data:', JSON.stringify(requestData, null, 2));
+            
+            fetch('/api/v1/run-test-suite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                console.log('📥 Test suite response received:', response.status, response.statusText);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(result => {
+                console.log('✅ Test suite result received:');
+                console.log(JSON.stringify(result, null, 2));
+                displayTestResults(result);
+            })
+            .catch(error => {
+                console.error('❌ Test suite API call failed:', error);
+                console.error('Error details:', error.stack);
+                showError(`Test suite failed: ${error.message}`);
+            })
+            .finally(() => {
+                console.log('🏁 Test suite API call completed');
+                setLoading(false);
+            });
+        }
+
+        function displayTestResults(result) {
+            console.log('🧪 Displaying test results...');
+            
+            const testResultsDiv = document.getElementById('testResults');
+            testResultsDiv.style.display = 'block';
+            
+            const testCases = result.test_cases || [];
+            const successCount = testCases.filter(tc => !tc.optimization_result.validation_error).length;
+            const totalCount = testCases.length;
+            
+            testResultsDiv.innerHTML = `
+                <h4 style="margin-bottom: 16px; color: #1f2937;">
+                    🧪 ${result.suite_name} Results
+                    <span style="color: #6b7280; font-weight: normal; font-size: 0.9rem;">
+                        (${successCount}/${totalCount} passed)
+                    </span>
+                </h4>
+                <p style="color: #6b7280; margin-bottom: 20px;">${result.description}</p>
+                
+                <div class="test-cases">
+                    ${testCases.map((testCase, index) => {
+                        const hasError = testCase.optimization_result.validation_error;
+                        const optimizations = testCase.optimization_result.total_optimizations || 0;
+                        const improvement = testCase.optimization_result.estimated_improvement;
+                        
+                        return `
+                            <div class="test-case-item">
+                                <div class="test-case-header">
+                                    <span class="test-case-name">${escapeHtml(testCase.name)}</span>
+                                    <span class="test-status ${hasError ? 'error' : 'success'}">
+                                        ${hasError ? '❌ FAILED' : '✅ PASSED'}
+                                    </span>
+                                </div>
+                                <div class="test-case-description">${escapeHtml(testCase.description)}</div>
+                                <div class="test-case-metrics">
+                                    <span>⚡ ${optimizations} optimizations</span>
+                                    ${improvement ? `<span>📈 ${(improvement * 100).toFixed(1)}% improvement</span>` : ''}
+                                    <span>⏱️ ${testCase.execution_time ? testCase.execution_time.toFixed(2) + 's' : 'N/A'}</span>
+                                </div>
+                                ${hasError ? `<div style="color: #dc2626; font-size: 0.8rem; margin-top: 8px;">Error: ${escapeHtml(testCase.optimization_result.validation_error)}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                
+                <div style="margin-top: 20px; padding: 16px; background: #f8fafc; border-radius: 8px;">
+                    <strong>📊 Test Suite Summary:</strong><br>
+                    Execution Time: ${result.execution_time ? result.execution_time.toFixed(2) + 's' : 'N/A'}<br>
+                    Success Rate: ${((successCount / totalCount) * 100).toFixed(1)}%
+                </div>
+            `;
+            
+            // Scroll to test results
+            testResultsDiv.scrollIntoView({ behavior: 'smooth' });
+            
+            showSuccess(`Test suite completed: ${successCount}/${totalCount} tests passed`);
         }
 
         function formatBytes(bytes) {
