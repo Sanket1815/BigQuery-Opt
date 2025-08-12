@@ -143,7 +143,7 @@ async def optimize_query(request: OptimizeRequest):
         result = optimizer.optimize_query(
             request.query,
             validate_results=request.validate_results,
-            measure_performance=request.measure_performance,
+            measure_performance=True,  # Always measure performance for test suites
             sample_size=request.sample_size
         )
         
