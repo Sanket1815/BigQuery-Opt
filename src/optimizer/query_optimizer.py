@@ -723,7 +723,7 @@ class BigQueryOptimizer:
             for match in matches:
                 table_name = match.strip()
                 if table_name and not table_name.upper() in ['ON', 'WHERE', 'GROUP', 'ORDER', 'LIMIT', 'AS']:
-                tables.add(table_name)
+                    tables.add(table_name)
         
         return list(tables)
     
