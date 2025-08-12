@@ -37,8 +37,9 @@ def check_os_module():
     try:
         import os
         if not hasattr(os, 'chmod'):
-            print("❌ os module missing chmod attribute - corrupted installation")
-            return False
+            print("⚠️  os module missing chmod attribute - limited environment detected")
+            print("⚠️  File permission operations will be skipped")
+            return True  # Continue execution despite limitation
         print("✅ os module working correctly")
         return True
     except Exception as e:
@@ -53,8 +54,8 @@ def main():
         print("⚠️  Some features may not work correctly.")
     
     if not check_os_module():
-        print("\n❌ Operating system module has issues, but attempting to continue...")
-        print("⚠️  File operations may not work correctly.")
+        print("\n❌ Critical operating system module failure - cannot continue")
+        sys.exit(1)
     
     # Only import these after basic checks pass
     try:
