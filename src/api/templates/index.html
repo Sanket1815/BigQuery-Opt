@@ -951,7 +951,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                     } else if (typeof value === 'string' && value.length > 50) {
                         displayValue = `<span title="${value}">${value.substring(0, 50)}...</span>`;
                     } else {
-                        displayValue = String(value);
+                        console.log('Performance metrics not available for this optimization');
                     }
                     tableHtml += `<td class="border border-gray-300 px-2 py-1 text-gray-700">${displayValue}</td>`;
                 });
