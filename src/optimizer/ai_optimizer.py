@@ -52,7 +52,7 @@ class GeminiQueryOptimizer:
         query: str, 
         analysis: QueryAnalysis,
         table_metadata: Dict[str, Any],
-        mcp_suggestions: Optional[Dict[str, Any]] = None
+        optimization_suggestions: Optional[str] = None  # NEW parameter
     ) -> OptimizationResult:
         """
         Apply Google's official BigQuery best practices to underperforming queries.
@@ -60,14 +60,14 @@ class GeminiQueryOptimizer:
         CRITICAL BUSINESS REQUIREMENT: The optimized query MUST return IDENTICAL results.
         This is non-negotiable for business logic preservation.
         
-        Now enhanced with MCP server integration for better documentation access.
+        Now enhanced with direct optimization suggestions from markdown documentation.
         """
         start_time = time.time()
         
         try:
             # Build optimization prompt with Google's best practices
             prompt = self._build_comprehensive_optimization_prompt(
-                query, analysis, table_metadata, mcp_suggestions
+                query, analysis, table_metadata, optimization_suggestions
             )
             
             # Generate optimization using Gemini
@@ -110,7 +110,7 @@ class GeminiQueryOptimizer:
         query: str, 
         analysis: QueryAnalysis,
         table_metadata: Dict[str, Any],
-        mcp_suggestions: Optional[Dict[str, Any]] = None
+        optimization_suggestions: Optional[str] = None
     ) -> str:
         """Build comprehensive optimization prompt based on Google's BigQuery best practices."""
         
@@ -137,32 +137,14 @@ class GeminiQueryOptimizer:
   🚨 CRITICAL: ONLY add _PARTITIONDATE if Partitioned=True!
 """
         
-        # Add MCP server suggestions if available
-        mcp_context = ""
-        if mcp_suggestions:
-            mcp_context = f"""
+        # Add optimization suggestions from documentation if available
+        suggestions_context = ""
+        if optimization_suggestions:
+            suggestions_context = f"""
 
-📡 MCP SERVER OPTIMIZATION RECOMMENDATIONS:
+📚 BIGQUERY OPTIMIZATION DOCUMENTATION:
 
-PRIORITY OPTIMIZATIONS: {', '.join(mcp_suggestions.get('priority_optimizations', []))}
-
-SPECIFIC SUGGESTIONS FROM DOCUMENTATION:
-"""
-            for suggestion in mcp_suggestions.get('specific_suggestions', []):
-                mcp_context += f"""
-• {suggestion.get('pattern_name', 'Unknown')}: {suggestion.get('description', '')}
-  Expected improvement: {suggestion.get('expected_improvement', 0):.1%}
-  Documentation: {suggestion.get('documentation_reference', 'N/A')}
-"""
-            
-            if mcp_suggestions.get('documentation_references'):
-                mcp_context += f"""
-
-RELEVANT DOCUMENTATION CONTEXT:
-"""
-                for doc_ref in mcp_suggestions.get('documentation_references', [])[:3]:
-                    mcp_context += f"""
-• {doc_ref.get('title', 'Unknown')}: {doc_ref.get('content', '')[:200]}...
+{optimization_suggestions}
 """
         
         # Build comprehensive prompt
@@ -281,7 +263,7 @@ UNDERPERFORMING QUERY TO OPTIMIZE:
 ```sql
 {query}
 ```
-{mcp_context}
+{suggestions_context}
 
 🚨 CRITICAL PARTITION FILTERING RULES:
 1. ONLY add _PARTITIONDATE if table metadata shows Partitioned=True

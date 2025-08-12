@@ -22,8 +22,7 @@ from src.common.models import OptimizationResult, QueryAnalysis, QueryComplexity
 from src.optimizer.ai_optimizer import GeminiQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
 from src.optimizer.validator import QueryValidator
-from src.mcp_server.handlers import OptimizationHandler
-from src.crawler.documentation_processor import DocumentationProcessor
+from src.mcp_server.optimization_analyzer import OptimizationAnalyzer
 
 
 class BigQueryOptimizer:
@@ -44,15 +43,13 @@ class BigQueryOptimizer:
         try:
             self.bq_client = BigQueryClient(project_id)
             
-            # Initialize MCP server components for documentation access
+            # Initialize optimization analyzer for direct documentation access
             try:
-                self.documentation_processor = DocumentationProcessor()
-                self.mcp_handler = OptimizationHandler(self.documentation_processor)
-                print("✅ MCP server components initialized")
+                self.optimization_analyzer = OptimizationAnalyzer()
+                print("✅ Optimization analyzer initialized with markdown documentation")
             except ImportError:
-                print("⚠️ MCP server components not available - using fallback mode")
-                self.documentation_processor = None
-                self.mcp_handler = None
+                print("⚠️ Optimization analyzer not available - using fallback mode")
+                self.optimization_analyzer = None
             
             self.ai_optimizer = GeminiQueryOptimizer()
             
@@ -119,16 +116,16 @@ class BigQueryOptimizer:
             print(f"\n🤖 APPLYING GOOGLE'S BIGQUERY BEST PRACTICES")
             print(f"Applicable patterns: {', '.join(analysis.applicable_patterns)}")
             
-            # NEW WORKFLOW: Use MCP server for optimization recommendations
-            if self.mcp_handler:
-                print(f"📡 Getting optimization recommendations from MCP server...")
-                optimization_suggestions = self._get_mcp_optimization_suggestions_safe(query)
+            # NEW WORKFLOW: Get optimization suggestions from markdown documentation
+            if self.optimization_analyzer:
+                print(f"📡 Getting optimization recommendations from documentation...")
+                optimization_suggestions = self.optimization_analyzer.get_optimization_suggestions_for_llm(query)
                 
                 optimization_result = self.ai_optimizer.optimize_with_best_practices(
-                    query, analysis, table_metadata, mcp_suggestions=optimization_suggestions
+                    query, analysis, table_metadata, optimization_suggestions=optimization_suggestions
                 )
             else:
-                print(f"⚠️ Using direct AI optimization (MCP server not available)")
+                print(f"⚠️ Using direct AI optimization (optimization analyzer not available)")
                 optimization_result = self.ai_optimizer.optimize_with_best_practices(
                     query, analysis, table_metadata
                 )
@@ -286,52 +283,22 @@ class BigQueryOptimizer:
                 validation_error=str(e)
             )
     
-    def _get_mcp_optimization_suggestions_sync(self, query: str) -> Dict[str, Any]:
-        """Get optimization suggestions from MCP server."""
-        try:
-            if not self.mcp_handler:
-                return {}
-            
-            # Use asyncio.run to handle async call in sync context
-            import asyncio
-            
-            # Get comprehensive optimization suggestions from MCP server
-            suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
-            
-            print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
-            
-            return suggestions
-            
-        except Exception as e:
-            self.logger.log_error(e, {"operation": "get_mcp_optimization_suggestions_sync"})
-            print(f"⚠️ MCP server request failed: {e}")
-            return {}
-    
     def analyze_query_only(self, query: str) -> QueryAnalysis:
-        """Analyze a query without optimizing it using MCP server."""
+        """Analyze a query without optimizing it."""
         try:
-            if self.mcp_handler:
-                # Use MCP server for enhanced analysis
-                import asyncio
-                analysis = asyncio.run(self.mcp_handler.analyze_query(query))
-                print(f"📊 Enhanced analysis from MCP server")
-                return analysis
-            else:
-                # Fallback to direct analysis
-                return self._analyze_query_structure(query)
+            return self._analyze_query_structure(query)
         except Exception as e:
             self.logger.log_error(e, {"operation": "analyze_query_only"})
             return self._analyze_query_structure(query)
     
     def get_optimization_suggestions(self, query: str) -> Dict[str, Any]:
-        """Get optimization suggestions from MCP server without applying them."""
+        """Get optimization suggestions without applying them."""
         try:
-            if self.mcp_handler:
-                # Use MCP server for comprehensive suggestions
-                import asyncio
-                suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
-                print(f"💡 MCP server provided comprehensive optimization suggestions")
-                return suggestions
+            if self.optimization_analyzer:
+                # Get suggestions from markdown documentation
+                analysis_result = self.optimization_analyzer.analyze_sql_query(query)
+                print(f"💡 Found {analysis_result['total_patterns']} applicable optimization patterns")
+                return analysis_result
             else:
                 # Fallback to direct suggestions
                 analysis = self._analyze_query_structure(query)
@@ -705,58 +672,6 @@ class BigQueryOptimizer:
         
         if len(results) > max_rows:
             print(f"   ... and {len(results) - max_rows} more rows")
-    
-    def _get_mcp_optimization_suggestions_safe(self, query: str) -> Dict[str, Any]:
-        """Get optimization suggestions from MCP server with safe async handling."""
-        try:
-            if not self.mcp_handler:
-                return {}
-            
-            # Use the safe async runner
-            suggestions = self._run_async_safely(
-                self.mcp_handler.get_optimization_suggestions(query)
-            )
-            
-            print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
-            
-            return suggestions
-            
-        except Exception as e:
-            self.logger.log_error(e, {"operation": "_get_mcp_optimization_suggestions_safe"})
-            print(f"⚠️ MCP server request failed: {e}")
-            return {}
-    
-    def _run_async_safely(self, coro):
-        """Safely run async coroutine whether or not we're in an event loop."""
-        import asyncio
-        
-        try:
-            # Check if we're already in an event loop
-            loop = asyncio.get_running_loop()
-            # If we're in an event loop, we need to handle this differently
-            # Create a new thread to run the async function
-            import concurrent.futures
-            import threading
-            
-            def run_in_thread():
-                # Create new event loop in thread
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                try:
-                    return new_loop.run_until_complete(coro)
-                finally:
-                    new_loop.close()
-            
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(run_in_thread)
-                return future.result(timeout=30)  # 30 second timeout
-                
-        except RuntimeError:
-            # No event loop running, safe to use asyncio.run()
-            return asyncio.run(coro)
-        except Exception as e:
-            self.logger.log_error(e, {"operation": "_run_async_safely"})
-            raise
     
     def _extract_table_alias(self, query: str, table_name: str) -> Optional[str]:
         """Extract table alias from query for a given table."""
