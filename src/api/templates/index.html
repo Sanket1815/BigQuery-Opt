@@ -545,7 +545,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h2 class="text-2xl font-semibold mb-4 text-green-800">Optimization Results</h2>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                         <div class="bg-blue-50 p-4 rounded-lg">
                             <h3 class="font-semibold text-blue-800">Optimizations Applied</h3>
                             <p class="text-2xl font-bold text-blue-600">${result.total_optimizations}</p>
@@ -561,6 +561,13 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                             <p class="text-2xl font-bold text-purple-600">${result.processing_time_seconds ? result.processing_time_seconds.toFixed(1) + 's' : 'N/A'}</p>
                             <p class="text-xs text-purple-600 mt-1">End-to-End</p>
                         </div>
+                        ${result.actual_improvement ? `
+                            <div class="bg-orange-50 p-4 rounded-lg">
+                                <h3 class="font-semibold text-orange-800">Actual Improvement</h3>
+                                <p class="text-2xl font-bold text-orange-600">${(result.actual_improvement * 100).toFixed(1)}%</p>
+                                <p class="text-xs text-orange-600 mt-1">Measured Performance</p>
+                            </div>
+                        ` : ''}
                     </div>
 
                     <!-- Performance Metrics Comparison -->
