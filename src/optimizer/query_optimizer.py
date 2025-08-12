@@ -811,30 +811,77 @@ class BigQueryOptimizer:
         return patterns
     
     def _measure_performance_improvement(self, original_query: str, optimized_query: str) -> Dict[str, Any]:
-        """Measure actual performance improvement between queries."""
+        """Measure actual performance improvement between original and optimized queries."""
         try:
-            # Use dry run to estimate performance
-            original_perf = self.bq_client.execute_query(original_query, dry_run=True)
-            optimized_perf = self.bq_client.execute_query(optimized_query, dry_run=True)
+            print(f"🔍 Executing original query for performance measurement...")
+            original_result = self.bq_client.execute_query(original_query, dry_run=False)
             
-            if original_perf["success"] and optimized_perf["success"]:
-                original_bytes = original_perf["performance"].bytes_processed or 0
-                optimized_bytes = optimized_perf["performance"].bytes_processed or 0
+            print(f"🔍 Executing optimized query for performance measurement...")
+            optimized_result = self.bq_client.execute_query(optimized_query, dry_run=False)
+            
+            if original_result["success"] and optimized_result["success"]:
+                # Extract performance metrics
+                original_time = original_result["performance"].execution_time_ms
+                optimized_time = optimized_result["performance"].execution_time_ms
+                original_bytes = original_result["performance"].bytes_processed or 0
+                optimized_bytes = optimized_result["performance"].bytes_processed or 0
+                original_billed = getattr(original_result["performance"], 'bytes_billed', 0) or 0
+                optimized_billed = getattr(optimized_result["performance"], 'bytes_billed', 0) or 0
                 
-                if original_bytes > 0:
-                    improvement = (original_bytes - optimized_bytes) / original_bytes
-                    return {
-                        "success": True,
-                        "improvement_percentage": improvement,
-                        "original_bytes": original_bytes,
-                        "optimized_bytes": optimized_bytes,
-                        "bytes_saved": original_bytes - optimized_bytes
-                    }
-            
-            return {"success": False, "error": "Could not measure performance"}
-            
+                # Calculate improvements
+                time_improvement = (original_time - optimized_time) / original_time if original_time > 0 else 0
+                bytes_improvement = (original_bytes - optimized_bytes) / original_bytes if original_bytes > 0 else 0
+                cost_improvement = (original_billed - optimized_billed) / original_billed if original_billed > 0 else 0
+                
+                # Calculate cost savings (BigQuery pricing: ~$5 per TB)
+                cost_per_tb = 5.0
+                original_cost = (original_billed / (1024**4)) * cost_per_tb
+                optimized_cost = (optimized_billed / (1024**4)) * cost_per_tb
+                cost_saved = original_cost - optimized_cost
+                
+                print(f"📊 Performance Results:")
+                print(f"   Original time: {original_time}ms")
+                print(f"   Optimized time: {optimized_time}ms")
+                print(f"   Time improvement: {time_improvement:.1%}")
+                print(f"   Bytes improvement: {bytes_improvement:.1%}")
+                print(f"   Cost improvement: {cost_improvement:.1%}")
+                print(f"   Cost saved: ${cost_saved:.4f}")
+                
+                return {
+                    "success": True,
+                    "improvement_percentage": time_improvement,
+                    "time_improvement": time_improvement,
+                    "bytes_improvement": bytes_improvement,
+                    "cost_improvement": cost_improvement,
+                    "original_time_ms": original_time,
+                    "optimized_time_ms": optimized_time,
+                    "original_bytes": original_bytes,
+                    "optimized_bytes": optimized_bytes,
+                    "original_cost": original_cost,
+                    "optimized_cost": optimized_cost,
+                    "time_saved_ms": original_time - optimized_time,
+                    "bytes_saved": original_bytes - optimized_bytes,
+                    "cost_saved": cost_saved,
+                    "performance_summary": f"Time: {time_improvement:.1%}, Bytes: {bytes_improvement:.1%}, Cost: {cost_improvement:.1%}"
+                }
+            else:
+                error_msg = []
+                if not original_result["success"]:
+                    error_msg.append(f"Original query failed: {original_result.get('error', 'Unknown')}")
+                if not optimized_result["success"]:
+                    error_msg.append(f"Optimized query failed: {optimized_result.get('error', 'Unknown')}")
+                
+                return {
+                    "success": False,
+                    "error": "; ".join(error_msg)
+                }
+        
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            self.logger.log_error(e, {"operation": "measure_performance_improvement"})
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
     def _generate_specific_suggestions(self, query: str, analysis: QueryAnalysis) -> List[Dict[str, Any]]:
         """Generate specific optimization suggestions with documentation references."""

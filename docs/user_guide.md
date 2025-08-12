@@ -229,11 +229,15 @@ for opt in result.optimizations_applied:
 ```python
 result = optimizer.optimize_query(
     your_query,
-    measure_performance=True  # Get actual timing
+    measure_performance=True  # Get actual performance metrics
 )
 
-if result.actual_improvement:
-    print(f"Actual improvement: {result.actual_improvement:.1%}")
+if result.performance_metrics:
+    metrics = result.performance_metrics
+    print(f"Time improvement: {metrics['time_improvement']:.1%}")
+    print(f"Cost savings: ${metrics['cost_saved']:.4f}")
+    print(f"Data reduction: {metrics['bytes_improvement']:.1%}")
+    print(f"Summary: {metrics['performance_summary']}")
 ```
 
 ## Common Use Cases

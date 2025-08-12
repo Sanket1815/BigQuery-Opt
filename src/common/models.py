@@ -234,6 +234,12 @@ class OptimizationResult(BaseModel):
         description="Error message if query execution failed"
     )
     
+    # Performance metrics
+    performance_metrics: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Detailed performance comparison metrics"
+    )
+    
     def get_summary(self) -> str:
         """Get a human-readable summary of the optimization."""
         if not self.optimizations_applied:
