@@ -45,7 +45,12 @@ def create_app() -> FastAPI:
         except (OSError, AttributeError):
             # Handle environments without full os support
             pass
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    
+    try:
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    except Exception:
+        # Skip static files if not available
+        pass
     
     # Root endpoint serves the UI
     @app.get("/")
