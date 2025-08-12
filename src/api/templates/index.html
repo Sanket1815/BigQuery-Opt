@@ -306,11 +306,9 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                 safeQuery += `\nLIMIT ${limit}`;
             }
 
-            const config = getRequestConfig();
-            config.measure_performance = true; // Always measure performance
-
             showLoading();
             try {
+                const config = getRequestConfig();
                 const response = await fetch('/api/v1/optimize', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -509,13 +507,6 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                             </div>
                         </div>
                     ` : ''}
-                    
-                    ${testCase.query_execution_error ? `
-                        <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
-                            <h5 class="font-semibold text-red-800 mb-2">Query Execution Error</h5>
-                            <p class="text-red-700">${testCase.query_execution_error}</p>
-                        </div>
-                    ` : ''}
                 </div>
             `).join('');
 
@@ -561,7 +552,7 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             }
         }
 
-        // Show system status
+        // Show status
         async function showStatus() {
             showLoading();
             try {
@@ -894,6 +885,12 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                                 </div>
                             </div>
                         </div>
+                        ${result.query_execution_error ? `
+                            <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                                <h5 class="font-semibold text-red-800 mb-2">Query Execution Error</h5>
+                                <p class="text-red-700">${result.query_execution_error}</p>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
                 
