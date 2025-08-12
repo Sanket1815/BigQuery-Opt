@@ -196,6 +196,65 @@
             100% { transform: rotate(360deg); }
         }
 
+        .test-suites-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+
+        .test-suites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .test-suite-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-suite-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .test-suite-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .test-suite-card h3 {
+            margin: 8px 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .test-suite-card p {
+            margin: 8px 0;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .test-suite-stats {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
         .results-section {
             margin-top: 40px;
             display: none;
@@ -694,6 +753,49 @@ ORDER BY total_amount DESC"
                 <div id="loading" class="loading">
                     <div class="spinner"></div>
                     <span>Processing your query...</span>
+                </div>
+            </div>
+
+            <!-- Test Suites Section - Always Visible -->
+            <div class="test-suites-section">
+                <h2>🧪 Test Query Optimization</h2>
+                <p>Run predefined test cases to see optimization in action:</p>
+                
+                <div class="test-suites-grid">
+                    <div class="test-suite-card" onclick="runTestSuite('simple_query')">
+                        <div class="test-suite-icon">📝</div>
+                        <h3>Simple Query Test</h3>
+                        <p>Basic SELECT with column pruning optimization</p>
+                        <div class="test-suite-stats">3 test cases</div>
+                    </div>
+                    
+                    <div class="test-suite-card" onclick="runTestSuite('complex_join')">
+                        <div class="test-suite-icon">🔗</div>
+                        <h3>Complex JOIN Test</h3>
+                        <p>Multi-table JOINs with reordering optimization</p>
+                        <div class="test-suite-stats">3 test cases</div>
+                    </div>
+                    
+                    <div class="test-suite-card" onclick="runTestSuite('aggregation')">
+                        <div class="test-suite-icon">📊</div>
+                        <h3>Aggregation Test</h3>
+                        <p>GROUP BY with approximate aggregation optimization</p>
+                        <div class="test-suite-stats">3 test cases</div>
+                    </div>
+                    
+                    <div class="test-suite-card" onclick="runTestSuite('window_function')">
+                        <div class="test-suite-icon">🪟</div>
+                        <h3>Window Function Test</h3>
+                        <p>Window functions with partitioning optimization</p>
+                        <div class="test-suite-stats">3 test cases</div>
+                    </div>
+                    
+                    <div class="test-suite-card" onclick="runTestSuite('nested_query')">
+                        <div class="test-suite-icon">🔄</div>
+                        <h3>Nested Query Test</h3>
+                        <p>Subqueries that can be flattened to JOINs</p>
+                        <div class="test-suite-stats">3 test cases</div>
+                    </div>
                 </div>
             </div>
 
