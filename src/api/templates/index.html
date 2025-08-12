@@ -560,19 +560,19 @@
                         <h4>📊 Performance Improvement Metrics</h4>
                         <div class="performance-grid">
                             <div class="performance-item">
-                                <div class="value">${(metrics.time_improvement * 100).toFixed(1)}%</div>
+                                <div class="value">${metrics.time_improvement ? (metrics.time_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
                                 <div class="label">Time Improvement</div>
                             </div>
                             <div class="performance-item">
-                                <div class="value">${(metrics.bytes_improvement * 100).toFixed(1)}%</div>
+                                <div class="value">${metrics.bytes_improvement ? (metrics.bytes_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
                                 <div class="label">Data Reduction</div>
                             </div>
                             <div class="performance-item">
-                                <div class="value">${(metrics.cost_improvement * 100).toFixed(1)}%</div>
+                                <div class="value">${metrics.cost_improvement ? (metrics.cost_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
                                 <div class="label">Cost Savings</div>
                             </div>
                             <div class="performance-item">
-                                <div class="value">${metrics.time_saved_ms}ms</div>
+                                <div class="value">${metrics.time_saved_ms || 0}ms</div>
                                 <div class="label">Time Saved</div>
                             </div>
                             <div class="performance-item">
@@ -589,7 +589,7 @@
                         </div>
                     </div>
                 `;
-            } else if (result.actual_improvement !== null && result.actual_improvement !== undefined) {
+            } else if (result.actual_improvement !== null && result.actual_improvement !== undefined && result.actual_improvement > 0) {
                 // Fallback performance display
                 html += `
                     <div class="performance-metrics">
@@ -600,6 +600,16 @@
                                 <div class="label">Actual Improvement</div>
                             </div>
                         </div>
+                    </div>
+                `;
+            } else if (result.performance_metrics && !result.performance_metrics.success) {
+                // Show performance measurement error
+                html += `
+                    <div class="performance-metrics" style="background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);">
+                        <h4>📊 Performance Measurement</h4>
+                        <p style="text-align: center; margin: 10px 0;">
+                            ⚠️ Performance measurement failed: ${result.performance_metrics.error || 'Unknown error'}
+                        </p>
                     </div>
                 `;
             }

@@ -229,9 +229,10 @@ class BigQueryOptimizer:
                     query, optimization_result.optimized_query
                 )
                 
-                if performance_result["success"]:
+                if performance_result.get("success"):
                     improvement = performance_result["improvement_percentage"]
                     optimization_result.actual_improvement = improvement
+                    optimization_result.performance_metrics = performance_result
                     
                     print(f"📈 PERFORMANCE IMPROVEMENT: {improvement:.1%}")
                     
@@ -243,6 +244,7 @@ class BigQueryOptimizer:
                         print(f"❌ FAILURE: No performance improvement measured")
                 else:
                     print(f"⚠️ Performance measurement failed: {performance_result['error']}")
+                    optimization_result.performance_metrics = {"success": False, "error": performance_result.get('error', 'Unknown error')}
             
             # Final summary
             optimization_result.processing_time_seconds = time.time() - start_time
