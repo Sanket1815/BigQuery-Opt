@@ -45,7 +45,7 @@
                             <span class="text-sm text-gray-700">Validate Results</span>
                         </label>
                         <label class="flex items-center">
-                            <input type="checkbox" id="measurePerformance" class="mr-2">
+                            <input type="checkbox" id="measurePerformance" checked class="mr-2">
                             <span class="text-sm text-gray-700">Measure Performance</span>
                         </label>
                     </div>
@@ -579,31 +579,120 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                                     <p class="text-xl font-bold text-green-600">${(result.performance_metrics.time_improvement * 100).toFixed(1)}%</p>
                                     <p class="text-sm text-gray-600">${result.performance_metrics.original_time_ms}ms → ${result.performance_metrics.optimized_time_ms}ms</p>
                                 </div>
-                                <div class="text-center">
-                                    <h4 class="font-semibold text-gray-700">Data Reduction</h4>
-                                    <p class="text-xl font-bold text-blue-600">${(result.performance_metrics.bytes_improvement * 100).toFixed(1)}%</p>
-                                    <p class="text-sm text-gray-600">${(result.performance_metrics.bytes_saved / 1024 / 1024).toFixed(2)}MB saved</p>
-                                </div>
-                                <div class="text-center">
-                                    <h4 class="font-semibold text-gray-700">Cost Savings</h4>
-                                    <p class="text-xl font-bold text-purple-600">${(result.performance_metrics.cost_improvement * 100).toFixed(1)}%</p>
-                                    <p class="text-sm text-gray-600">$${result.performance_metrics.cost_saved.toFixed(4)} saved</p>
-                                </div>
-                            </div>
-                            <div class="mt-4 text-center">
-                                <p class="text-sm font-semibold text-green-700">✅ Optimization verified: ${result.performance_metrics.performance_summary}</p>
+                <!-- Enhanced Performance Metrics Section -->
+                ${result.performance_metrics ? `
+                    <div class="mb-6 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-green-800">📊 Performance Verification</h3>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                <span class="text-sm font-semibold text-green-700">Optimization Verified</span>
                             </div>
                         </div>
-                    ` : ''}
-
-                    ${result.optimizations_applied.length > 0 ? `
-                        <div class="mb-6">
-                            <h3 class="text-lg font-semibold mb-3">Applied Optimizations</h3>
-                            ${optimizationsHtml}
+                        
+                        <!-- Performance Comparison Chart -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <div class="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-500">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-semibold text-gray-700">⚡ Execution Time</h4>
+                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                        ${result.performance_metrics.time_improvement >= 0 ? 'IMPROVED' : 'SLOWER'}
+                                    </span>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-3xl font-bold ${result.performance_metrics.time_improvement >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                        ${result.performance_metrics.time_improvement >= 0 ? '+' : ''}${(result.performance_metrics.time_improvement * 100).toFixed(1)}%
+                                    </p>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        ${result.performance_metrics.original_time_ms}ms → ${result.performance_metrics.optimized_time_ms}ms
+                                    </p>
+                                    <p class="text-xs text-green-600 font-semibold mt-1">
+                                        Saved: ${result.performance_metrics.time_saved_ms}ms
+                                    </p>
+                                </div>
+                                <!-- Visual progress bar -->
+                                <div class="mt-3">
+                                    <div class="bg-gray-200 rounded-full h-2">
+                                        <div class="bg-green-500 h-2 rounded-full transition-all duration-1000" 
+                                             style="width: ${Math.min(Math.abs(result.performance_metrics.time_improvement) * 100, 100)}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-semibold text-gray-700">💾 Data Scanned</h4>
+                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                        ${result.performance_metrics.bytes_improvement >= 0 ? 'REDUCED' : 'INCREASED'}
+                                    </span>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-3xl font-bold ${result.performance_metrics.bytes_improvement >= 0 ? 'text-blue-600' : 'text-red-600'}">
+                                        ${result.performance_metrics.bytes_improvement >= 0 ? '+' : ''}${(result.performance_metrics.bytes_improvement * 100).toFixed(1)}%
+                                    </p>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        ${(result.performance_metrics.original_bytes / 1024 / 1024).toFixed(2)}MB → ${(result.performance_metrics.optimized_bytes / 1024 / 1024).toFixed(2)}MB
+                                    </p>
+                                    <p class="text-xs text-blue-600 font-semibold mt-1">
+                                        Saved: ${(result.performance_metrics.bytes_saved / 1024 / 1024).toFixed(2)}MB
+                                    </p>
+                                </div>
+                                <!-- Visual progress bar -->
+                                <div class="mt-3">
+                                    <div class="bg-gray-200 rounded-full h-2">
+                                        <div class="bg-blue-500 h-2 rounded-full transition-all duration-1000" 
+                                             style="width: ${Math.min(Math.abs(result.performance_metrics.bytes_improvement) * 100, 100)}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg p-4 shadow-sm border-l-4 border-purple-500">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-semibold text-gray-700">💰 Cost Impact</h4>
+                                    <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                                        ${result.performance_metrics.cost_improvement >= 0 ? 'SAVINGS' : 'INCREASE'}
+                                    </span>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-3xl font-bold ${result.performance_metrics.cost_improvement >= 0 ? 'text-purple-600' : 'text-red-600'}">
+                                        ${result.performance_metrics.cost_improvement >= 0 ? '+' : ''}${(result.performance_metrics.cost_improvement * 100).toFixed(1)}%
+                                    </p>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        $${result.performance_metrics.original_cost.toFixed(4)} → $${result.performance_metrics.optimized_cost.toFixed(4)}
+                                    </p>
+                                    <p class="text-xs text-purple-600 font-semibold mt-1">
+                                        Saved: $${result.performance_metrics.cost_saved.toFixed(4)}
+                                    </p>
+                                </div>
+                                <!-- Visual progress bar -->
+                                <div class="mt-3">
+                                    <div class="bg-gray-200 rounded-full h-2">
+                                        <div class="bg-purple-500 h-2 rounded-full transition-all duration-1000" 
+                                             style="width: ${Math.min(Math.abs(result.performance_metrics.cost_improvement) * 100, 100)}%"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    ` : ''}
-
-                    <div class="mb-6">
+                        
+                        <!-- Performance Summary -->
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold text-gray-800 mb-3 text-center">📈 Performance Summary</h4>
+                            <div class="text-center">
+                                <p class="text-lg font-bold ${result.performance_metrics.time_improvement >= 0.3 ? 'text-green-600' : result.performance_metrics.time_improvement > 0 ? 'text-yellow-600' : 'text-red-600'}">
+                                    ${result.performance_metrics.performance_summary}
+                                </p>
+                                <div class="mt-2 text-sm text-gray-600">
+                                    ${result.performance_metrics.time_improvement >= 0.3 ? 
+                                        '🎯 <span class="text-green-600 font-semibold">Meets 30% improvement target!</span>' : 
+                                        result.performance_metrics.time_improvement > 0 ? 
+                                        '⚠️ <span class="text-yellow-600 font-semibold">Some improvement, but below 30% target</span>' : 
+                                        '❌ <span class="text-red-600 font-semibold">No performance improvement detected</span>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
                         <h3 class="text-lg font-semibold mb-3">Optimized Query</h3>
                         <pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto"><code class="language-sql">${result.optimized_query}</code></pre>
                     </div>
@@ -614,6 +703,131 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                             <p class="text-red-700">${result.validation_error}</p>
                         </div>
                     ` : ''}
+                    
+                    <!-- Performance Comparison Chart -->
+                    ${result.performance_metrics ? `
+                        <div class="mt-6 bg-white border border-gray-200 rounded-lg p-6">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4 text-center">📈 Performance Comparison Chart</h4>
+                            <div class="space-y-4">
+                                <!-- Execution Time Comparison -->
+                                <div>
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Execution Time</span>
+                                        <span class="text-sm font-bold ${result.performance_metrics.time_improvement >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                            ${(result.performance_metrics.time_improvement * 100).toFixed(1)}% improvement
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-4">
+                                        <div class="flex-1">
+                                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                                <span>Original</span>
+                                                <span>${result.performance_metrics.original_time_ms}ms</span>
+                                            </div>
+                                            <div class="bg-red-200 rounded-full h-3">
+                                                <div class="bg-red-500 h-3 rounded-full" style="width: 100%"></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-lg font-bold text-gray-400">VS</div>
+                                        <div class="flex-1">
+                                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                                <span>Optimized</span>
+                                                <span>${result.performance_metrics.optimized_time_ms}ms</span>
+                                            </div>
+                                            <div class="bg-green-200 rounded-full h-3">
+                                                <div class="bg-green-500 h-3 rounded-full transition-all duration-1000" 
+                                                     style="width: ${(result.performance_metrics.optimized_time_ms / result.performance_metrics.original_time_ms) * 100}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Data Scanned Comparison -->
+                                <div>
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Data Scanned</span>
+                                        <span class="text-sm font-bold ${result.performance_metrics.bytes_improvement >= 0 ? 'text-blue-600' : 'text-red-600'}">
+                                            ${(result.performance_metrics.bytes_improvement * 100).toFixed(1)}% reduction
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-4">
+                                        <div class="flex-1">
+                                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                                <span>Original</span>
+                                                <span>${(result.performance_metrics.original_bytes / 1024 / 1024).toFixed(2)}MB</span>
+                                            </div>
+                                            <div class="bg-red-200 rounded-full h-3">
+                                                <div class="bg-red-500 h-3 rounded-full" style="width: 100%"></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-lg font-bold text-gray-400">VS</div>
+                                        <div class="flex-1">
+                                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                                <span>Optimized</span>
+                                                <span>${(result.performance_metrics.optimized_bytes / 1024 / 1024).toFixed(2)}MB</span>
+                                            </div>
+                                            <div class="bg-blue-200 rounded-full h-3">
+                                                <div class="bg-blue-500 h-3 rounded-full transition-all duration-1000" 
+                                                     style="width: ${(result.performance_metrics.optimized_bytes / result.performance_metrics.original_bytes) * 100}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Cost Comparison -->
+                                <div>
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Query Cost</span>
+                                        <span class="text-sm font-bold ${result.performance_metrics.cost_improvement >= 0 ? 'text-purple-600' : 'text-red-600'}">
+                                            ${(result.performance_metrics.cost_improvement * 100).toFixed(1)}% savings
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-4">
+                                        <div class="flex-1">
+                                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                                <span>Original</span>
+                                                <span>$${result.performance_metrics.original_cost.toFixed(4)}</span>
+                                            </div>
+                                            <div class="bg-red-200 rounded-full h-3">
+                                                <div class="bg-red-500 h-3 rounded-full" style="width: 100%"></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-lg font-bold text-gray-400">VS</div>
+                                        <div class="flex-1">
+                                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                                <span>Optimized</span>
+                                                <span>$${result.performance_metrics.optimized_cost.toFixed(4)}</span>
+                                            </div>
+                                            <div class="bg-purple-200 rounded-full h-3">
+                                                <div class="bg-purple-500 h-3 rounded-full transition-all duration-1000" 
+                                                     style="width: ${(result.performance_metrics.optimized_cost / result.performance_metrics.original_cost) * 100}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Performance Verdict -->
+                            <div class="mt-4 text-center p-4 rounded-lg ${result.performance_metrics.time_improvement >= 0.3 ? 'bg-green-100 border border-green-300' : result.performance_metrics.time_improvement > 0 ? 'bg-yellow-100 border border-yellow-300' : 'bg-red-100 border border-red-300'}">
+                                <div class="text-lg font-bold ${result.performance_metrics.time_improvement >= 0.3 ? 'text-green-800' : result.performance_metrics.time_improvement > 0 ? 'text-yellow-800' : 'text-red-800'}">
+                                    ${result.performance_metrics.time_improvement >= 0.3 ? '🎉 EXCELLENT OPTIMIZATION!' : 
+                                      result.performance_metrics.time_improvement > 0 ? '✅ GOOD OPTIMIZATION' : 
+                                      '⚠️ NO SIGNIFICANT IMPROVEMENT'}
+                                </div>
+                                <p class="text-sm mt-2 ${result.performance_metrics.time_improvement >= 0.3 ? 'text-green-700' : result.performance_metrics.time_improvement > 0 ? 'text-yellow-700' : 'text-red-700'}">
+                                    ${result.performance_metrics.time_improvement >= 0.3 ? 
+                                        'This optimization significantly improves query performance and meets our 30% improvement target.' : 
+                                        result.performance_metrics.time_improvement > 0 ? 
+                                        'This optimization provides some performance improvement, though below the 30% target.' : 
+                                        'This optimization does not provide significant performance improvement. Consider other optimization strategies.'}
+                                </p>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <h4 class="font-semibold text-yellow-800 mb-2">⚠️ Performance Measurement Not Available</h4>
+                            <p class="text-yellow-700 text-sm">Enable "Measure Performance" option to see detailed performance metrics and verify optimization effectiveness.</p>
+                        </div>
+                    `}
                 </div>
             `);
             
@@ -636,6 +850,36 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Performance Metrics for Test Case -->
+                        ${testCase.optimization_result.performance_metrics ? `
+                            <div class="mt-6 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+                                <h5 class="font-semibold text-green-800 mb-3">📊 Performance Verification</h5>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="text-center bg-white rounded-lg p-3 shadow-sm">
+                                        <h6 class="font-semibold text-gray-700 text-sm">⚡ Time</h6>
+                                        <p class="text-lg font-bold ${testCase.optimization_result.performance_metrics.time_improvement >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                            ${(testCase.optimization_result.performance_metrics.time_improvement * 100).toFixed(1)}%
+                                        </p>
+                                        <p class="text-xs text-gray-600">${testCase.optimization_result.performance_metrics.time_saved_ms}ms saved</p>
+                                    </div>
+                                    <div class="text-center bg-white rounded-lg p-3 shadow-sm">
+                                        <h6 class="font-semibold text-gray-700 text-sm">💾 Data</h6>
+                                        <p class="text-lg font-bold ${testCase.optimization_result.performance_metrics.bytes_improvement >= 0 ? 'text-blue-600' : 'text-red-600'}">
+                                            ${(testCase.optimization_result.performance_metrics.bytes_improvement * 100).toFixed(1)}%
+                                        </p>
+                                        <p class="text-xs text-gray-600">${(testCase.optimization_result.performance_metrics.bytes_saved / 1024 / 1024).toFixed(2)}MB saved</p>
+                                    </div>
+                                    <div class="text-center bg-white rounded-lg p-3 shadow-sm">
+                                        <h6 class="font-semibold text-gray-700 text-sm">💰 Cost</h6>
+                                        <p class="text-lg font-bold ${testCase.optimization_result.performance_metrics.cost_improvement >= 0 ? 'text-purple-600' : 'text-red-600'}">
+                                            ${(testCase.optimization_result.performance_metrics.cost_improvement * 100).toFixed(1)}%
+                                        </p>
+                                        <p class="text-xs text-gray-600">$${testCase.optimization_result.performance_metrics.cost_saved.toFixed(4)} saved</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
                         ${result.query_execution_error ? `
                             <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
                                 <h5 class="font-semibold text-red-800 mb-2">Query Execution Error</h5>
