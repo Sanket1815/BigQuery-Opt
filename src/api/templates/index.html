@@ -460,6 +460,21 @@
                 <button class="btn btn-secondary" onclick="runTestSuite()">
                     <span>🧪</span> Run Tests
                 </button>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="testSuiteSelect">Select Test Suite:</label>
+                    <select id="testSuiteSelect" class="form-control">
+                        <option value="simple_query">Simple Query Test</option>
+                        <option value="complex_join">Complex JOIN Test</option>
+                        <option value="aggregation">Aggregation Test</option>
+                        <option value="window_function">Window Function Test</option>
+                        <option value="nested_query">Nested Query Test</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="runSpecificTestSuite()">
+                    <span>🎯</span> Run Selected Test Suite
+                </button>
             </div>
         </div>
 
@@ -471,6 +486,12 @@
         <div class="results-section" id="resultsSection" style="display: none;">
             <div class="results-card">
                 <div id="optimizationResults"></div>
+            </div>
+        </div>
+        
+        <div class="results-section" id="testResultsSection" style="display: none;">
+            <div class="results-card">
+                <div id="testResults"></div>
             </div>
         </div>
     </div>
@@ -818,6 +839,134 @@ ORDER BY total_spent DESC`;
             }
         }
 
+        async function runSpecificTestSuite() {
+            const testSuite = document.getElementById('testSuiteSelect').value;
+            const projectId = document.getElementById('projectId').value.trim();
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').classList.add('show');
+            document.getElementById('testResultsSection').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/v1/run-test-suite', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        test_suite: testSuite,
+                        project_id: projectId || null,
+                        validate_results: true,
+                        measure_performance: true
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayTestSuiteResults(result);
+                } else {
+                    displayTestError(result.detail || 'Test suite execution failed');
+                }
+            } catch (error) {
+                displayTestError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').classList.remove('show');
+            }
+        }
+
+        function displayTestSuiteResults(result) {
+            const testResultsDiv = document.getElementById('testResults');
+            
+            let html = `
+                <h2>🧪 Test Suite Results: ${result.suite_name}</h2>
+                <p>${result.description}</p>
+                
+                <div class="optimization-summary">
+                    <h3>📊 Test Suite Summary</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value">${result.test_cases.length}</div>
+                            <div class="metric-label">Test Cases</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${result.execution_time.toFixed(2)}s</div>
+                            <div class="metric-label">Execution Time</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${result.test_cases.filter(tc => tc.optimization_result.total_optimizations > 0).length}</div>
+                            <div class="metric-label">Successful Optimizations</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${result.test_cases.filter(tc => tc.optimization_result.results_identical).length}</div>
+                            <div class="metric-label">Validated Results</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Display each test case
+            html += '<h3>🔧 Test Case Results</h3>';
+            
+            result.test_cases.forEach((testCase, index) => {
+                const opt = testCase.optimization_result;
+                const hasPerformanceMetrics = opt.performance_metrics && opt.performance_metrics.success;
+                
+                html += `
+                    <div class="optimization-item">
+                        <h4>${index + 1}. ${testCase.name}</h4>
+                        <p>${testCase.description}</p>
+                        
+                        <div style="margin: 10px 0;">
+                            <strong>Optimizations Applied:</strong> ${opt.total_optimizations}
+                            ${opt.results_identical ? '<span style="color: green;">✅ Results Identical</span>' : '<span style="color: red;">❌ Results Differ</span>'}
+                        </div>
+                        
+                        ${hasPerformanceMetrics ? `
+                            <div class="performance-metrics" style="margin: 10px 0; padding: 10px; background: #e3f2fd; border-radius: 6px;">
+                                <strong>Performance Metrics:</strong>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px;">
+                                    <div>Time: ${opt.performance_metrics.time_improvement ? (opt.performance_metrics.time_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
+                                    <div>Bytes: ${opt.performance_metrics.bytes_improvement ? (opt.performance_metrics.bytes_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
+                                    <div>Cost: ${opt.performance_metrics.cost_improvement ? (opt.performance_metrics.cost_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${opt.optimizations_applied.length > 0 ? `
+                            <div style="margin: 10px 0;">
+                                <strong>Applied Optimizations:</strong>
+                                <ul style="margin: 5px 0 0 20px;">
+                                    ${opt.optimizations_applied.map(optimization => 
+                                        `<li>${optimization.pattern_name}: ${optimization.description}</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        <details style="margin-top: 10px;">
+                            <summary>View Optimized Query</summary>
+                            <div class="code-block" style="margin-top: 10px; font-size: 12px;">
+                                ${escapeHtml(opt.optimized_query)}
+                            </div>
+                        </details>
+                    </div>
+                `;
+            });
+            
+            testResultsDiv.innerHTML = html;
+            document.getElementById('testResultsSection').style.display = 'block';
+        }
+        
+        function displayTestError(message) {
+            const testResultsDiv = document.getElementById('testResults');
+            testResultsDiv.innerHTML = `
+                <div class="error">
+                    <strong>Test Error:</strong> ${escapeHtml(message)}
+                </div>
+            `;
+            document.getElementById('testResultsSection').style.display = 'block';
+        }
         // Load system status on page load
         window.addEventListener('load', function() {
             checkSystemStatus();
