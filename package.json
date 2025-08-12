@@ -1,13 +1,22 @@
 {
-  "name": "bigquery-query-optimizer-frontend",
+  "name": "bigquery-optimizer",
   "version": "1.0.0",
-  "description": "Frontend dependencies for BigQuery Query Optimizer",
-  "private": true,
+  "description": "BigQuery SQL optimization tool with AI-powered analysis",
+  "main": "src/api/server.py",
   "scripts": {
-    "dev": "echo 'This is a Python project. Use: python run_api_server.py'",
-    "build": "echo 'This is a Python project. Use: make install-dev'",
-    "start": "echo 'This is a Python project. Use: python run_api_server.py'"
+    "test": "python -m pytest",
+    "start": "python run_api_server.py",
+    "install-deps": "pip install -r requirements.txt"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "keywords": [
+    "bigquery",
+    "sql",
+    "optimization",
+    "ai",
+    "query-analysis"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {}
 }
