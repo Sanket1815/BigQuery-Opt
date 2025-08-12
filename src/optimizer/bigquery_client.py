@@ -194,6 +194,29 @@ class BigQueryClient:
             self.logger.log_error(e, {"operation": "get_table_info", "table_id": table_id})
             return {"error": str(e)}
     
+    def is_table_partitioned(self, table_id: str) -> bool:
+        """Check if a table is partitioned by date/timestamp."""
+        try:
+            table = self.client.get_table(table_id)
+            return table.time_partitioning is not None
+        except Exception:
+            return False
+    
+    def get_table_partition_info(self, table_id: str) -> Dict[str, Any]:
+        """Get partition information for a table."""
+        try:
+            table = self.client.get_table(table_id)
+            if table.time_partitioning:
+                return {
+                    "is_partitioned": True,
+                    "partition_type": table.time_partitioning.type_,
+                    "partition_field": table.time_partitioning.field
+                }
+            else:
+                return {"is_partitioned": False}
+        except Exception as e:
+            return {"is_partitioned": False, "error": str(e)}
+    
     def get_query_plan(self, query: str) -> Dict[str, Any]:
         """Get query execution plan."""
         try:

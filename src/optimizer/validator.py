@@ -20,7 +20,7 @@ class QueryValidator:
         self, 
         original_query: str, 
         optimized_query: str,
-        sample_size: Optional[int] = 1000
+        sample_size: Optional[int] = 0  # Default to no sampling
     ) -> Dict[str, Any]:
         """Validate that both queries return identical results."""
         
@@ -45,13 +45,15 @@ class QueryValidator:
                     "validation_type": "syntax_error"
                 }
             
-            # If sample_size is specified, add LIMIT clause for faster validation
-            if sample_size:
+            # Only add LIMIT if sample_size is explicitly specified and > 0
+            if sample_size and sample_size > 0:
                 original_test_query = self._add_limit_clause(original_query, sample_size)
                 optimized_test_query = self._add_limit_clause(optimized_query, sample_size)
+                print(f"🔍 Using sample size: {sample_size} rows for validation")
             else:
                 original_test_query = original_query
                 optimized_test_query = optimized_query
+                print(f"🔍 Executing complete queries (no sampling)")
             
             # Execute both queries
             original_result = self.bq_client.execute_query(original_test_query, dry_run=False)

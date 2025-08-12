@@ -14,7 +14,15 @@
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">BigQuery Query Optimizer</h1>
-            <p class="text-gray-600">AI-powered SQL query optimization for better performance</p>
+            <p class="text-gray-600">AI-powered SQL query optimization with MCP server integration</p>
+            <div class="mt-2 text-sm text-blue-600">
+                <span class="inline-flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Enhanced with Model Context Protocol (MCP) Server Integration
+                </span>
+            </div>
         </div>
 
         <!-- Main Interface -->
@@ -50,14 +58,25 @@
                     <h2 class="text-xl font-semibold">SQL Query</h2>
                     <div class="space-x-2">
                         <button onclick="loadTestQuery()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                            Load Test Query
+                            Load Example Query
                         </button>
                         <button onclick="clearQuery()" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
                             Clear
                         </button>
                     </div>
                 </div>
-                <textarea id="sqlQuery" rows="10" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="Enter your BigQuery SQL query here..."></textarea>
+                <textarea id="sqlQuery" rows="10" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="Enter any BigQuery SQL query here...
+
+Examples:
+SELECT * FROM `project.dataset.customers` WHERE signup_date >= '2024-01-01'
+SELECT customer_id, COUNT(*) FROM `project.dataset.orders` GROUP BY customer_id
+SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"></textarea>
+            </div>
+            <div class="mt-4">
+                <label for="queryLimit" class="block text-sm font-medium text-gray-700 mb-1">Row Limit</label>
+                <input type="number" id="queryLimit" value="100" min="1" max="10000"
+                       class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-gray-500 mt-1">Maximum rows to fetch (e.g., 100)</p>
             </div>
 
             <!-- Action Buttons -->
@@ -73,11 +92,38 @@
                         Get Suggestions
                     </button>
                     <button onclick="runTests()" class="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                        Run Tests
+                        Run Test Suite
                     </button>
                     <button onclick="showStatus()" class="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
                         System Status
                     </button>
+                </div>
+            </div>
+
+            <!-- Test Suite Selection -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Test Suite Selection</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Test Suite</label>
+                        <select id="testSuiteSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Choose a test suite...</option>
+                            <option value="simple_query">Simple Query Test - Basic SELECT with inefficient WHERE</option>
+                            <option value="complex_join">Complex JOIN Test - Multi-table JOIN with suboptimal ordering</option>
+                            <option value="aggregation">Aggregation Test - GROUP BY without proper partitioning</option>
+                            <option value="window_function">Window Function Test - Inefficient window specifications</option>
+                            <option value="nested_query">Nested Query Test - Deeply nested subqueries</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="runSelectedTestSuite()" class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-semibold">
+                            Run Selected Test Suite
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-gray-600">
+                    <p>Each test suite contains 3 test cases that demonstrate different optimization scenarios.</p>
+                    <p>You'll see both the unoptimized and optimized queries with their actual results.</p>
                 </div>
             </div>
 
@@ -252,6 +298,13 @@
                 showError('Please enter a SQL query');
                 return;
             }
+            
+            // Add reasonable LIMIT if not present to prevent huge result sets
+            let safeQuery = query;
+            const limit = parseInt(document.getElementById('queryLimit').value) || 100;
+            if (!/limit\s+\d+/i.test(query)) {
+                safeQuery += `\nLIMIT ${limit}`;
+            }
 
             showLoading();
             try {
@@ -259,7 +312,7 @@
                 const response = await fetch('/api/v1/optimize', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, ...config })
+                    body: JSON.stringify({ query: safeQuery, ...config })
                 });
 
                 const result = await response.json();
@@ -333,6 +386,113 @@
             }
         }
 
+        // Run selected test suite
+        async function runSelectedTestSuite() {
+            const testSuite = document.getElementById('testSuiteSelect').value;
+            if (!testSuite) {
+                showError('Please select a test suite');
+                return;
+            }
+
+            showLoading();
+            try {
+                const config = getRequestConfig();
+                const response = await fetch('/api/v1/run-test-suite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        test_suite: testSuite,
+                        project_id: config.project_id,
+                        validate_results: config.validate,
+                        measure_performance: config.measure_performance
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Test suite execution failed');
+                }
+
+                displayTestSuiteResults(result);
+            } catch (error) {
+                showError('Test suite execution failed: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Display test suite results
+        function displayTestSuiteResults(result) {
+            const testCasesHtml = result.test_cases.map((testCase, index) => `
+                <div class="border border-gray-200 rounded-lg p-6 mb-6">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-4">Test Case ${index + 1}: ${testCase.name}</h4>
+                    <p class="text-gray-700 mb-6">${testCase.description}</p>
+                    
+                    <!-- Optimization Details -->
+                    ${testCase.optimization_result.optimizations_applied && testCase.optimization_result.optimizations_applied.length > 0 ? `
+                        <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h5 class="font-semibold text-blue-800 mb-3">🔧 Optimizations Applied</h5>
+                            <div class="space-y-3">
+                                ${testCase.optimization_result.optimizations_applied.map(opt => `
+                                    <div class="border-l-4 border-blue-500 pl-4">
+                                        <h6 class="font-semibold text-blue-700">${opt.pattern_name}</h6>
+                                        <p class="text-gray-700 text-sm">${opt.description}</p>
+                                        ${opt.expected_improvement ? `<p class="text-green-600 text-sm font-medium">Expected improvement: ${(opt.expected_improvement * 100).toFixed(1)}%</p>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <h5 class="font-semibold text-gray-600 mb-2">🔧 Optimizations Applied</h5>
+                            <p class="text-gray-600 text-sm">No optimizations were applied to this query.</p>
+                        </div>
+                    `}
+                    
+                    <!-- Query Comparison -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <h5 class="font-semibold text-red-800 mb-3">🔴 Original Query (Unoptimized)</h5>
+                            <pre class="bg-red-50 border border-red-200 p-3 rounded text-xs overflow-x-auto"><code class="language-sql">${testCase.original_query}</code></pre>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold text-green-800 mb-3">🟢 Optimized Query</h5>
+                            <pre class="bg-green-50 border border-green-200 p-3 rounded text-xs overflow-x-auto"><code class="language-sql">${testCase.optimization_result.optimized_query}</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- Query Results -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h5 class="font-semibold text-blue-800 mb-3">🔵 Original Query Results</h5>
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-h-96 overflow-auto">
+                                ${formatQueryResults(testCase.original_results, 'Original')}
+                            </div>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold text-green-800 mb-3">🟢 Optimized Query Results</h5>
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 max-h-96 overflow-auto">
+                                ${formatQueryResults(testCase.optimized_results, 'Optimized')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            showResults(`
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-2xl font-semibold text-indigo-800 mb-6">Test Suite: ${result.suite_name}</h2>
+                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-semibold text-gray-800 mb-2">Suite Description</h3>
+                        <p class="text-gray-700">${result.description}</p>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">Test Cases</h3>
+                    ${testCasesHtml}
+                </div>
+            `);
+        }
+
         // Run tests
         async function runTests() {
             showLoading();
@@ -389,18 +549,94 @@
                         <div class="bg-blue-50 p-4 rounded-lg">
                             <h3 class="font-semibold text-blue-800">Optimizations Applied</h3>
                             <p class="text-2xl font-bold text-blue-600">${result.total_optimizations}</p>
+                            <p class="text-xs text-blue-600 mt-1">via MCP Server</p>
                         </div>
                         <div class="bg-green-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-green-800">Estimated Improvement</h3>
+                            <h3 class="font-semibold text-green-800">Expected Improvement</h3>
                             <p class="text-2xl font-bold text-green-600">${result.estimated_improvement ? (result.estimated_improvement * 100).toFixed(1) + '%' : 'N/A'}</p>
+                            <p class="text-xs text-green-600 mt-1">AI + Documentation</p>
                         </div>
                         <div class="bg-purple-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-purple-800">Results Identical</h3>
-                            <p class="text-2xl font-bold ${result.results_identical ? 'text-green-600' : 'text-red-600'}">
-                                ${result.results_identical ? '✓ Yes' : '✗ No'}
-                            </p>
+                            <h3 class="font-semibold text-purple-800">Processing Time</h3>
+                            <p class="text-2xl font-bold text-purple-600">${result.processing_time_seconds ? result.processing_time_seconds.toFixed(1) + 's' : 'N/A'}</p>
+                            <p class="text-xs text-purple-600 mt-1">End-to-End</p>
                         </div>
                     </div>
+
+                    <!-- Performance Metrics Comparison -->
+                    ${(result.original_execution_time_ms || result.original_bytes_processed) ? `
+                        <div class="mb-6 bg-gradient-to-r from-red-50 to-green-50 border border-gray-200 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold mb-4 text-center">📊 Performance Comparison</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Execution Time Comparison -->
+                                ${result.original_execution_time_ms && result.optimized_execution_time_ms ? `
+                                    <div class="bg-white rounded-lg p-4 border">
+                                        <h4 class="font-semibold text-gray-800 mb-3 text-center">⏱️ Execution Time</h4>
+                                        <div class="space-y-3">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-red-700 font-medium">🔴 Original:</span>
+                                                <span class="font-mono text-red-600">${result.original_execution_time_ms}ms</span>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-green-700 font-medium">🟢 Optimized:</span>
+                                                <span class="font-mono text-green-600">${result.optimized_execution_time_ms}ms</span>
+                                            </div>
+                                            ${result.performance_improvement_ms ? `
+                                                <div class="border-t pt-2 mt-2">
+                                                    <div class="flex justify-between items-center">
+                                                        <span class="text-blue-700 font-bold">🚀 Time Saved:</span>
+                                                        <span class="font-mono text-blue-600 font-bold">${result.performance_improvement_ms}ms</span>
+                                                    </div>
+                                                    <div class="text-center mt-2">
+                                                        <span class="text-lg font-bold text-green-600">
+                                                            ${((result.performance_improvement_ms / result.original_execution_time_ms) * 100).toFixed(1)}% Faster
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- Data Processing Comparison -->
+                                ${result.original_bytes_processed && result.optimized_bytes_processed ? `
+                                    <div class="bg-white rounded-lg p-4 border">
+                                        <h4 class="font-semibold text-gray-800 mb-3 text-center">📊 Data Processed</h4>
+                                        <div class="space-y-3">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-red-700 font-medium">🔴 Original:</span>
+                                                <span class="font-mono text-red-600">${formatBytes(result.original_bytes_processed)}</span>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-green-700 font-medium">🟢 Optimized:</span>
+                                                <span class="font-mono text-green-600">${formatBytes(result.optimized_bytes_processed)}</span>
+                                            </div>
+                                            ${result.bytes_saved ? `
+                                                <div class="border-t pt-2 mt-2">
+                                                    <div class="flex justify-between items-center">
+                                                        <span class="text-blue-700 font-bold">💾 Data Saved:</span>
+                                                        <span class="font-mono text-blue-600 font-bold">${formatBytes(result.bytes_saved)}</span>
+                                                    </div>
+                                                    <div class="text-center mt-2">
+                                                        <span class="text-lg font-bold text-green-600">
+                                                            ${((result.bytes_saved / result.original_bytes_processed) * 100).toFixed(1)}% Less Data
+                                                        </span>
+                                                    </div>
+                                                    ${result.cost_savings_usd ? `
+                                                        <div class="text-center mt-1">
+                                                            <span class="text-sm font-medium text-green-700">
+                                                                💵 Est. Cost Savings: $${result.cost_savings_usd.toFixed(4)}
+                                                            </span>
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
 
                     ${result.optimizations_applied.length > 0 ? `
                         <div class="mb-6">
@@ -422,6 +658,41 @@
                     ` : ''}
                 </div>
             `);
+            
+            // Display query results if available
+            if (result.original_query_results || result.optimized_query_results) {
+                const resultsHtml = `
+                    <div class="mt-6">
+                        <h3 class="text-lg font-semibold mb-4">Query Results Comparison</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="font-semibold text-blue-800 mb-3">🔵 Original Query Results</h4>
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-h-96 overflow-auto">
+                                    ${formatQueryResults(result.original_query_results, 'Original', result.original_row_count)}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-green-800 mb-3">🟢 Optimized Query Results</h4>
+                                <div class="bg-green-50 border border-green-200 rounded-lg p-4 max-h-96 overflow-auto">
+                                    ${formatQueryResults(result.optimized_query_results, 'Optimized', result.optimized_row_count)}
+                                </div>
+                            </div>
+                        </div>
+                        ${result.query_execution_error ? `
+                            <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                                <h5 class="font-semibold text-red-800 mb-2">Query Execution Error</h5>
+                                <p class="text-red-700">${result.query_execution_error}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                // Insert results HTML before the closing div
+                const resultDiv = document.querySelector('#resultsArea .bg-white.rounded-lg.shadow-md');
+                if (resultDiv) {
+                    resultDiv.insertAdjacentHTML('beforeend', resultsHtml);
+                }
+            }
         }
 
         // Display analysis result
@@ -501,32 +772,10 @@
 
         // Display test results
         function displayTestResults(result) {
-            const statusColor = result.success ? 'green' : 'red';
-            const statusIcon = result.success ? '✓' : '✗';
-
             showResults(`
                 <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-${statusColor}-800">Test Results</h2>
+                    <h2 class="text-2xl font-semibold mb-4 text-blue-800">Test Results</h2>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-${statusColor}-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-${statusColor}-800">Status</h3>
-                            <p class="text-2xl font-bold text-${statusColor}-600">${statusIcon} ${result.success ? 'Passed' : 'Failed'}</p>
-                        </div>
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-blue-800">Total Tests</h3>
-                            <p class="text-2xl font-bold text-blue-600">${result.total_tests}</p>
-                        </div>
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-green-800">Passed</h3>
-                            <p class="text-2xl font-bold text-green-600">${result.passed_tests}</p>
-                        </div>
-                        <div class="bg-red-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-red-800">Failed</h3>
-                            <p class="text-2xl font-bold text-red-600">${result.failed_tests}</p>
-                        </div>
-                    </div>
-
                     ${result.error_message ? `
                         <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                             <h4 class="font-semibold text-red-800 mb-2">Error</h4>
@@ -587,6 +836,65 @@
                     ` : ''}
                 </div>
             `);
+        }
+
+        // Format bytes for display
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Format query results for display
+        function formatQueryResults(results, queryType = '', rowCount = null) {
+            if (!results || results.length === 0) {
+                return `<div class="p-4 text-center text-gray-500">No data returned from ${queryType} query${rowCount !== null ? ` (${rowCount} rows)` : ''}</div>`;
+            }
+            
+            // Create HTML table
+            const headers = Object.keys(results[0]);
+            let tableHtml = `<div class="text-sm text-gray-700 mb-3 font-bold bg-gray-100 p-2 rounded flex justify-between items-center">
+                <span>${queryType} Query Results</span>
+                <span class="text-blue-600">${rowCount !== null ? rowCount : results.length} rows</span>
+            </div>`;
+            tableHtml += '<table class="w-full text-xs border-collapse border border-gray-300">';
+            
+            // Add headers
+            tableHtml += '<thead class="bg-gray-200"><tr>';
+            headers.forEach(header => {
+                tableHtml += `<th class="border border-gray-400 px-2 py-1 text-left font-bold text-gray-800">${header}</th>`;
+            });
+            tableHtml += '</tr></thead>';
+            
+            // Add data rows
+            tableHtml += '<tbody>';
+            results.slice(0, 20).forEach((row, index) => {  // Show max 20 rows
+                tableHtml += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50">`;
+                headers.forEach(header => {
+                    const value = row[header];
+                    let displayValue;
+                    if (value === null || value === undefined) {
+                        displayValue = '<span class="text-gray-400 italic font-semibold">NULL</span>';
+                    } else if (typeof value === 'number') {
+                        displayValue = `<span class="font-mono">${value.toLocaleString()}</span>`;
+                    } else if (typeof value === 'string' && value.length > 50) {
+                        displayValue = `<span title="${value}">${value.substring(0, 50)}...</span>`;
+                    } else {
+                        displayValue = String(value);
+                    }
+                    tableHtml += `<td class="border border-gray-300 px-2 py-1 text-gray-700">${displayValue}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody></table>';
+            
+            if (results.length > 20) {
+                tableHtml += `<div class="text-center text-gray-500 text-sm mt-2">Showing first 20 rows of ${results.length} total rows</div>`;
+            }
+            
+            return tableHtml;
         }
 
         // Initialize syntax highlighting after content is loaded

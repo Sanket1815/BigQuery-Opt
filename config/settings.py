@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     
     # Google Cloud settings
     google_cloud_project: Optional[str] = Field(
-        default=None, 
+        default=None,
         description="Google Cloud Project ID"
     )
     google_application_credentials: Optional[str] = Field(
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     
     # MCP Server settings
     mcp_host: str = Field(default="localhost", description="MCP server host")
-    mcp_port: int = Field(default=8000, description="MCP server port")
+    mcp_port: int = Field(default=8001, description="MCP server port")
     
     # Documentation crawler settings
     docs_base_url: str = Field(
@@ -131,6 +131,12 @@ class Settings(BaseSettings):
         # Create directories if they don't exist
         self.docs_output_dir.mkdir(parents=True, exist_ok=True)
         self.vector_db_path.mkdir(parents=True, exist_ok=True)
+        
+        # Debug: Print the actual project ID being used
+        if self.google_cloud_project:
+            print(f"✅ Using Google Cloud Project: {self.google_cloud_project}")
+        else:
+            print("❌ Google Cloud Project ID not set in environment variables")
 
 
 # Global settings instance

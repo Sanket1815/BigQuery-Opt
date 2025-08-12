@@ -4,7 +4,7 @@ help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
 	@echo 'Targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}\' $(MAKEFILE_LIST)
 
 install: ## Install the package and dependencies
 	pip install -e .
@@ -86,9 +86,15 @@ batch-optimize: ## Run batch optimization on sample queries
 	python -m src.optimizer.main batch --queries-file tests/data/sample_queries.json
 
 setup: ## Setup development environment
-	python -m venv venv
+	python3 -m venv venv || python -m venv venv
 	@echo "Activate virtual environment with: source venv/bin/activate (Linux/Mac) or venv\\Scripts\\activate (Windows)"
 	@echo "Then run: make install-dev"
+
+check-env: ## Check Python environment health
+	@echo "🔍 Checking Python environment..."
+	@python3 --version || python --version
+	@python3 -c "import sys, os, importlib; print('✅ Basic imports working')" || python -c "import sys, os, importlib; print('✅ Basic imports working')"
+	@echo "✅ Environment check complete"
 
 docker-build: ## Build Docker image
 	docker build -t bigquery-optimizer .

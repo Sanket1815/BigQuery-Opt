@@ -135,7 +135,8 @@ def create_test_dataset_and_tables(project_id=None):
         result = bq_client.execute_query(orders_sql, dry_run=False)
         if not result["success"]:
             raise Exception(f"Failed to create orders table: {result['error']}")
-        print("✅ Orders table created (50,000 rows, partitioned by date)")
+        print("✅ Orders table created (50,000 rows, partitioned by order_date)")
+        print("   📅 Partition column: order_date (use _PARTITIONDATE for filtering)")
         
         # Create products table (50 rows)
         print("3️⃣ Creating products table...")
@@ -181,7 +182,8 @@ def create_test_dataset_and_tables(project_id=None):
         result = bq_client.execute_query(order_items_sql, dry_run=False)
         if not result["success"]:
             raise Exception(f"Failed to create order_items table: {result['error']}")
-        print("✅ Order_items table created (50,000 rows, partitioned by date)")
+        print("✅ Order_items table created (50,000 rows, partitioned by order_date)")
+        print("   📅 Partition column: order_date (use _PARTITIONDATE for filtering)")
         
         # Verify all tables and show row counts
         print("\n📋 Verifying created tables:")
@@ -206,6 +208,14 @@ def create_test_dataset_and_tables(project_id=None):
         
         print(f"\n📝 You can now test queries like:")
         print(f"   SELECT * FROM `{settings.google_cloud_project}.{dataset_id}.orders` WHERE order_date >= '2024-06-01' LIMIT 10")
+        print(f"   SELECT * FROM `{settings.google_cloud_project}.{dataset_id}.orders` WHERE _PARTITIONDATE >= '2024-06-01' AND order_date >= '2024-06-01' LIMIT 10")
+        
+        print(f"\n📊 Partitioned Tables (can use _PARTITIONDATE):")
+        print(f"   - orders (partitioned by order_date)")
+        print(f"   - order_items (partitioned by order_date)")
+        print(f"\n📊 Non-Partitioned Tables (do NOT use _PARTITIONDATE):")
+        print(f"   - customers")
+        print(f"   - products")
         
         return True
         

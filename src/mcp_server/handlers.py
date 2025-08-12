@@ -209,9 +209,13 @@ class OptimizationHandler:
         if 'SELECT *' in query_upper:
             issues.append("Using SELECT * may retrieve unnecessary columns")
         
-        # Check for missing WHERE clause on large tables
+        # Check for missing partition filters
+        if 'FROM' in query_upper and '_PARTITIONDATE' not in query_upper:
+            issues.append("Consider adding partition filter if table is partitioned by date")
+        
+        # Check for missing WHERE clause
         if 'WHERE' not in query_upper and 'FROM' in query_upper:
-            issues.append("Query may scan entire table without filtering")
+            issues.append("Query may scan entire table without filtering - consider adding WHERE clause")
         
         # Check for correlated subqueries
         if re.search(r'WHERE.*EXISTS\s*\(SELECT.*\)', query_upper):
@@ -219,11 +223,7 @@ class OptimizationHandler:
         
         # Check for COUNT(DISTINCT) on large datasets
         if 'COUNT(DISTINCT' in query_upper:
-            issues.append("COUNT(DISTINCT) can be slow on large datasets - consider APPROX_COUNT_DISTINCT")
-        
-        # Check for missing partition filters
-        if not re.search(r'_PARTITION(?:TIME|DATE)', query_upper):
-            issues.append("Consider adding partition filters to reduce data scanned")
+            issues.append("COUNT(DISTINCT) can be slow on large datasets - consider APPROX_COUNT_DISTINCT (results may vary slightly)")
         
         # Check for complex JOINs without proper ordering
         join_count = len(re.findall(r'\bJOIN\b', query_upper))
@@ -241,21 +241,54 @@ class OptimizationHandler:
         applicable = []
         query_upper = query.upper()
         
-        patterns_map = {
-            "join_reordering": ["JOIN"],
-            "partition_filtering": ["FROM", "WHERE"],
-            "subquery_to_join": ["EXISTS", "IN (SELECT"],
-            "window_optimization": ["OVER ("],
-            "approximate_aggregation": ["COUNT(DISTINCT"],
-            "column_pruning": ["SELECT *"],
-            "predicate_pushdown": ["WHERE", "HAVING"],
-            "clustering_optimization": ["WHERE", "ORDER BY"],
-            "materialized_view": ["GROUP BY", "AGGREGATE"]
-        }
+        # Dynamic pattern detection based on query structure
         
-        for pattern_id, keywords in patterns_map.items():
-            if any(keyword in query_upper for keyword in keywords):
-                applicable.append(pattern_id)
+        # 1. Column Pruning - SELECT * usage
+        if "SELECT *" in query_upper:
+            applicable.append("column_pruning")
+        
+        # 2. Subquery to JOIN conversion
+        if "EXISTS (" in query_upper or "EXISTS(" in query_upper:
+            applicable.append("subquery_to_join")
+        if "IN (SELECT" in query_upper or "IN(SELECT" in query_upper:
+            applicable.append("subquery_to_join")
+        if "NOT EXISTS" in query_upper:
+            applicable.append("subquery_to_join")
+        
+        # 3. JOIN optimization
+        if "JOIN" in query_upper:
+            applicable.append("join_reordering")
+        if re.search(r'FROM\s+\w+.*,\s*\w+', query_upper):  # Implicit cross join
+            applicable.append("join_conversion")
+        
+        # 4. Approximate aggregation
+        if "COUNT(DISTINCT" in query_upper or "COUNT( DISTINCT" in query_upper:
+            applicable.append("approximate_aggregation")
+        
+        # 5. Window function optimization
+        if "OVER (" in query_upper or "OVER(" in query_upper:
+            applicable.append("window_optimization")
+        
+        # 6. Correlated subquery to window function
+        if re.search(r'SELECT.*\(SELECT.*FROM.*WHERE.*=.*\)', query, re.IGNORECASE | re.DOTALL):
+            applicable.append("subquery_to_window")
+        
+        # 7. Predicate pushdown opportunities
+        if re.search(r'SELECT \* FROM.*WHERE', query_upper):
+            applicable.append("predicate_pushdown")
+        
+        # 8. Clustering optimization
+        if "WHERE" in query_upper and ("=" in query_upper or "IN (" in query_upper):
+            applicable.append("clustering_optimization")
+        
+        # 9. Materialized view candidates
+        if "GROUP BY" in query_upper and ("COUNT(" in query_upper or "SUM(" in query_upper):
+            applicable.append("materialized_view_suggestion")
+        
+        # 10. Partition filtering (only suggest, don't auto-apply)
+        if ("FROM" in query_upper and "_PARTITIONDATE" not in query_upper and
+            any(date_keyword in query_upper for date_keyword in ["DATE", "TIMESTAMP", ">= '2", "BETWEEN", "order_date", "created_at"])):
+            applicable.append("partition_filtering")
         
         return applicable
     

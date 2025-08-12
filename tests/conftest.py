@@ -8,7 +8,6 @@ from typing import Generator, Dict, Any
 from config.settings import Settings
 from src.optimizer.query_optimizer import BigQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
-from src.crawler.documentation_processor import DocumentationProcessor
 from src.common.models import QueryAnalysis, OptimizationPattern, OptimizationType
 
 
@@ -65,50 +64,23 @@ def mock_bigquery_client() -> Generator[Mock, None, None]:
 
 
 @pytest.fixture
-def mock_documentation_processor() -> Generator[Mock, None, None]:
+def mock_documentation_processor():
     """Mock documentation processor for testing."""
-    mock_processor = Mock(spec=DocumentationProcessor)
-    
-    # Mock search results
-    mock_processor.search_documentation.return_value = [
-        {
-            "content": "JOIN optimization best practices...",
-            "title": "JOIN Performance",
-            "url": "https://cloud.google.com/bigquery/docs/joins",
-            "optimization_patterns": ["JOIN optimization"],
-            "similarity_score": 0.9
-        }
-    ]
-    
-    # Mock optimization patterns
-    mock_patterns = [
-        OptimizationPattern(
-            pattern_id="join_reordering",
-            name="JOIN Reordering",
-            description="Reorder JOINs for better performance",
-            optimization_type=OptimizationType.JOIN_REORDERING,
-            expected_improvement=0.3,
-            applicability_conditions=["JOIN"]
-        ),
-        OptimizationPattern(
-            pattern_id="partition_filtering",
-            name="Partition Filtering", 
-            description="Add partition filters",
-            optimization_type=OptimizationType.PARTITION_FILTERING,
-            expected_improvement=0.5,
-            applicability_conditions=["WHERE"]
-        )
-    ]
-    
-    mock_processor.optimization_patterns = mock_patterns
-    mock_processor.get_optimization_patterns_for_query.return_value = mock_patterns
+    mock_processor = Mock()
     mock_processor.get_documentation_summary.return_value = {
         "total_chunks": 100,
-        "optimization_patterns": 9,
-        "embedding_model": "all-MiniLM-L6-v2"
+        "optimization_patterns": 10
     }
-    
-    yield mock_processor
+    mock_processor.search_documentation.return_value = []
+    mock_processor.optimization_patterns = []
+    return mock_processor
+
+
+@pytest.fixture
+def bigquery_emulator():
+    """BigQuery emulator for testing."""
+    from tests.emulator.bigquery_emulator import BigQueryEmulator
+    return BigQueryEmulator()
 
 
 @pytest.fixture
