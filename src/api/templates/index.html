@@ -499,69 +499,130 @@ ORDER BY total_amount DESC"
 
         // Setup event listeners when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, setting up event listeners...');
-            setupEventListeners();
+            console.log('🔧 DOM loaded, setting up event listeners...');
+            
+            // Wait a bit for all elements to be ready
+            setTimeout(function() {
+                setupEventListeners();
+                testButtonSetup();
+            }, 100);
         });
 
         function setupEventListeners() {
-            console.log('Setting up event listeners...');
+            console.log('🔧 Setting up event listeners...');
             
-            // Get button elements
+            // Get button elements with error checking
             const optimizeBtn = document.getElementById('optimizeBtn');
             const analyzeBtn = document.getElementById('analyzeBtn');
             const loadExampleBtn = document.getElementById('loadExampleBtn');
             
-            // Check if buttons exist
-            if (!optimizeBtn) {
-                console.error('Optimize button not found!');
-                return;
+            console.log('Button elements found:', {
+                optimizeBtn: !!optimizeBtn,
+                analyzeBtn: !!analyzeBtn,
+                loadExampleBtn: !!loadExampleBtn
+            });
+            
+            // Attach event listeners with immediate function calls
+            if (optimizeBtn) {
+                optimizeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('🚀 Optimize button clicked via addEventListener!');
+                    optimizeQuery();
+                });
+                
+                // Also set onclick as backup
+                optimizeBtn.onclick = function(e) {
+                    e.preventDefault();
+                    console.log('🚀 Optimize button clicked via onclick!');
+                    optimizeQuery();
+                };
+                console.log('✅ Optimize button listeners attached');
+            } else {
+                console.error('❌ Optimize button not found!');
             }
-            if (!analyzeBtn) {
-                console.error('Analyze button not found!');
-                return;
+            
+            if (analyzeBtn) {
+                analyzeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('📊 Analyze button clicked via addEventListener!');
+                    analyzeQuery();
+                });
+                
+                analyzeBtn.onclick = function(e) {
+                    e.preventDefault();
+                    console.log('📊 Analyze button clicked via onclick!');
+                    analyzeQuery();
+                };
+                console.log('✅ Analyze button listeners attached');
+            } else {
+                console.error('❌ Analyze button not found!');
             }
-            if (!loadExampleBtn) {
-                console.error('Load example button not found!');
-                return;
+            
+            if (loadExampleBtn) {
+                loadExampleBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('📝 Load example button clicked via addEventListener!');
+                    loadExampleQuery();
+                });
+                
+                loadExampleBtn.onclick = function(e) {
+                    e.preventDefault();
+                    console.log('📝 Load example button clicked via onclick!');
+                    loadExampleQuery();
+                };
+                console.log('✅ Load example button listeners attached');
+            } else {
+                console.error('❌ Load example button not found!');
             }
             
-            // Attach event listeners
-            optimizeBtn.onclick = function() {
-                console.log('Optimize button clicked!');
-                optimizeQuery();
-            };
+            console.log('✅ All event listeners setup completed');
+        }
+
+        function testButtonSetup() {
+            console.log('🧪 Testing button setup...');
             
-            analyzeBtn.onclick = function() {
-                console.log('Analyze button clicked!');
-                analyzeQuery();
-            };
+            const buttons = [
+                { id: 'optimizeBtn', name: 'Optimize' },
+                { id: 'analyzeBtn', name: 'Analyze' },
+                { id: 'loadExampleBtn', name: 'Load Example' }
+            ];
             
-            loadExampleBtn.onclick = function() {
-                console.log('Load example button clicked!');
-                loadExampleQuery();
-            };
-            
-            console.log('✅ Event listeners attached successfully');
+            buttons.forEach(button => {
+                const element = document.getElementById(button.id);
+                if (element) {
+                    console.log(`✅ ${button.name} button found and ready`);
+                    
+                    // Test click handler
+                    if (element.onclick || element.addEventListener) {
+                        console.log(`✅ ${button.name} button has click handler`);
+                    } else {
+                        console.error(`❌ ${button.name} button missing click handler`);
+                    }
+                } else {
+                    console.error(`❌ ${button.name} button not found in DOM`);
+                }
+            });
         }
 
         function optimizeQuery() {
             console.log('🚀 Starting query optimization...');
             
             if (isProcessing) {
-                console.log('Already processing, ignoring click');
+                console.log('⚠️ Already processing, ignoring click');
                 return;
             }
             
             const query = document.getElementById('sqlQuery').value.trim();
             if (!query) {
+                console.log('❌ No query entered');
                 showError('Please enter a SQL query to optimize.');
                 return;
             }
             
-            console.log('Query to optimize:', query.substring(0, 100) + '...');
+            console.log('📝 Query to optimize (first 100 chars):', query.substring(0, 100) + '...');
             
             const config = getRequestConfig();
-            console.log('Request config:', config);
+            console.log('⚙️ Request config:', config);
             
             setLoading(true);
             hideResults();
@@ -572,8 +633,8 @@ ORDER BY total_amount DESC"
                 measure_performance: true // Always measure performance
             };
             
-            console.log('Making API request to /api/v1/optimize...');
-            console.log('Request data:', requestData);
+            console.log('🌐 Making API request to /api/v1/optimize...');
+            console.log('📤 Request data:', JSON.stringify(requestData, null, 2));
             
             fetch('/api/v1/optimize', {
                 method: 'POST',
@@ -583,21 +644,24 @@ ORDER BY total_amount DESC"
                 body: JSON.stringify(requestData)
             })
             .then(response => {
-                console.log('API response received:', response.status);
+                console.log('📥 API response received:', response.status, response.statusText);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(result => {
-                console.log('✅ Optimization result received:', result);
+                console.log('✅ Optimization result received:');
+                console.log(JSON.stringify(result, null, 2));
                 displayOptimizationResult(result);
             })
             .catch(error => {
-                console.error('❌ Optimization failed:', error);
+                console.error('❌ Optimization API call failed:', error);
+                console.error('Error details:', error.stack);
                 showError(`Optimization failed: ${error.message}`);
             })
             .finally(() => {
+                console.log('🏁 API call completed, removing loading state');
                 setLoading(false);
             });
         }
@@ -606,19 +670,21 @@ ORDER BY total_amount DESC"
             console.log('📊 Starting query analysis...');
             
             if (isProcessing) {
-                console.log('Already processing, ignoring click');
+                console.log('⚠️ Already processing, ignoring click');
                 return;
             }
             
             const query = document.getElementById('sqlQuery').value.trim();
             if (!query) {
+                console.log('❌ No query entered for analysis');
                 showError('Please enter a SQL query to analyze.');
                 return;
             }
             
-            console.log('Query to analyze:', query.substring(0, 100) + '...');
+            console.log('📝 Query to analyze (first 100 chars):', query.substring(0, 100) + '...');
             
             const config = getRequestConfig();
+            console.log('⚙️ Analysis config:', config);
             
             setLoading(true);
             hideResults();
@@ -628,7 +694,8 @@ ORDER BY total_amount DESC"
                 project_id: config.project_id
             };
             
-            console.log('Making API request to /api/v1/analyze...');
+            console.log('🌐 Making API request to /api/v1/analyze...');
+            console.log('📤 Request data:', JSON.stringify(requestData, null, 2));
             
             fetch('/api/v1/analyze', {
                 method: 'POST',
@@ -638,21 +705,24 @@ ORDER BY total_amount DESC"
                 body: JSON.stringify(requestData)
             })
             .then(response => {
-                console.log('Analysis response received:', response.status);
+                console.log('📥 Analysis response received:', response.status, response.statusText);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(result => {
-                console.log('✅ Analysis result received:', result);
+                console.log('✅ Analysis result received:');
+                console.log(JSON.stringify(result, null, 2));
                 displayAnalysisResult(result);
             })
             .catch(error => {
-                console.error('❌ Analysis failed:', error);
+                console.error('❌ Analysis API call failed:', error);
+                console.error('Error details:', error.stack);
                 showError(`Analysis failed: ${error.message}`);
             })
             .finally(() => {
+                console.log('🏁 Analysis API call completed');
                 setLoading(false);
             });
         }
