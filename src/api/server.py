@@ -1,8 +1,8 @@
 """FastAPI server for BigQuery Query Optimizer REST API."""
 
 import os
-from pathlib import Path
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 import uvicorn
@@ -37,18 +37,27 @@ def create_app() -> FastAPI:
     # Include API routes
     app.include_router(router, prefix="/api/v1")
     
-        static_dir = os.path.join(os.path.dirname(__file__), "static")
-        return send_from_directory(static_dir, filename)
-    static_dir.mkdir(exist_ok=True)
+    # Mount static files
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    if not os.path.exists(static_dir):
+        try:
+            os.makedirs(static_dir, exist_ok=True)
+        except (OSError, AttributeError):
+            # Handle environments without full os support
+            pass
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
     
     # Root endpoint serves the UI
+    @app.get("/")
+    async def serve_ui():
+        """Serve the main UI page."""
         template_dir = os.path.join(os.path.dirname(__file__), "templates")
         template_path = os.path.join(template_dir, "index.html")
         
         if os.path.exists(template_path):
             with open(template_path, 'r', encoding='utf-8') as f:
-            return HTMLResponse(content=ui_file.read_text(encoding='utf-8'), status_code=200)
+                content = f.read()
+            return HTMLResponse(content=content, status_code=200)
         else:
             return HTMLResponse(
                 content="""
