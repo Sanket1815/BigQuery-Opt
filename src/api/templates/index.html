@@ -215,6 +215,47 @@
             gap: 15px;
         }
 
+        .performance-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 15px 0;
+        }
+
+        .performance-side {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .performance-side h5 {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .improvement-summary {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .improvement-summary h5 {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .test-performance-comparison {
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .test-performance-side h6 {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
         .performance-item {
             background: rgba(255,255,255,0.1);
             padding: 12px;
@@ -391,6 +432,10 @@
             }
             
             .results-comparison {
+                grid-template-columns: 1fr;
+            }
+            
+            .performance-comparison {
                 grid-template-columns: 1fr;
             }
             
@@ -579,6 +624,44 @@
                 html += `
                     <div class="performance-metrics">
                         <h4>📊 Performance Improvement Metrics</h4>
+                        <div class="performance-comparison">
+                            <div class="performance-side">
+                                <h5>🔵 Original Query Performance</h5>
+                                <div class="performance-grid">
+                                    <div class="performance-item">
+                                        <div class="value">${metrics.original_time_ms || 0}ms</div>
+                                        <div class="label">Execution Time</div>
+                                    </div>
+                                    <div class="performance-item">
+                                        <div class="value">${formatBytes(metrics.original_bytes || 0)}</div>
+                                        <div class="label">Bytes Processed</div>
+                                    </div>
+                                    <div class="performance-item">
+                                        <div class="value">$${metrics.original_cost ? metrics.original_cost.toFixed(4) : '0.0000'}</div>
+                                        <div class="label">Estimated Cost</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="performance-side">
+                                <h5>🟢 Optimized Query Performance</h5>
+                                <div class="performance-grid">
+                                    <div class="performance-item">
+                                        <div class="value">${metrics.optimized_time_ms || 0}ms</div>
+                                        <div class="label">Execution Time</div>
+                                    </div>
+                                    <div class="performance-item">
+                                        <div class="value">${formatBytes(metrics.optimized_bytes || 0)}</div>
+                                        <div class="label">Bytes Processed</div>
+                                    </div>
+                                    <div class="performance-item">
+                                        <div class="value">$${metrics.optimized_cost ? metrics.optimized_cost.toFixed(4) : '0.0000'}</div>
+                                        <div class="label">Estimated Cost</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="improvement-summary">
+                            <h5>📈 Performance Improvements</h5>
                         <div class="performance-grid">
                             <div class="performance-item">
                                 <div class="value">${metrics.time_improvement ? (metrics.time_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
@@ -604,6 +687,7 @@
                                 <div class="value">${formatBytes(metrics.bytes_saved || 0)}</div>
                                 <div class="label">Data Saved</div>
                             </div>
+                        </div>
                         </div>
                         <div style="text-align: center; margin-top: 15px; font-size: 1.1rem; font-weight: 600;">
                             Overall Performance: ${metrics.performance_summary || 'Metrics calculated'}
@@ -924,11 +1008,30 @@ ORDER BY total_spent DESC`;
                         
                         ${hasPerformanceMetrics ? `
                             <div class="performance-metrics" style="margin: 10px 0; padding: 10px; background: #e3f2fd; border-radius: 6px;">
-                                <strong>Performance Metrics:</strong>
-                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px;">
-                                    <div>Time: ${opt.performance_metrics.time_improvement ? (opt.performance_metrics.time_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
-                                    <div>Bytes: ${opt.performance_metrics.bytes_improvement ? (opt.performance_metrics.bytes_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
-                                    <div>Cost: ${opt.performance_metrics.cost_improvement ? (opt.performance_metrics.cost_improvement * 100).toFixed(1) + '%' : 'N/A'}</div>
+                                <strong>📊 Performance Comparison:</strong>
+                                <div class="test-performance-comparison" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                                    <div class="test-performance-side">
+                                        <h6 style="margin-bottom: 8px; color: #1976d2;">🔵 Original Query</h6>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;">
+                                            <div>Time: ${opt.performance_metrics.original_time_ms || 0}ms</div>
+                                            <div>Bytes: ${formatBytes(opt.performance_metrics.original_bytes || 0)}</div>
+                                            <div>Cost: $${opt.performance_metrics.original_cost ? opt.performance_metrics.original_cost.toFixed(4) : '0.0000'}</div>
+                                        </div>
+                                    </div>
+                                    <div class="test-performance-side">
+                                        <h6 style="margin-bottom: 8px; color: #388e3c;">🟢 Optimized Query</h6>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;">
+                                            <div>Time: ${opt.performance_metrics.optimized_time_ms || 0}ms</div>
+                                            <div>Bytes: ${formatBytes(opt.performance_metrics.optimized_bytes || 0)}</div>
+                                            <div>Cost: $${opt.performance_metrics.optimized_cost ? opt.performance_metrics.optimized_cost.toFixed(4) : '0.0000'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="text-align: center; margin-top: 10px; padding: 8px; background: rgba(76, 175, 80, 0.1); border-radius: 4px;">
+                                    <strong>📈 Improvements:</strong>
+                                    Time: ${opt.performance_metrics.time_improvement ? (opt.performance_metrics.time_improvement * 100).toFixed(1) + '%' : 'N/A'} | 
+                                    Bytes: ${opt.performance_metrics.bytes_improvement ? (opt.performance_metrics.bytes_improvement * 100).toFixed(1) + '%' : 'N/A'} | 
+                                    Cost: ${opt.performance_metrics.cost_improvement ? (opt.performance_metrics.cost_improvement * 100).toFixed(1) + '%' : 'N/A'}
                                 </div>
                             </div>
                         ` : ''}
