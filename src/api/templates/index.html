@@ -563,6 +563,81 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                         </div>
                     </div>
 
+                    <!-- Performance Metrics Comparison -->
+                    ${(result.original_execution_time_ms || result.original_bytes_processed) ? `
+                        <div class="mb-6 bg-gradient-to-r from-red-50 to-green-50 border border-gray-200 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold mb-4 text-center">📊 Performance Comparison</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Execution Time Comparison -->
+                                ${result.original_execution_time_ms && result.optimized_execution_time_ms ? `
+                                    <div class="bg-white rounded-lg p-4 border">
+                                        <h4 class="font-semibold text-gray-800 mb-3 text-center">⏱️ Execution Time</h4>
+                                        <div class="space-y-3">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-red-700 font-medium">🔴 Original:</span>
+                                                <span class="font-mono text-red-600">${result.original_execution_time_ms}ms</span>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-green-700 font-medium">🟢 Optimized:</span>
+                                                <span class="font-mono text-green-600">${result.optimized_execution_time_ms}ms</span>
+                                            </div>
+                                            ${result.performance_improvement_ms ? `
+                                                <div class="border-t pt-2 mt-2">
+                                                    <div class="flex justify-between items-center">
+                                                        <span class="text-blue-700 font-bold">🚀 Time Saved:</span>
+                                                        <span class="font-mono text-blue-600 font-bold">${result.performance_improvement_ms}ms</span>
+                                                    </div>
+                                                    <div class="text-center mt-2">
+                                                        <span class="text-lg font-bold text-green-600">
+                                                            ${((result.performance_improvement_ms / result.original_execution_time_ms) * 100).toFixed(1)}% Faster
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- Data Processing Comparison -->
+                                ${result.original_bytes_processed && result.optimized_bytes_processed ? `
+                                    <div class="bg-white rounded-lg p-4 border">
+                                        <h4 class="font-semibold text-gray-800 mb-3 text-center">📊 Data Processed</h4>
+                                        <div class="space-y-3">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-red-700 font-medium">🔴 Original:</span>
+                                                <span class="font-mono text-red-600">${formatBytes(result.original_bytes_processed)}</span>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-green-700 font-medium">🟢 Optimized:</span>
+                                                <span class="font-mono text-green-600">${formatBytes(result.optimized_bytes_processed)}</span>
+                                            </div>
+                                            ${result.bytes_saved ? `
+                                                <div class="border-t pt-2 mt-2">
+                                                    <div class="flex justify-between items-center">
+                                                        <span class="text-blue-700 font-bold">💾 Data Saved:</span>
+                                                        <span class="font-mono text-blue-600 font-bold">${formatBytes(result.bytes_saved)}</span>
+                                                    </div>
+                                                    <div class="text-center mt-2">
+                                                        <span class="text-lg font-bold text-green-600">
+                                                            ${((result.bytes_saved / result.original_bytes_processed) * 100).toFixed(1)}% Less Data
+                                                        </span>
+                                                    </div>
+                                                    ${result.cost_savings_usd ? `
+                                                        <div class="text-center mt-1">
+                                                            <span class="text-sm font-medium text-green-700">
+                                                                💵 Est. Cost Savings: $${result.cost_savings_usd.toFixed(4)}
+                                                            </span>
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+
                     ${result.optimizations_applied.length > 0 ? `
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold mb-3">Applied Optimizations</h3>
@@ -761,6 +836,15 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
                     ` : ''}
                 </div>
             `);
+        }
+
+        // Format bytes for display
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         // Format query results for display

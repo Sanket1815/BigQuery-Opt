@@ -234,6 +234,36 @@ class OptimizationResult(BaseModel):
         description="Error message if query execution failed"
     )
     
+    # Performance comparison metrics
+    original_execution_time_ms: Optional[int] = Field(
+        default=None,
+        description="Execution time of original query in milliseconds"
+    )
+    optimized_execution_time_ms: Optional[int] = Field(
+        default=None,
+        description="Execution time of optimized query in milliseconds"
+    )
+    original_bytes_processed: Optional[int] = Field(
+        default=None,
+        description="Bytes processed by original query"
+    )
+    optimized_bytes_processed: Optional[int] = Field(
+        default=None,
+        description="Bytes processed by optimized query"
+    )
+    performance_improvement_ms: Optional[int] = Field(
+        default=None,
+        description="Time saved in milliseconds"
+    )
+    bytes_saved: Optional[int] = Field(
+        default=None,
+        description="Bytes saved by optimization"
+    )
+    cost_savings_usd: Optional[float] = Field(
+        default=None,
+        description="Estimated cost savings in USD"
+    )
+    
     def get_summary(self) -> str:
         """Get a human-readable summary of the optimization."""
         if not self.optimizations_applied:
