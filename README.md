@@ -8,11 +8,11 @@ Organizations using BigQuery often have queries written by humans that fail to m
 
 ## Solution
 
-Enhanced AI-powered BigQuery query optimizer with MCP integration that:
+Enhanced AI-powered BigQuery query optimizer with direct documentation integration that:
 - **Input**: Underperforming BigQuery SQL query
-- **Output**: Schema-validated optimized query with identical results but improved performance
-- **Additional Output**: MCP-enhanced explanations with official documentation references
-- **NEW**: Schema validation prevents column errors and BigQuery failures
+- **Output**: Optimized query with identical results but improved performance
+- **Additional Output**: Documentation-backed explanations with official BigQuery references
+- **NEW**: Direct SQL analysis with markdown-based optimization suggestions
 
 ## Success Metrics
 
@@ -21,8 +21,8 @@ Enhanced AI-powered BigQuery query optimizer with MCP integration that:
 3. **Documentation Coverage**: Tool references 20+ distinct BigQuery optimization patterns
 4. **Explanation Quality**: Each optimization includes specific documentation references
 5. **Test Coverage**: Comprehensive test scenarios demonstrating various optimization patterns
-6. **Schema Validation**: 100% - No column errors or BigQuery failures
-7. **MCP Integration**: Documentation-backed optimization suggestions
+6. **Direct Analysis**: SQL queries analyzed directly without metadata conversion
+7. **Markdown Documentation**: Optimization patterns stored in accessible markdown format
 
 ## Quick Start
 
@@ -43,13 +43,13 @@ Enhanced AI-powered BigQuery query optimizer with MCP integration that:
 3. **Start the Web Interface**:
    ```bash
    python run_api_server.py
-   # Main API on port 8080 with embedded MCP components
+   # Main API on port 8080 with embedded optimization analyzer
    ```
    
-   **Optional - Start MCP Server separately** (for advanced debugging):
+   **Optional - Start MCP Server separately** (for API access):
    ```bash
    python -m src.mcp_server.server
-   # Runs on http://localhost:8001 (documentation service)
+   # Runs on http://localhost:8001 (optimization analysis service)
    ```
 
 4. **Open http://localhost:8080** and start optimizing queries!
@@ -58,21 +58,21 @@ Enhanced AI-powered BigQuery query optimizer with MCP integration that:
 
 ### **Enhanced Workflow Integration**:
 
-1. **Enhanced Documentation Crawler** (`src/crawler/`): Crawls Google Cloud BigQuery documentation with better pattern extraction
-2. **MCP Server** (`src/mcp_server/`): Model Context Protocol server (Port 8001) serving documentation-backed suggestions  
-3. **Enhanced Schema Extractor** (`src/optimizer/query_optimizer.py`): Extracts actual table schemas and validates column usage
-4. **Enhanced Query Optimizer** (`src/optimizer/`): Main optimization engine with MCP integration and schema validation
-5. **Enhanced AI Optimizer** (`src/optimizer/ai_optimizer.py`): Gemini-powered optimization with MCP context and schema awareness
+1. **Markdown Documentation** (`data/bigquery_optimizations.md`): BigQuery optimization patterns in accessible format
+2. **MCP Server** (`src/mcp_server/`): Model Context Protocol server (Port 8001) serving direct SQL analysis  
+3. **Optimization Analyzer** (`src/mcp_server/optimization_analyzer.py`): Direct SQL query analysis with markdown documentation
+4. **Enhanced Query Optimizer** (`src/optimizer/`): Main optimization engine with direct documentation integration
+5. **Enhanced AI Optimizer** (`src/optimizer/ai_optimizer.py`): Gemini-powered optimization with documentation suggestions
 6. **Enhanced BigQuery Client** (`src/optimizer/bigquery_client.py`): BigQuery service wrapper with schema extraction
 7. **Enhanced Result Validator** (`src/optimizer/validator.py`): Ensures optimized queries return identical results with schema validation
-8. **Enhanced Web Interface** (`src/api/`): REST API (Port 8080) and web UI with MCP integration indicators
+8. **Enhanced Web Interface** (`src/api/`): REST API (Port 8080) and web UI with optimization analysis integration
 
 ### **Enhanced Key Features**:
-- ✅ **Schema Validation**: Extracts actual column names and validates usage
-- ✅ **MCP Integration**: Documentation-backed optimization suggestions with official references
-- ✅ **Port Separation**: Main API (8080) and MCP Server (8001) with no conflicts
-- ✅ **Error Prevention**: Comprehensive validation prevents BigQuery failures
-- ✅ **Enhanced Context**: AI optimization with official documentation backing
+- ✅ **Direct SQL Analysis**: SQL queries sent directly to MCP server without metadata conversion
+- ✅ **Markdown Documentation**: Optimization patterns stored in accessible markdown format
+- ✅ **Documentation Integration**: AI receives optimization suggestions from markdown documentation
+- ✅ **Simplified Workflow**: Streamlined process from SQL query to optimization suggestions
+- ✅ **Enhanced Context**: AI optimization with direct documentation backing
 
 ## Optimization Patterns (20+ Supported)
 
@@ -92,7 +92,7 @@ The optimizer applies Google's official BigQuery best practices:
 
 ### Web Interface
 1. Open http://localhost:8080
-2. See "Enhanced with Model Context Protocol (MCP) Server Integration"
+2. See "Enhanced with Direct SQL Analysis and Markdown Documentation"
 3. Enter your BigQuery SQL query
 4. Configure your Google Cloud Project ID
 5. Click "Optimize Query"
