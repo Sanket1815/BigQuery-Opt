@@ -1,0 +1,13 @@
+{
+  "name": "bigquery-query-optimizer-frontend",
+  "version": "1.0.0",
+  "description": "Frontend dependencies for BigQuery Query Optimizer",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'This is a Python project. Use: python run_api_server.py'",
+    "build": "echo 'This is a Python project. Use: make install-dev'",
+    "start": "echo 'This is a Python project. Use: python run_api_server.py'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
