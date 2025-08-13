@@ -1061,10 +1061,44 @@ ORDER BY total_spent DESC`;
                             </div>
                         ` : ''}
                         
+                        <div style="margin: 15px 0;">
+                            <h5 style="margin-bottom: 10px; color: #2d3748;">📊 Query and Results Comparison</h5>
+                            <div class="results-comparison">
+                                <div class="query-result">
+                                    <h6 style="margin-bottom: 8px; color: #1976d2;">🔵 Original Query</h6>
+                                    <div class="code-block" style="font-size: 11px; padding: 10px; margin-bottom: 10px;">
+                                        ${escapeHtml(testCase.original_query)}
+                                    </div>
+                                    ${testCase.original_results ? `
+                                        <div>
+                                            <strong>Results (${testCase.original_results.length} rows):</strong>
+                                            ${formatQueryResults(testCase.original_results)}
+                                        </div>
+                                    ` : '<p style="color: #666; font-style: italic;">No results available</p>'}
+                                </div>
+                                <div class="query-result">
+                                    <h6 style="margin-bottom: 8px; color: #388e3c;">🟢 Optimized Query</h6>
+                                    <div class="code-block" style="font-size: 11px; padding: 10px; margin-bottom: 10px;">
+                                        ${escapeHtml(opt.optimized_query)}
+                                    </div>
+                                    ${testCase.optimized_results ? `
+                                        <div>
+                                            <strong>Results (${testCase.optimized_results.length} rows):</strong>
+                                            ${formatQueryResults(testCase.optimized_results)}
+                                        </div>
+                                    ` : '<p style="color: #666; font-style: italic;">No results available</p>'}
+                                </div>
+                            </div>
+                            <div class="validation-status ${opt.results_identical ? 'validation-success' : 'validation-error'}" style="margin-top: 10px;">
+                                ${opt.results_identical ? '✅ Query results are identical - optimization preserves business logic' : '❌ Query results differ - optimization may have issues'}
+                            </div>
+                        </div>
+                        
                         <details style="margin-top: 10px;">
-                            <summary>View Optimized Query</summary>
-                            <div class="code-block" style="margin-top: 10px; font-size: 12px;">
-                                ${escapeHtml(opt.optimized_query)}
+                            <summary>View Additional Details</summary>
+                            <div style="margin-top: 10px;">
+                                <p><strong>Execution Time:</strong> ${testCase.execution_time.toFixed(2)}s</p>
+                                ${opt.validation_error ? `<p style="color: red;"><strong>Validation Error:</strong> ${opt.validation_error}</p>` : ''}
                             </div>
                         </details>
                     </div>
