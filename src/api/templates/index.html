@@ -746,6 +746,12 @@
                 <div class="code-block">${escapeHtml(result.optimized_query)}</div>
             `;
 
+            // Original Query Display
+            html += `
+                <h3>🔵 Original Query</h3>
+                <div class="code-block">${escapeHtml(result.original_query)}</div>
+            `;
+
             // Query Results Comparison
             if (result.original_query_results && result.optimized_query_results) {
                 html += `
@@ -762,6 +768,14 @@
                             <h5>🟢 Optimized Query Results (${result.optimized_row_count || 0} rows)</h5>
                             ${formatQueryResults(result.optimized_query_results)}
                         </div>
+                    </div>
+                `;
+            } else {
+                // Show message when results are not available
+                html += `
+                    <h3>📊 Query Results</h3>
+                    <div class="validation-status validation-error">
+                        ⚠️ Query results not available - queries may not have been executed for comparison
                     </div>
                 `;
             }
