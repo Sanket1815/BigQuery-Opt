@@ -7,11 +7,11 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}\' $(MAKEFILE_LIST)
 
 install: ## Install the package and dependencies
-	pip install -e .
+	python3 -m pip install -e .
 
 install-dev: ## Install development dependencies
-	pip install -e ".[dev]"
-	pip install -r requirements.txt
+	python3 -m pip install -e ".[dev]"
+	python3 -m pip install -r requirements.txt
 
 test: ## Run all tests
 	pytest tests/ -v
