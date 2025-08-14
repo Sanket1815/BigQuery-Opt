@@ -151,16 +151,9 @@ class GeminiQueryOptimizer:
         
         # Build comprehensive prompt
         prompt = f"""
-You are an expert BigQuery SQL optimizer. Apply Google's BigQuery best practices to optimize this query.
-
-REQUIREMENTS:
-1. Return EXACTLY the same results (100% accuracy required)
 2. Use only existing columns from table schema
 3. Apply Google's BigQuery best practices
 4. Include documentation references
-
-TABLE METADATA:
-{table_info}
 
 UNDERPERFORMING QUERY TO OPTIMIZE:
 ```sql
