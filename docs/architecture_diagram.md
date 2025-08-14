@@ -1,522 +1,495 @@
-# BigQuery Query Optimizer - Enhanced Architecture Diagram
+# BigQuery Query Optimizer - Enhanced Architecture Diagram with Current Workflow
 
-## 🔄 Enhanced System Flow Diagram
+## 🔄 Enhanced System Flow Diagram with Flowchart Arrows
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           USER INTERFACE LAYER                                  │
+│                           ENHANCED USER INTERFACE LAYER                         │
 └─────────────────────────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────┐
-    │   🌐 Web UI     │
-    │  index.html     │
-    │                 │
-    │ Enhanced with:  │
-    │ • Original Query│
-    │   Display       │
-    │ • Optimized     │
-    │   Query Display │
-    │ • Results       │
-    │   Comparison    │
-    │ • Performance   │
-    │   Warnings      │
-    │                 │
-    │ Direct SQL      │
-    │ Processing      │
-    └─────────────────┘
-            │
-            │ optimizeQuery() - Enhanced
-            │ JavaScript Function
-            ▼
-    ┌─────────────────┐
-    │ HTTP POST       │
-    │ /api/v1/optimize│
-    │                 │
-    │ Body: {         │
-    │   query: "...", │
-    │   project_id,   │
-    │   validate: true│
-    │   measure_perf, │
-    │   show_results  │
-    │ }               │
-    └─────────────────┘
-            │
-            │ Network Request
-            ▼
-
+                                        │
+                                        ▼
+    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+    │   🌐 Enhanced   │    │  💻 Enhanced    │    │  🐍 Enhanced    │
+    │   Web UI        │    │  CLI Tool       │    │  Python API     │
+    │  (Port 8080)    │    │  (Terminal)     │    │  (Direct)       │
+    │                 │    │                 │    │                 │
+    │ Enhanced with:  │    │ Enhanced with:  │    │ Enhanced with:  │
+    │ • Query Results │    │ • Performance   │    │ • Schema        │
+    │   Comparison    │    │   Metrics       │    │   Validation    │
+    │ • Performance   │    │ • Test Suites   │    │ • Batch         │
+    │   Warnings      │    │ • Status Check  │    │   Processing    │
+    │ • Test Suites   │    │ • Aggressive    │    │ • Aggressive    │
+    │   with Results  │    │   Optimization  │    │   Optimization  │
+    └─────────────────┘    └─────────────────┘    └─────────────────┘
+            │                       │                       │
+            │ HTTP POST             │ CLI Commands          │ Direct API
+            │ /api/v1/optimize      │ optimize --query      │ optimize_query()
+            ▼                       ▼                       ▼
+                                        │
+                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                         ENHANCED API LAYER                                      │
 └─────────────────────────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────┐
-    │  📡 FastAPI     │
-    │  routes.py      │
-    │                 │
-    │ @router.post    │
-    │ ("/optimize")   │
-    │                 │
-    │ optimize_query()│
-    │ Line 45         │
-    │                 │
-    │ Enhanced with:  │
-    │ • Result        │
-    │   Execution     │
-    │ • Performance   │
-    │   Monitoring    │
-    │ • Error         │
-    │   Detection     │
-    └─────────────────┘
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │  📡 Enhanced FastAPI Router (routes.py)                        │
+    │                                                                 │
+    │  @router.post("/optimize") - ENHANCED                          │
+    │  async def optimize_query(request: OptimizeRequest)             │
+    │                                                                 │
+    │  Enhanced Features:                                             │
+    │  • Aggressive optimization detection                            │
+    │  • Comprehensive performance measurement                        │
+    │  • Enhanced result execution and comparison                     │
+    │  • Better error handling and validation                        │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Creates BigQueryOptimizer with enhanced features
+            │ Creates BigQueryOptimizer(enhanced_mode=True)
             ▼
-    ┌─────────────────┐
-    │ 🏗️ Enhanced    │
-    │ Query Optimizer │
-    │ Instance        │
-    │                 │
-    │ BigQueryOptimizer(│
-    │   project_id,   │
-    │   validate_results,│
-    │   enhanced_mode │
-    │ )               │
-    └─────────────────┘
-            │
-            │ optimizer.optimize_query() - Enhanced
-            ▼
-
+                                        │
+                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                    ENHANCED OPTIMIZATION ENGINE                                 │
 └─────────────────────────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────┐
-    │ 🧠 Enhanced     │
-    │ Query Optimizer │
-    │ query_optimizer │
-    │ .py:45          │
-    │                 │
-    │ optimize_query()│
-    │                 │
-    │ Enhanced with:  │
-    │ • Smarter       │
-    │   Pattern       │
-    │   Detection     │
-    │ • Performance   │
-    │   Monitoring    │
-    │ • Query         │
-    │   Execution     │
-    │   Limits        │
-    └─────────────────┘
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 🧠 Enhanced Query Optimizer (query_optimizer.py)               │
+    │                                                                 │
+    │ optimize_query() - Line 45 - ENHANCED                          │
+    │                                                                 │
+    │ Enhanced Processing Steps:                                      │
+    │ 1. Aggressive query structure analysis                          │
+    │ 2. Comprehensive table metadata extraction                      │
+    │ 3. Enhanced documentation consultation                          │
+    │ 4. Aggressive AI optimization with performance targets          │
+    │ 5. Comprehensive performance verification                       │
+    │ 6. Enhanced result validation and comparison                    │
+    └─────────────────────────────────────────────────────────────────┘
             │
             │ Step 1: Enhanced Analysis
             ▼
-    ┌─────────────────┐
-    │ 📊 Enhanced     │
-    │ Structure       │
-    │ Analysis        │
-    │                 │
-    │ _analyze_query_ │
-    │ structure()     │
-    │ Line 200        │
-    │                 │
-    │ Enhanced:       │
-    │ • Stricter      │
-    │   Pattern       │
-    │   Matching      │
-    │ • Performance   │
-    │   Issue         │
-    │   Detection     │
-    │ • Query         │
-    │   Complexity    │
-    │   Scoring       │
-    └─────────────────┘
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 📊 Enhanced Query Structure Analysis                            │
+    │                                                                 │
+    │ _analyze_query_structure() - Line 200 - ENHANCED               │
+    │                                                                 │
+    │ Enhanced Analysis:                                              │
+    │ • Aggressive pattern detection (22+ patterns)                  │
+    │ • Performance issue identification                              │
+    │ • Query complexity scoring with enhanced criteria               │
+    │ • Table relationship analysis                                   │
+    │ • Optimization opportunity assessment                           │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Step 2: Enhanced Documentation Access
+            │ Step 2: Enhanced Metadata Extraction
             ▼
-    ┌─────────────────┐
-    │ 📚 Enhanced     │
-    │ Optimization    │
-    │ Analyzer        │
-    │                 │
-    │ get_optimization│
-    │ _suggestions_   │
-    │ for_llm()       │
-    │ Line 150        │
-    │                 │
-    │ Enhanced with:  │
-    │ • Conservative  │
-    │   Pattern       │
-    │   Application   │
-    │ • Performance   │
-    │   Validation    │
-    │ • Better        │
-    │   Filtering     │
-    └─────────────────┘
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 🗃️ Enhanced Table Metadata Extraction                          │
+    │                                                                 │
+    │ _get_enhanced_table_metadata() - ENHANCED                      │
+    │                                                                 │
+    │ Enhanced Metadata:                                              │
+    │ • Real BigQuery table schemas                                   │
+    │ • Partitioning and clustering information                       │
+    │ • Table sizes and row counts                                    │
+    │ • Column names and types                                        │
+    │ • Performance characteristics                                   │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Enhanced Markdown File Access
+            │ Step 3: Enhanced Documentation Consultation
             ▼
-    ┌─────────────────┐
-    │ 📄 Enhanced     │
-    │ Markdown        │
-    │ Documentation   │
-    │                 │
-    │ bigquery_       │
-    │ optimizations.md│
-    │                 │
-    │ Enhanced with:  │
-    │ • Conservative  │
-    │   Guidelines    │
-    │ • Performance   │
-    │   Thresholds    │
-    │ • Better        │
-    │   Examples      │
-    └─────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    ENHANCED MCP SERVER INTEGRATION                              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 📚 Enhanced Optimization Analyzer (optimization_analyzer.py)    │
+    │                                                                 │
+    │ get_optimization_suggestions_for_llm() - Line 150 - ENHANCED   │
+    │                                                                 │
+    │ Enhanced MCP Processing:                                        │
+    │ 1. Aggressive SQL query analysis                                │
+    │ 2. Enhanced pattern matching with higher accuracy               │
+    │ 3. Priority scoring with performance focus                      │
+    │ 4. Comprehensive suggestion formatting for AI                   │
+    │ 5. Documentation reference validation                           │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Step 3: Enhanced Pattern Matching & Suggestions
+            │ Reads Enhanced Documentation
             ▼
-    ┌─────────────────┐
-    │ 🔍 Enhanced     │
-    │ Pattern         │
-    │ Matching        │
-    │                 │
-    │ analyze_sql_    │
-    │ query()         │
-    │ Line 100        │
-    │                 │
-    │ Enhanced:       │
-    │ • Conservative  │
-    │   Matching      │
-    │ • Performance   │
-    │   Validation    │
-    │ • Better        │
-    │   Filtering     │
-    │ • Stricter      │
-    │   Criteria      │
-    └─────────────────┘
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 📄 Enhanced Markdown Documentation                              │
+    │                                                                 │
+    │ data/bigquery_optimizations.md - ENHANCED                      │
+    │                                                                 │
+    │ Enhanced Documentation Features:                                │
+    │ • 22+ aggressive optimization patterns                          │
+    │ • Higher performance targets (30-80% vs 15-40%)                │
+    │ • Detailed before/after examples                                │
+    │ • Specific applicability conditions                             │
+    │ • Official BigQuery documentation references                    │
+    │ • Performance impact validation                                 │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Enhanced Suggestions for LLM
+            │ Enhanced Pattern Analysis
             ▼
-    ┌─────────────────┐
-    │ 🤖 Enhanced AI │
-    │ Optimizer       │
-    │                 │
-    │ optimize_with_  │
-    │ best_practices()│
-    │ Line 35         │
-    │                 │
-    │ Enhanced with:  │
-    │ • Conservative  │
-    │   Instructions  │
-    │ • Performance   │
-    │   Requirements  │
-    │ • Better        │
-    │   Validation    │
-    │ • Stricter      │
-    │   Guidelines    │
-    └─────────────────┘
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 🔍 Enhanced Pattern Matching Engine                             │
+    │                                                                 │
+    │ analyze_sql_query() - Line 100 - ENHANCED                      │
+    │                                                                 │
+    │ Enhanced Pattern Detection:                                     │
+    │ • Aggressive SELECT * detection                                 │
+    │ • JOIN ordering analysis with table sizes                      │
+    │ • Subquery inefficiency detection                               │
+    │ • COUNT DISTINCT performance analysis                           │
+    │ • Window function optimization opportunities                    │
+    │ • Unnecessary operation detection                               │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Build Enhanced Prompt
+            │ Enhanced Suggestions for AI
             ▼
-    ┌─────────────────┐
-    │ 📝 Enhanced     │
-    │ Prompt Builder  │
-    │                 │
-    │ _build_comprehensive│
-    │ _optimization_  │
-    │ prompt()        │
-    │ Line 100        │
-    │                 │
-    │ Enhanced with:  │
-    │ • Conservative  │
-    │   Instructions  │
-    │ • Performance   │
-    │   Requirements  │
-    │ • Better        │
-    │   Guidelines    │
-    │ • Stricter      │
-    │   Criteria      │
-    └─────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      ENHANCED AI OPTIMIZATION                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 🤖 Enhanced AI Optimizer (ai_optimizer.py)                     │
+    │                                                                 │
+    │ optimize_with_best_practices() - Line 35 - ENHANCED            │
+    │                                                                 │
+    │ Enhanced AI Processing:                                         │
+    │ • Aggressive optimization prompts with performance targets     │
+    │ • Comprehensive context (query + metadata + documentation)     │
+    │ • Specific optimization instructions                            │
+    │ • Performance requirement enforcement                           │
+    │ • Better response parsing and validation                       │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Enhanced prompt sent
+            │ Enhanced Prompt Building
             ▼
-
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 📝 Enhanced Prompt Builder                                      │
+    │                                                                 │
+    │ _build_comprehensive_optimization_prompt() - ENHANCED          │
+    │                                                                 │
+    │ Enhanced Prompt Features:                                       │
+    │ • Aggressive optimization instructions                          │
+    │ • Specific performance targets (30-50% minimum)                │
+    │ • Table size context for JOIN reordering                       │
+    │ • Documentation-backed suggestions                              │
+    │ • Clear optimization rules and priorities                      │
+    └─────────────────────────────────────────────────────────────────┘
+            │
+            │ Enhanced prompt sent to AI
+            ▼
+                                        │
+                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                      EXTERNAL AI SERVICE                                        │
 └─────────────────────────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────┐
-    │ 🤖 Google       │
-    │ Gemini AI       │
-    │                 │
-    │ model.generate_ │
-    │ content()       │
-    │                 │
-    │ Enhanced with:  │
-    │ • Conservative  │
-    │   Instructions  │
-    │ • Performance   │
-    │   Requirements  │
-    │ • Better        │
-    │   Validation    │
-    │ • Stricter      │
-    │   Guidelines    │
-    └─────────────────┘
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 🤖 Google Gemini AI - ENHANCED                                 │
+    │                                                                 │
+    │ model.generate_content() with Enhanced Context                 │
+    │                                                                 │
+    │ Enhanced AI Processing:                                         │
+    │ • Receives aggressive optimization instructions                 │
+    │ • Gets comprehensive query and table context                    │
+    │ • Applies documentation-backed optimization patterns           │
+    │ • Targets 30-50% performance improvement minimum               │
+    │ • Generates optimized query with detailed explanations         │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Enhanced AI Response (JSON)
+            │ Enhanced AI Response (JSON with optimizations)
             ▼
-    ┌─────────────────┐
-    │ 📋 Enhanced AI  │
-    │ Response        │
-    │                 │
-    │ {               │
-    │   optimized_query│
-    │   optimizations │
-    │   performance_  │
-    │   validation    │
-    │   conservative_ │
-    │   approach      │
-    │ }               │
-    └─────────────────┘
-            │
-            │ Parse Enhanced Response
-            ▼
-
+                                        │
+                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                    ENHANCED PERFORMANCE VERIFICATION                            │
 └─────────────────────────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────┐
-    │ 📊 Enhanced     │
-    │ Performance     │
-    │ Measurement     │
-    │                 │
-    │ _measure_       │
-    │ performance_    │
-    │ improvement()   │
-    │ Line 400        │
-    │                 │
-    │ Enhanced with:  │
-    │ • Faster        │
-    │   Execution     │
-    │ • Query Limits  │
-    │ • Performance   │
-    │   Validation    │
-    │ • Degradation   │
-    │   Detection     │
-    └─────────────────┘
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 📊 Enhanced Performance Measurement                             │
+    │                                                                 │
+    │ _measure_performance_improvement() - Line 400 - ENHANCED       │
+    │                                                                 │
+    │ Enhanced Performance Tracking:                                  │
+    │ • Execute both queries in BigQuery                              │
+    │ • Measure comprehensive performance metrics                     │
+    │ • Calculate detailed improvement percentages                    │
+    │ • Validate performance gains meet targets                      │
+    │ • Generate comprehensive performance report                     │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Execute Original Query (with limits)
+            │ Execute Original Query (with comprehensive monitoring)
             ▼
-    ┌─────────────────┐
-    │ 🔵 Enhanced     │
-    │ Original Query  │
-    │ Execution       │
-    │                 │
-    │ BigQuery API    │
-    │ execute_query() │
-    │                 │
-    │ Enhanced with:  │
-    │ • 60s timeout   │
-    │ • LIMIT 50      │
-    │ • 100MB limit   │
-    │ • Better        │
-    │   monitoring    │
-    └─────────────────┘
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 🔵 Enhanced Original Query Execution                           │
+    │                                                                 │
+    │ BigQuery API execute_query() - ENHANCED                        │
+    │                                                                 │
+    │ Enhanced Execution:                                             │
+    │ • Comprehensive performance monitoring                          │
+    │ • Detailed timing and resource measurement                      │
+    │ • Result capture for comparison                                 │
+    │ • Error handling and validation                                 │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Execute Optimized Query (with limits)
+            │ Execute Optimized Query (with comprehensive monitoring)
             ▼
-    ┌─────────────────┐
-    │ 🟢 Enhanced     │
-    │ Optimized Query │
-    │ Execution       │
-    │                 │
-    │ BigQuery API    │
-    │ execute_query() │
-    │                 │
-    │ Enhanced with:  │
-    │ • 60s timeout   │
-    │ • LIMIT 50      │
-    │ • 100MB limit   │
-    │ • Performance   │
-    │   validation    │
-    └─────────────────┘
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 🟢 Enhanced Optimized Query Execution                          │
+    │                                                                 │
+    │ BigQuery API execute_query() - ENHANCED                        │
+    │                                                                 │
+    │ Enhanced Execution:                                             │
+    │ • Comprehensive performance monitoring                          │
+    │ • Detailed timing and resource measurement                      │
+    │ • Result capture for comparison                                 │
+    │ • Performance improvement validation                            │
+    └─────────────────────────────────────────────────────────────────┘
             │
             │ Enhanced Performance Comparison
             ▼
-    ┌─────────────────┐
-    │ 📈 Enhanced     │
-    │ Performance     │
-    │ Comparison      │
-    │                 │
-    │ Enhanced with:  │
-    │ • Degradation   │
-    │   Detection     │
-    │ • Performance   │
-    │   Warnings      │
-    │ • Better        │
-    │   Metrics       │
-    │ • Detailed      │
-    │   Analysis      │
-    └─────────────────┘
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 📈 Enhanced Performance Analysis                                │
+    │                                                                 │
+    │ Enhanced Performance Metrics:                                   │
+    │ • Time improvement percentage                                   │
+    │ • Bytes processed reduction                                     │
+    │ • Cost savings calculation                                      │
+    │ • Performance summary generation                                │
+    │ • Improvement validation against targets                        │
+    └─────────────────────────────────────────────────────────────────┘
             │
-            │ Enhanced Performance Metrics
+            │ Enhanced Results with Performance Metrics
             ▼
-
+                                        │
+                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                        ENHANCED RESULTS DISPLAY                                 │
 └─────────────────────────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────┐
-    │ 🎨 Enhanced     │
-    │ Results Display │
-    │                 │
-    │ displayOptimization│
-    │ Result()        │
-    │ Line 300        │
-    │                 │
-    │ Enhanced with:  │
-    │ • Original      │
-    │   Query Display │
-    │ • Optimized     │
-    │   Query Display │
-    │ • Results       │
-    │   Comparison    │
-    │ • Performance   │
-    │   Warnings      │
-    │ • Better        │
-    │   Debugging     │
-    └─────────────────┘
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ 🎨 Enhanced Results Display                                     │
+    │                                                                 │
+    │ displayOptimizationResult() - Line 300 - ENHANCED              │
+    │                                                                 │
+    │ Enhanced Display Features:                                      │
+    │ • Side-by-side original/optimized query comparison              │
+    │ • Comprehensive performance metrics display                     │
+    │ • Actual query results comparison                               │
+    │ • Optimization explanations with documentation                  │
+    │ • Performance improvement validation                            │
+    │ • Test suite results with query/result comparison               │
+    └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 🔍 Enhanced Key Decision Points
+## 🔄 Enhanced Component Interaction Flow
 
-### **Enhanced Pattern Application Decision**:
 ```
-IF SQL query received → Enhanced pattern analysis
-IF pattern genuinely beneficial → Apply optimization
-IF performance might degrade → Skip optimization
-IF already well-optimized → Return original query
+┌─────────────────┐
+│   User Input    │
+│   SQL Query     │
+└─────────────────┘
+         │
+         │ Enhanced Query Processing
+         ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Enhanced      │◄──►│   Enhanced      │◄──►│   Enhanced      │
+│   Query         │    │   MCP Server    │    │   Crawler       │
+│   Optimizer     │    │   (Port 8001)   │    │   System        │
+│                 │    │                 │    │                 │
+│ • Orchestrates  │    │ • Reads docs    │    │ • Creates docs  │
+│   optimization  │    │ • Matches       │    │ • Extracts      │
+│ • Validates     │    │   patterns      │    │   patterns      │
+│   results       │    │ • Provides      │    │ • Updates       │
+│ • Measures      │    │   suggestions   │    │   knowledge     │
+│   performance   │    │ • Scores        │    │ • Maintains     │
+│                 │    │   priorities    │    │   accuracy      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Enhanced      │    │   Enhanced      │    │   Enhanced      │
+│   AI Optimizer  │    │   Documentation │    │   BigQuery      │
+│                 │    │   Processor     │    │   Client        │
+│ • Builds        │    │                 │    │                 │
+│   aggressive    │    │ • Semantic      │    │ • Executes      │
+│   prompts       │    │   search        │    │   queries       │
+│ • Applies       │    │ • Pattern       │    │ • Measures      │
+│   optimizations │    │   matching      │    │   performance   │
+│ • Validates     │    │ • Knowledge     │    │ • Extracts      │
+│   responses     │    │   base          │    │   schemas       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                Enhanced External Services                        │
+│                                                                 │
+│  ┌─────────────────┐              ┌─────────────────┐           │
+│  │   Gemini AI     │              │   BigQuery      │           │
+│  │   Service       │              │   Service       │           │
+│  │                 │              │                 │           │
+│  │ • Receives      │              │ • Executes      │           │
+│  │   enhanced      │              │   queries       │           │
+│  │   prompts       │              │ • Provides      │           │
+│  │ • Generates     │              │   performance   │           │
+│  │   aggressive    │              │   metrics       │           │
+│  │   optimizations │              │ • Returns       │           │
+│  │ • Returns       │              │   results       │           │
+│  │   improvements  │              │                 │           │
+│  └─────────────────┘              └─────────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### **Enhanced Performance Validation Decision**:
+## 🔍 Enhanced Data Flow Arrows
+
+### **Enhanced Query Processing Flow:**
 ```
-EXECUTE original query with limits → Measure performance
-EXECUTE optimized query with limits → Measure performance
-COMPARE performance → Validate improvement
-IF optimized slower → Show warning
-IF no improvement → Explain why
-```
-
-### **Enhanced Result Display Decision**:
-```
-SHOW original query → User can see what was input
-SHOW optimized query → User can see what was changed
-SHOW both results → User can verify correctness
-SHOW performance comparison → User can see actual impact
-```
-
-## 🎯 Enhanced Architecture Benefits
-
-### **1. Enhanced User Experience**
-- ✅ Shows original and optimized queries side by side
-- ✅ Displays actual query results for verification
-- ✅ Clear performance warnings when optimization doesn't help
-- ✅ Better debugging information for "no optimizations" cases
-- ✅ Faster execution with query limits and timeouts
-
-### **2. Enhanced Optimization Logic**
-- ✅ Conservative pattern application - only when beneficial
-- ✅ Performance validation before applying optimizations
-- ✅ Stricter criteria for pattern matching
-- ✅ Better handling of already-optimized queries
-- ✅ Degradation detection and warnings
-
-### **3. Enhanced Performance Monitoring**
-- ✅ Faster query execution with 60s timeouts
-- ✅ Automatic LIMIT clauses for testing (20-50 rows)
-- ✅ 100MB bytes processing limit to prevent expensive queries
-- ✅ Performance degradation detection and warnings
-- ✅ Detailed execution time and cost analysis
-
-### **4. Enhanced Error Prevention**
-- ✅ Better validation of optimization benefits
-- ✅ Conservative approach to prevent performance degradation
-- ✅ Clear warnings when optimizations might not help
-- ✅ Improved error handling and user feedback
-- ✅ Debug tools for troubleshooting optimization issues
-
-## 🔄 Enhanced Data Flow
-
-### **Enhanced Query Processing Flow**:
-```
-User Input → Enhanced UI → Enhanced API → Enhanced Optimizer → 
-Conservative Pattern Matching → Enhanced AI → Performance Validation → 
+User SQL Query
+    ↓ (Enhanced Input Processing)
+Enhanced Web UI
+    ↓ (HTTP POST with comprehensive config)
+Enhanced FastAPI Router
+    ↓ (Creates enhanced optimizer instance)
+Enhanced Query Optimizer
+    ↓ (Aggressive analysis and metadata extraction)
+Enhanced MCP Server Consultation
+    ↓ (Documentation-backed suggestions)
+Enhanced AI Optimization
+    ↓ (Aggressive optimization with performance targets)
+Enhanced Performance Verification
+    ↓ (Comprehensive metrics and result comparison)
 Enhanced Results Display
 ```
 
-### **Enhanced Performance Validation Flow**:
+### **Enhanced Documentation Flow:**
 ```
-Original Query Execution (with limits) → Performance Measurement →
-Optimized Query Execution (with limits) → Performance Measurement →
-Performance Comparison → Degradation Detection → Warning Display
+Google BigQuery Docs
+    ↓ (Enhanced web scraping)
+Enhanced Crawler System
+    ↓ (Pattern extraction with performance focus)
+Enhanced Markdown Documentation
+    ↓ (Aggressive optimization patterns)
+Enhanced MCP Server
+    ↓ (Pattern matching and suggestion generation)
+Enhanced AI Optimizer
+    ↓ (Documentation-backed optimization)
+Enhanced Optimized Query
 ```
 
-### **Enhanced Result Display Flow**:
+### **Enhanced Performance Validation Flow:**
 ```
-Query Execution → Result Capture → Side-by-Side Display →
-Performance Comparison → Warning Generation → User Feedback
+Original Query
+    ↓ (Enhanced execution with monitoring)
+BigQuery Execution + Performance Metrics
+    ↓ (Comprehensive measurement)
+Optimized Query
+    ↓ (Enhanced execution with monitoring)
+BigQuery Execution + Performance Metrics
+    ↓ (Comprehensive comparison)
+Enhanced Performance Analysis
+    ↓ (Detailed improvement calculation)
+Enhanced Results Display with Metrics
 ```
 
-## 🚨 Enhanced Critical Improvements
+## 🎯 Enhanced Critical Decision Points
 
-### **1. Fixed "No Optimizations Applied" Issue**
-- **Root Cause**: Overly aggressive pattern matching
-- **Solution**: Conservative pattern application with stricter criteria
-- **Implementation**: Enhanced pattern matching in optimization_analyzer.py
-- **Result**: Only applies optimizations when genuinely beneficial
+### **Enhanced Pattern Application Decision:**
+```
+SQL Query Received
+    ↓ (Enhanced analysis)
+IF obvious inefficiency detected (SELECT *, COUNT DISTINCT, etc.)
+    ↓ (Aggressive optimization)
+THEN apply aggressive optimization with performance targets
+    ↓ (Comprehensive validation)
+ELSE analyze for subtle optimization opportunities
+    ↓ (Enhanced pattern matching)
+IF performance improvement possible
+    ↓ (Apply optimization)
+THEN apply with documentation backing
+    ↓ (Performance verification)
+ELSE return original with explanation
+```
 
-### **2. Fixed Performance Degradation Issue**
-- **Root Cause**: Optimizations sometimes made queries slower
-- **Solution**: Performance validation before applying optimizations
-- **Implementation**: Enhanced AI instructions and performance monitoring
-- **Result**: Warns users when optimized queries are slower
+### **Enhanced Performance Validation Decision:**
+```
+Original Query Execution
+    ↓ (Enhanced monitoring)
+Measure comprehensive performance metrics
+    ↓ (Detailed analysis)
+Optimized Query Execution
+    ↓ (Enhanced monitoring)
+Measure comprehensive performance metrics
+    ↓ (Comprehensive comparison)
+IF optimized performance > original performance
+    ↓ (Success validation)
+THEN show improvement with detailed metrics
+    ↓ (Enhanced display)
+ELSE show warning with explanation
+```
 
-### **3. Fixed Slow Query Execution**
-- **Root Cause**: Queries taking too long to execute
-- **Solution**: Added timeouts, limits, and bytes processing caps
-- **Implementation**: Enhanced BigQuery client with execution limits
-- **Result**: Faster testing with 60s timeouts and automatic LIMIT clauses
+### **Enhanced Result Display Decision:**
+```
+Query Optimization Complete
+    ↓ (Enhanced result processing)
+SHOW original query with results
+    ↓ (Comprehensive comparison)
+SHOW optimized query with results
+    ↓ (Performance analysis)
+SHOW performance improvement metrics
+    ↓ (Validation status)
+SHOW validation status and explanations
+    ↓ (Enhanced transparency)
+PROVIDE complete optimization transparency
+```
 
-### **4. Enhanced User Interface**
-- **Root Cause**: Users couldn't see original queries and results
-- **Solution**: Enhanced UI showing original/optimized queries and results
-- **Implementation**: Enhanced HTML template with expandable sections
-- **Result**: Better user experience with complete information display
+## 🚀 Enhanced Architecture Benefits
 
-## 🎯 Enhanced System Components
+### **1. Enhanced Aggressive Optimization**
+- ✅ Higher performance targets (30-80% vs 15-40%)
+- ✅ More comprehensive pattern detection
+- ✅ Better optimization opportunity identification
+- ✅ Aggressive optimization application with performance focus
 
-### **Enhanced Query Optimizer** (`src/optimizer/query_optimizer.py`)
-- **New Features**: Conservative optimization, performance monitoring, query limits
-- **Improvements**: Better pattern detection, degradation warnings, faster execution
-- **Benefits**: More reliable optimizations, better user feedback
+### **2. Enhanced Comprehensive Validation**
+- ✅ Complete query and result comparison
+- ✅ Detailed performance metrics with comprehensive analysis
+- ✅ Side-by-side display for transparency
+- ✅ Performance improvement validation against targets
 
-### **Enhanced AI Optimizer** (`src/optimizer/ai_optimizer.py`)
-- **New Features**: Conservative instructions, performance requirements, stricter validation
-- **Improvements**: Better prompt building, performance-aware optimization
-- **Benefits**: Higher quality optimizations, fewer false positives
+### **3. Enhanced Documentation Integration**
+- ✅ 22+ aggressive optimization patterns with higher targets
+- ✅ Official BigQuery documentation references
+- ✅ Enhanced pattern matching with performance focus
+- ✅ Comprehensive optimization guidance for AI
 
-### **Enhanced BigQuery Client** (`src/optimizer/bigquery_client.py`)
-- **New Features**: Query timeouts, execution limits, bytes processing caps
-- **Improvements**: Faster execution, better error handling, performance monitoring
-- **Benefits**: Faster testing, cost control, better reliability
+### **4. Enhanced User Experience**
+- ✅ Complete visibility into optimization process
+- ✅ Comprehensive performance metrics display
+- ✅ Query and result comparison for validation
+- ✅ Enhanced test suites with detailed analysis
 
-### **Enhanced Web Interface** (`src/api/templates/index.html`)
-- **New Features**: Original/optimized query display, results comparison, performance warnings
-- **Improvements**: Better user experience, more information display, clearer feedback
-- **Benefits**: Users can verify optimizations, see actual results, understand performance impact
+### **5. Enhanced System Reliability**
+- ✅ Better error handling and validation
+- ✅ Comprehensive monitoring and logging
+- ✅ Enhanced performance verification
+- ✅ Aggressive optimization with safety checks
 
-### **Enhanced API Routes** (`src/api/routes.py`)
-- **New Features**: Result execution, performance monitoring, enhanced test suites
-- **Improvements**: Better error handling, more detailed responses, faster execution
-- **Benefits**: More reliable API, better debugging, enhanced user experience
-
-This enhanced architecture provides a more reliable, faster, and user-friendly BigQuery query optimization system with better performance monitoring and conservative optimization approaches!
+This enhanced architecture diagram accurately reflects the current system's aggressive optimization approach with comprehensive validation, detailed performance measurement, and complete transparency for users.
