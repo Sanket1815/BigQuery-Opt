@@ -22,7 +22,7 @@ from src.common.models import OptimizationResult, QueryAnalysis, QueryComplexity
 from src.optimizer.llm_optimizer import LLMQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
 from src.optimizer.validator import QueryValidator
-from src.mcp_server.handlers import DirectSQLOptimizationHandler
+from src.mcp_server.optimization_analyzer import OptimizationAnalyzer
 
 
 class BigQueryOptimizer:
@@ -45,11 +45,11 @@ class BigQueryOptimizer:
             
             # Initialize MCP server handler for direct SQL processing
             try:
-                self.mcp_handler = DirectSQLOptimizationHandler()
-                print("✅ MCP handler initialized with pattern files")
+                self.optimization_analyzer = OptimizationAnalyzer()
+                print("✅ Optimization analyzer initialized with markdown patterns")
             except ImportError:
-                print("⚠️ MCP handler not available - using fallback mode")
-                self.mcp_handler = None
+                print("⚠️ Optimization analyzer not available - using fallback mode")
+                self.optimization_analyzer = None
             
             self.llm_optimizer = LLMQueryOptimizer()
             
@@ -99,26 +99,42 @@ class BigQueryOptimizer:
             print(f"Query length: {len(query)} characters")
             
             # Get optimization context from MCP server
-            if self.mcp_handler:
-                mcp_context = self.mcp_handler.process_raw_sql_query(query, self.bq_client.project_id)
+            if self.optimization_analyzer:
+                print(f"📡 Getting optimization recommendations from markdown documentation...")
+                optimization_suggestions = self.optimization_analyzer.get_optimization_suggestions_for_llm(query)
                 
-                if mcp_context["success"]:
-                    print(f"✅ MCP processing successful")
-                    print(f"   Applicable patterns: {len(mcp_context['applicable_patterns'])}")
+                if optimization_suggestions and optimization_suggestions != "No specific optimization patterns found for this query.":
+                    print(f"✅ Documentation analysis successful")
                     
                     # Step 2: Send to LLM with system and user prompts
                     print(f"\n🤖 SENDING TO LLM FOR OPTIMIZATION")
+                    
+                    # Create system prompt
+                    system_prompt = self._create_system_prompt()
+                    
+                    # Create user prompt with query and documentation
+                    user_prompt = self._create_user_prompt(query, optimization_suggestions)
+                    
                     optimization_result = self.llm_optimizer.optimize_with_llm(
                         query,
-                        mcp_context["system_prompt"],
-                        mcp_context["user_prompt"],
+                        system_prompt,
+                        user_prompt,
                         self.bq_client.project_id
                     )
                 else:
-                    print(f"❌ MCP processing failed: {mcp_context.get('error', 'Unknown error')}")
-                    raise OptimizationError(f"MCP processing failed: {mcp_context.get('error')}")
+                    print(f"⚠️ No optimization patterns found for this query")
+                    # Create basic analysis for fallback
+                    analysis = self._analyze_query_structure(query)
+                    optimization_result = OptimizationResult(
+                        original_query=query,
+                        query_analysis=analysis,
+                        optimized_query=query,
+                        optimizations_applied=[],
+                        total_optimizations=0,
+                        validation_error="No optimization patterns applicable"
+                    )
             else:
-                print(f"⚠️ MCP handler not available - using fallback")
+                print(f"⚠️ Optimization analyzer not available - using fallback")
                 # Create basic analysis for fallback
                 analysis = self._analyze_query_structure(query)
                 optimization_result = OptimizationResult(
@@ -127,7 +143,7 @@ class BigQueryOptimizer:
                     optimized_query=query,
                     optimizations_applied=[],
                     total_optimizations=0,
-                    validation_error="MCP handler not available"
+                    validation_error="Optimization analyzer not available"
                 )
             
             print(f"✅ OPTIMIZATIONS APPLIED: {optimization_result.total_optimizations}")
@@ -297,9 +313,16 @@ class BigQueryOptimizer:
         try:
             if self.optimization_analyzer:
                 # Get suggestions from markdown documentation
-                analysis_result = self.optimization_analyzer.analyze_sql_query(query)
-                print(f"💡 Found {analysis_result['total_patterns']} applicable optimization patterns")
-                return analysis_result
+                suggestions = self.optimization_analyzer.get_optimization_suggestions_for_llm(query)
+                analysis = self._analyze_query_structure(query)
+                
+                return {
+                    "analysis": analysis.model_dump(),
+                    "applicable_patterns": analysis.applicable_patterns,
+                    "specific_suggestions": suggestions,
+                    "documentation_references": self._get_documentation_references(analysis.applicable_patterns),
+                    "priority_optimizations": analysis.applicable_patterns[:3]
+                }
             else:
                 # Fallback to direct suggestions
                 analysis = self._analyze_query_structure(query)
@@ -727,6 +750,66 @@ class BigQueryOptimizer:
                     tables.add(table_name)
         
         return list(tables)
+    
+    def _create_system_prompt(self) -> str:
+        """Create system prompt for LLM optimization."""
+        return """You are an expert BigQuery SQL optimizer. Your task is to optimize SQL queries for better performance while preserving exact business logic.
+
+CRITICAL REQUIREMENTS:
+1. The optimized query MUST return identical results to the original query
+2. Apply Google's official BigQuery best practices
+3. Target 30-50% performance improvement
+4. Use only existing table columns (no made-up column names)
+5. Preserve all business logic exactly
+
+OPTIMIZATION PRIORITIES:
+1. Replace SELECT * with specific columns (30-50% improvement)
+2. Convert COUNT(DISTINCT) to APPROX_COUNT_DISTINCT (50-80% improvement)
+3. Convert subqueries to JOINs (40-70% improvement)
+4. Reorder JOINs to place smaller tables first (25-50% improvement)
+5. Add proper PARTITION BY to window functions (25-40% improvement)
+6. Remove unnecessary CAST/string operations (20-35% improvement)
+
+RESPONSE FORMAT:
+Return a JSON object with:
+{
+    "optimized_query": "The optimized SQL query",
+    "optimizations_applied": [
+        {
+            "pattern_id": "column_pruning",
+            "pattern_name": "Column Pruning",
+            "description": "What was changed and why",
+            "expected_improvement": 0.3
+        }
+    ],
+    "estimated_improvement": 0.4,
+    "explanation": "Summary of all optimizations applied"
+}"""
+    
+    def _create_user_prompt(self, sql_query: str, optimization_suggestions: str) -> str:
+        """Create user prompt with query and documentation."""
+        return f"""OPTIMIZE THIS BIGQUERY SQL QUERY:
+
+```sql
+{sql_query}
+```
+
+PROJECT CONTEXT:
+- Target: 30-50% performance improvement minimum
+- Requirement: Preserve exact business logic
+
+APPLICABLE OPTIMIZATION DOCUMENTATION:
+
+{optimization_suggestions}
+
+INSTRUCTIONS:
+1. Analyze the query for inefficiencies
+2. Apply the optimization patterns from the documentation above
+3. Ensure the optimized query returns identical results
+4. Focus on high-impact optimizations first
+5. Provide clear explanations for each optimization
+
+Generate the optimized query following the JSON format specified in the system prompt."""
     
     def _identify_performance_issues(self, query: str) -> List[str]:
         """Identify performance issues based on Google's BigQuery best practices."""
