@@ -10,7 +10,7 @@ from src.optimizer.query_optimizer import BigQueryOptimizer
 from src.common.exceptions import OptimizationError, BigQueryConnectionError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import OptimizationResult, QueryAnalysis
-from src.mcp_server.optimization_analyzer import OptimizationAnalyzer
+from src.mcp_server.handlers import DirectSQLOptimizationHandler
 import os
 import time
 import subprocess
@@ -20,13 +20,13 @@ from pathlib import Path
 router = APIRouter()
 logger = QueryOptimizerLogger(__name__)
 
-# Initialize optimization analyzer for documentation access
+# Initialize MCP handler for direct SQL processing
 try:
-    optimization_analyzer = OptimizationAnalyzer()
-    print("✅ Optimization analyzer initialized for documentation access")
+    mcp_handler = DirectSQLOptimizationHandler()
+    print("✅ MCP handler initialized for direct SQL processing")
 except Exception as e:
-    print(f"⚠️ Optimization analyzer initialization failed: {e}")
-    optimization_analyzer = None
+    print(f"⚠️ MCP handler initialization failed: {e}")
+    mcp_handler = None
 
 # Request/Response Models
 class OptimizeRequest(BaseModel):
@@ -126,7 +126,7 @@ async def optimize_query(request: OptimizeRequest):
         logger.logger.info(f"Optimizing query of length {len(request.query)}")
         
         # Enhanced workflow with MCP server integration
-        print(f"📡 Using optimization analyzer for enhanced optimization workflow")
+        print(f"📡 Using direct SQL processing workflow")
         
         optimizer = BigQueryOptimizer(
             project_id=request.project_id,
@@ -176,7 +176,7 @@ async def analyze_query(request: AnalyzeRequest):
         logger.logger.info(f"Analyzing query of length {len(request.query)}")
         
         # Use MCP server for enhanced analysis
-        print(f"📊 Using optimization analyzer for enhanced query analysis")
+        print(f"📊 Using direct SQL analysis")
         
         optimizer = BigQueryOptimizer(
             project_id=request.project_id,
@@ -297,15 +297,15 @@ async def get_status():
             "documentation_loaded": stats.get("documentation_chunks", 0) > 0,
             "ai_model_configured": "gemini_api_key" in str(stats),
             "available_patterns": stats.get("available_patterns", 0),
-            "optimization_analyzer_available": optimization_analyzer is not None,
-            "optimization_analyzer_status": "initialized" if optimization_analyzer else "not_available"
+            "mcp_handler_available": mcp_handler is not None,
+            "mcp_handler_status": "initialized" if mcp_handler else "not_available"
         }
         
         status = "healthy" if all([
             connection_ok,
             components["documentation_loaded"],
             components["available_patterns"] > 0,
-            components["optimization_analyzer_available"]
+            components["mcp_handler_available"]
         ]) else "degraded"
         
         return StatusResponse(

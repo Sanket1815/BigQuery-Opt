@@ -19,10 +19,10 @@ from config.settings import get_settings
 from src.common.exceptions import OptimizationError, BigQueryConnectionError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import OptimizationResult, QueryAnalysis, QueryComplexity
-from src.optimizer.ai_optimizer import GeminiQueryOptimizer
+from src.optimizer.llm_optimizer import LLMQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
 from src.optimizer.validator import QueryValidator
-from src.mcp_server.optimization_analyzer import OptimizationAnalyzer
+from src.mcp_server.handlers import DirectSQLOptimizationHandler
 
 
 class BigQueryOptimizer:
@@ -43,15 +43,15 @@ class BigQueryOptimizer:
         try:
             self.bq_client = BigQueryClient(project_id)
             
-            # Initialize optimization analyzer for direct documentation access
+            # Initialize MCP server handler for direct SQL processing
             try:
-                self.optimization_analyzer = OptimizationAnalyzer()
-                print("✅ Optimization analyzer initialized with markdown documentation")
+                self.mcp_handler = DirectSQLOptimizationHandler()
+                print("✅ MCP handler initialized with pattern files")
             except ImportError:
-                print("⚠️ Optimization analyzer not available - using fallback mode")
-                self.optimization_analyzer = None
+                print("⚠️ MCP handler not available - using fallback mode")
+                self.mcp_handler = None
             
-            self.ai_optimizer = GeminiQueryOptimizer()
+            self.llm_optimizer = LLMQueryOptimizer()
             
             if validate_results:
                 # self.validator = QueryValidator(self.bq_client)  # Commented out for now
@@ -90,44 +90,44 @@ class BigQueryOptimizer:
             print(f"\n🚀 AI-POWERED BIGQUERY QUERY OPTIMIZER")
             print(f"=" * 80)
             print(f"🎯 BUSINESS PROBLEM: Underperforming queries failing performance SLAs")
-            print(f"🤖 SOLUTION: Apply Google's official BigQuery best practices automatically")
+            print(f"🤖 SOLUTION: Direct SQL processing with LLM optimization")
             print(f"✅ GUARANTEE: Preserve exact business logic and output")
             print(f"=" * 80)
             
-            # Step 1: Analyze the underperforming query
-            print(f"\n📊 ANALYZING UNDERPERFORMING QUERY")
+            # Step 1: Send raw SQL to MCP server for processing
+            print(f"\n📡 SENDING RAW SQL TO MCP SERVER")
             print(f"Query length: {len(query)} characters")
             
-            analysis = self._analyze_query_structure(query)
-            print(f"Complexity: {analysis.complexity}")
-            print(f"Tables: {analysis.table_count}, JOINs: {analysis.join_count}")
-            print(f"Performance issues found: {len(analysis.potential_issues)}")
-            
-            if analysis.potential_issues:
-                print(f"🚨 PERFORMANCE ISSUES DETECTED:")
-                for issue in analysis.potential_issues:
-                    print(f"   - {issue}")
-            
-            # Step 2: Get table metadata for smart optimizations
-            print(f"\n🗃️ ANALYZING TABLE METADATA FOR OPTIMIZATION")
-            table_metadata = self._get_table_metadata(query)
-            
-            # Step 3: Apply Google's official BigQuery best practices using AI
-            print(f"\n🤖 APPLYING GOOGLE'S BIGQUERY BEST PRACTICES")
-            print(f"Applicable patterns: {', '.join(analysis.applicable_patterns)}")
-            
-            # NEW WORKFLOW: Get optimization suggestions from markdown documentation
-            if self.optimization_analyzer:
-                print(f"📡 Getting optimization recommendations from documentation...")
-                optimization_suggestions = self.optimization_analyzer.get_optimization_suggestions_for_llm(query)
+            # Get optimization context from MCP server
+            if self.mcp_handler:
+                mcp_context = self.mcp_handler.process_raw_sql_query(query, self.bq_client.project_id)
                 
-                optimization_result = self.ai_optimizer.optimize_with_best_practices(
-                    query, analysis, table_metadata, optimization_suggestions=optimization_suggestions
-                )
+                if mcp_context["success"]:
+                    print(f"✅ MCP processing successful")
+                    print(f"   Applicable patterns: {len(mcp_context['applicable_patterns'])}")
+                    
+                    # Step 2: Send to LLM with system and user prompts
+                    print(f"\n🤖 SENDING TO LLM FOR OPTIMIZATION")
+                    optimization_result = self.llm_optimizer.optimize_with_llm(
+                        query,
+                        mcp_context["system_prompt"],
+                        mcp_context["user_prompt"],
+                        self.bq_client.project_id
+                    )
+                else:
+                    print(f"❌ MCP processing failed: {mcp_context.get('error', 'Unknown error')}")
+                    raise OptimizationError(f"MCP processing failed: {mcp_context.get('error')}")
             else:
-                print(f"⚠️ Using direct AI optimization (optimization analyzer not available)")
-                optimization_result = self.ai_optimizer.optimize_with_best_practices(
-                    query, analysis, table_metadata
+                print(f"⚠️ MCP handler not available - using fallback")
+                # Create basic analysis for fallback
+                analysis = self._analyze_query_structure(query)
+                optimization_result = OptimizationResult(
+                    original_query=query,
+                    query_analysis=analysis,
+                    optimized_query=query,
+                    optimizations_applied=[],
+                    total_optimizations=0,
+                    validation_error="MCP handler not available"
                 )
             
             print(f"✅ OPTIMIZATIONS APPLIED: {optimization_result.total_optimizations}")
@@ -145,8 +145,7 @@ class BigQueryOptimizer:
             else:
                 print(f"⚠️ NO OPTIMIZATIONS APPLIED - Query may already be optimized")
             
-            # Step 4: CRITICAL - Validate business logic preservation (100% accuracy requirement)
-            # Step 4: Display both query results for comparison (validation commented out)
+            # Step 3: Display both query results for comparison (validation commented out)
             if validate_results:
                 print(f"\n📊 DISPLAYING QUERY RESULTS FOR COMPARISON")
                 print(f"🔍 Validation logic temporarily disabled - showing results only")
@@ -220,7 +219,7 @@ class BigQueryOptimizer:
             #         print(f"❌ FUNCTIONAL ACCURACY: 0% ✗")
             #         optimization_result.validation_error = "Query results are not identical"
             
-            # Step 5: Measure performance improvement (30-50% target)
+            # Step 4: Measure performance improvement (30-50% target)
             if measure_performance:
                 print(f"\n📊 MEASURING PERFORMANCE IMPROVEMENT")
                 print(f"🎯 SUCCESS METRIC: Target 30-50% reduction in execution time")

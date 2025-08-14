@@ -12,7 +12,7 @@ from config.settings import get_settings
 from src.common.exceptions import MCPServerError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import MCPRequest, MCPResponse
-from .optimization_analyzer import OptimizationAnalyzer
+from .handlers import DirectSQLOptimizationHandler
 
 
 class BigQueryMCPServer:
@@ -28,7 +28,7 @@ class BigQueryMCPServer:
         )
         
         # Initialize components
-        self.optimization_analyzer = OptimizationAnalyzer()
+        self.sql_handler = DirectSQLOptimizationHandler()
         
         # Setup middleware
         self._setup_middleware()
@@ -69,67 +69,39 @@ class BigQueryMCPServer:
         async def health_check():
             """Health check endpoint."""
             try:
-                patterns_count = len(self.optimization_analyzer.optimization_patterns)
+                patterns_count = len(self.sql_handler.optimization_patterns)
                 return {
                     "status": "healthy",
                     "timestamp": time.time(),
                     "optimization_patterns": patterns_count,
-                    "documentation_source": str(self.optimization_analyzer.docs_file_path)
+                    "documentation_source": str(self.sql_handler.docs_directory)
                 }
             except Exception as e:
                 raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
         
-        @self.app.post("/analyze")
-        async def analyze_sql_query(request: MCPRequest) -> MCPResponse:
-            """Analyze SQL query and return optimization suggestions."""
+        @self.app.post("/optimize-sql")
+        async def optimize_raw_sql(request: MCPRequest) -> MCPResponse:
+            """Process raw SQL query and return optimization context for LLM."""
             start_time = time.time()
             
             try:
                 sql_query = request.query
+                project_id = request.options.get("project_id")
                 
-                # Analyze SQL query directly
-                analysis_result = self.optimization_analyzer.analyze_sql_query(sql_query)
+                # Process raw SQL query directly
+                optimization_context = self.sql_handler.process_raw_sql_query(sql_query, project_id)
                 
                 processing_time = int((time.time() - start_time) * 1000)
-                self.logger.log_mcp_request("analyze", processing_time)
+                self.logger.log_mcp_request("optimize-sql", processing_time)
                 
                 return MCPResponse(
                     success=True,
-                    data=analysis_result,
+                    data=optimization_context,
                     processing_time_ms=processing_time
                 )
                 
             except Exception as e:
-                self.logger.log_error(e, {"endpoint": "/analyze", "query": request.query})
-                return MCPResponse(
-                    success=False,
-                    error_message=str(e),
-                    data={},
-                    processing_time_ms=int((time.time() - start_time) * 1000)
-                )
-        
-        @self.app.post("/suggestions")
-        async def get_optimization_suggestions(request: MCPRequest) -> MCPResponse:
-            """Get optimization suggestions formatted for LLM."""
-            start_time = time.time()
-            
-            try:
-                sql_query = request.query
-                
-                # Get suggestions formatted for LLM
-                suggestions_text = self.optimization_analyzer.get_optimization_suggestions_for_llm(sql_query)
-                
-                processing_time = int((time.time() - start_time) * 1000)
-                self.logger.log_mcp_request("suggestions", processing_time)
-                
-                return MCPResponse(
-                    success=True,
-                    data={"suggestions_text": suggestions_text},
-                    processing_time_ms=processing_time
-                )
-                
-            except Exception as e:
-                self.logger.log_error(e, {"endpoint": "/suggestions", "query": request.query})
+                self.logger.log_error(e, {"endpoint": "/optimize-sql", "query": request.query})
                 return MCPResponse(
                     success=False,
                     error_message=str(e),
@@ -142,13 +114,13 @@ class BigQueryMCPServer:
             """Get all available optimization patterns."""
             try:
                 patterns = []
-                for pattern_id, pattern_data in self.optimization_analyzer.optimization_patterns.items():
+                for pattern_id, pattern_content in self.sql_handler.optimization_patterns.items():
+                    pattern_data = self.sql_handler._parse_pattern_metadata(pattern_content)
                     patterns.append({
                         'pattern_id': pattern_id,
-                        'title': pattern_data['title'],
-                        'description': pattern_data['description'],
-                        'performance_impact': pattern_data['performance_impact'],
-                        'use_case': pattern_data['use_case']
+                        'title': pattern_data.get('title', pattern_id),
+                        'performance_impact': pattern_data.get('performance_impact', 'Unknown'),
+                        'use_case': pattern_data.get('use_case', 'Unknown')
                     })
                 
                 return {
@@ -157,33 +129,6 @@ class BigQueryMCPServer:
                 }
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        
-        @self.app.post("/optimize")
-        async def get_optimization_for_query(request: MCPRequest) -> MCPResponse:
-            """Get detailed optimization analysis for a specific SQL query."""
-            start_time = time.time()
-            
-            try:
-                sql_query = request.query
-                analysis = self.optimization_analyzer.analyze_sql_query(sql_query)
-                
-                processing_time = int((time.time() - start_time) * 1000)
-                self.logger.log_mcp_request("optimize", processing_time)
-                
-                return MCPResponse(
-                    success=True,
-                    data=analysis,
-                    processing_time_ms=processing_time
-                )
-                
-            except Exception as e:
-                self.logger.log_error(e, {"endpoint": "/optimize", "query": request.query})
-                return MCPResponse(
-                    success=False,
-                    error_message=str(e),
-                    data={},
-                    processing_time_ms=int((time.time() - start_time) * 1000)
-                )
     
     async def start_server(self):
         """Start the MCP server."""
