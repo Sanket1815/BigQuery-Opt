@@ -450,262 +450,235 @@ async def run_test_suite(request: TestSuiteSelectionRequest):
         
         # Define test suites with 3 test cases each
         test_suites = {
-            "simple_query": {
-                "name": "Simple Query Test",
-                "description": "Basic SELECT queries with inefficient WHERE clauses that need column pruning and filtering optimization",
-                "test_cases": [
-                    {
-                        "name": "SELECT * with Date Filter",
-                        "description": "Basic SELECT * query that needs column pruning optimization",
-                        "query": f"""SELECT *
-FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
-WHERE order_date >= '2024-06-01'
-AND status = 'completed'
-ORDER BY total_amount DESC
-LIMIT 100"""
-                    },
-                    {
-                        "name": "SELECT * with Multiple Filters",
-                        "description": "SELECT * with multiple WHERE conditions needing optimization",
-                        "query": f"""SELECT *
+    "simple_query": {
+        "name": "Simple Query Test",
+        "description": "Basic SELECT with inefficient WHERE clause (Column Pruning, Predicate Pushdown).",
+        "test_cases": [
+            {
+                "name": "SELECT * with Date",
+                "description": "Triggers Column Pruning (SELECT *).",
+                "query": f"""SELECT *
 FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers`
-WHERE customer_tier = 'Premium'
-AND region IN ('US-East', 'US-West')
-AND signup_date >= '2020-01-01'"""
-                    },
-                    {
-                        "name": "SELECT * with Aggregation",
-                        "description": "SELECT * in subquery with aggregation that needs column pruning",
-                        "query": f"""SELECT customer_tier, COUNT(*) as customer_count
-FROM (
-    SELECT * FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers`
-    WHERE region = 'US-East'
-) 
-GROUP BY customer_tier"""
-                    }
-                ]
+WHERE `customer_tier` = 'Premium'
+  AND region IN ('US-East', 'US-West')
+  AND signup_date >= '2020-01-01'
+  LIMIT 100;"""
             },
-            "complex_join": {
-                "name": "Complex JOIN Test", 
-                "description": "Multi-table JOIN queries with suboptimal ordering that need JOIN reordering and optimization",
-                "test_cases": [
-                    {
-                        "name": "4-Table JOIN with Large Table First",
-                        "description": "Complex JOIN starting with largest table - needs reordering",
-                        "query": f"""SELECT 
-    c.customer_name,
-    o.order_id,
-    o.total_amount,
-    p.product_name,
-    oi.quantity
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o 
-    ON oi.order_id = o.order_id
-JOIN `gen-lang-client-0064110488.optimizer_test_dataset.customers` c 
-    ON o.customer_id = c.customer_id
-JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p 
-    ON oi.product_id = p.product_id
-WHERE o.order_date >= '2024-01-01'
-  AND p.category IS NOT NULL
+            {
+                "name": "SELECT * with Multiple Filters on Customers",
+                "description": "Triggers Column Pruning; uses backticked `customer tier`.",
+                "query": f"""SELECT *
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers`
+WHERE `customer_tier` = 'Premium'
+  AND region IN ('US-East', 'US-West')
+  AND signup_date >= '2020-01-01'"""
+            },
+            {
+                "name": "Filter Applied Late in Outer Query",
+                "description": "Triggers Predicate Pushdown (move WHERE into base query).",
+                "query": f"""SELECT *
+FROM (
+  SELECT order_id, customer_id, total_amount, order_date
+  FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+) t
+WHERE t.order_date >= '2024-01-01'"""
+            }
+        ]
+    },
+
+    "complex_join": {
+        "name": "Complex JOIN Test",
+        "description": "Multi-table JOIN with suboptimal ordering (JOIN Reordering, Column Pruning, Predicate Pushdown).",
+        "test_cases": [
+            {
+                "name": "4-Table JOIN with Large Table First",
+                "description": "Triggers JOIN Reordering (3+ joins).",
+                "query": f"""SELECT
+  c.customer_name,
+  o.order_id,
+  p.product_name,
+  oi.quantity,
+  o.total_amount
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi ON p.product_id = oi.product_id
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`      o ON oi.order_id  = o.order_id
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.customers`   c ON o.customer_id = c.customer_id
+WHERE p.category IN ('Electronics','Appliances')
+  AND o.status = 'completed'
 ORDER BY o.total_amount DESC
-LIMIT 100;
-"""
-                    },
-                    {
-                        "name": "LEFT JOIN with SELECT *",
-                        "description": "LEFT JOIN query with SELECT * needing both JOIN and column optimization",
-                        "query": f"""SELECT *
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
-LEFT JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
+LIMIT 100"""
+            },
+#             {
+#                 "name": "LEFT JOIN with SELECT *",
+#                 "description": "Triggers Column Pruning across a JOIN; may also hint JOIN Reordering.",
+#                 "query": f"""SELECT *
+# FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+# LEFT JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+#   ON c.customer_id = o.customer_id
+# LEFT JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+#   ON o.product_id = p.product_id
+# WHERE c.region = 'Europe'
+# LIMIT 100;"""
+#             },
+            {
+                "name": "JOINs with Late Filter in Outer Query",
+                "description": "Triggers Predicate Pushdown for join pipelines.",
+                "query": f"""SELECT *
+FROM (
+  SELECT c.customer_name, o.total_amount, o.order_date
+  FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+  JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
     ON c.customer_id = o.customer_id
-LEFT JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p
-    ON o.product_id = p.product_id
-WHERE c.region = 'Europe'
-LIMIT 100;
-"""
-                    },
-                    {
-                        "name": "Cross JOIN Pattern",
-                        "description": "Implicit cross join that needs conversion to proper JOIN",
-                        "query": f"""SELECT c.customer_name, p.product_name
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c,
-     `gen-lang-client-0064110488.optimizer_test_dataset.products` p
-WHERE c.customer_tier = 'Gold'
-AND p.category = 'Electronics'
-LIMIT 50"""
-                    }
-                ]
-            },
-            "aggregation": {
-                "name": "Aggregation Test",
-                "description": "GROUP BY queries without proper optimization that need approximate aggregation and better filtering",
-                "test_cases": [
-                    {
-                        "name": "COUNT DISTINCT without Optimization",
-                        "description": "COUNT DISTINCT that should use approximate aggregation",
-                        "query": f"""SELECT 
-    c.region,
-    COUNT(*) as total_orders,
-    COUNT(DISTINCT o.customer_id) as unique_customers,
-    SUM(o.total_amount) as total_revenue,
-    AVG(o.total_amount) as avg_order_value
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
-JOIN `gen-lang-client-0064110488.optimizer_test_dataset.customers` c 
-    ON o.customer_id = c.customer_id
+) t
+WHERE t.order_date >= '2024-01-01'"""
+            }
+        ]
+    },
+
+    "aggregation": {
+        "name": "Aggregation Test",
+        "description": "GROUP BY without proper optimization (Approximate Aggregation, MV Suggestion, HAVING→WHERE).",
+        "test_cases": [
+            {
+                "name": "COUNT DISTINCT on Large Join",
+                "description": "Triggers Approximate Aggregation (APPROX_COUNT_DISTINCT).",
+                "query": f"""SELECT 
+  c.region,
+  COUNT(*) AS total_orders,
+  COUNT(DISTINCT o.customer_id) AS unique_customers,
+  SUM(o.total_amount) AS total_revenue
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c 
+  ON o.customer_id = c.customer_id
 WHERE o.order_date >= '2024-01-01'
-GROUP BY c.region
-ORDER BY total_revenue DESC"""
-                    },
-                    {
-                        "name": "Multiple COUNT DISTINCT",
-                        "description": "Query with multiple COUNT DISTINCT operations needing optimization",
-                        "query": f"""SELECT
-  c.category,
-  (SELECT COUNT(DISTINCT oi.order_id)
-   FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
-   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p2 ON oi.product_id = p2.product_id
-   WHERE CAST(o.order_date AS STRING) >= '2024-01-01' AND p2.category = c.category) AS unique_orders,
-  (SELECT COUNT(DISTINCT o.customer_id)
-   FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
-   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p2 ON oi.product_id = p2.product_id
-   WHERE CAST(o.order_date AS STRING) >= '2024-01-01' AND p2.category = c.category) AS unique_customers,
-  (SELECT COUNT(DISTINCT oi.product_id)
-   FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.orders` o ON oi.order_id = o.order_id
-   JOIN `gen-lang-client-0064110488.optimizer_test_dataset.products` p2 ON oi.product_id = p2.product_id
-   WHERE CAST(o.order_date AS STRING) >= '2024-01-01' AND p2.category = c.category) AS unique_products
-FROM (
-  SELECT DISTINCT category
-  FROM `gen-lang-client-0064110488.optimizer_test_dataset.products`
-) c
-ORDER BY c.category;
-"""
-                    },
-                    {
-                        "name": "Heavy Aggregation with SELECT *",
-                        "description": "Complex aggregation with SELECT * needing multiple optimizations",
-                        "query": f"""SELECT
-  (ANY_VALUE(t)).*,
-  COUNT(DISTINCT t.customer_id) AS unique_customers
-FROM (
-  SELECT o.*
-  FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
-  WHERE SUBSTR(CAST(o.order_date AS STRING), 1, 10) >= '2024-01-01'
-    AND (LOWER(o.status) LIKE 'completed%' OR o.status = 'completed')
-) AS t
-CROSS JOIN UNNEST(GENERATE_ARRAY(1, 5)) AS blowup   -- pointless row duplication
-GROUP BY FORMAT_DATE('%Y-%m-%d', DATE(t.order_date))
-ORDER BY RAND();
-"""
-                    }
-                ]
+GROUP BY c.region"""
             },
-            "window_function": {
-                "name": "Window Function Test",
-                "description": "Window function queries with inefficient specifications that need partitioning and optimization",
-                "test_cases": [
-                    {
-                        "name": "ROW_NUMBER without PARTITION",
-                        "description": "ROW_NUMBER without PARTITION BY clause - needs optimization",
-                        "query": f"""SELECT 
-    customer_id,
-    order_id,
-    order_date,
-    total_amount,
-    ROW_NUMBER() OVER (ORDER BY total_amount DESC) as overall_rank,
-    RANK() OVER (ORDER BY order_date) as date_rank
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders`
-WHERE order_date >= '2024-06-01'
-ORDER BY total_amount DESC
-LIMIT 1000"""
-                    },
-                    {
-                        "name": "Multiple Window Functions",
-                        "description": "Multiple window functions that can be optimized with better partitioning",
-                        "query": f"""SELECT 
-    customer_id,
-    order_date,
-    total_amount,
-    LAG(total_amount) OVER (ORDER BY order_date) as prev_amount,
-    LEAD(total_amount) OVER (ORDER BY order_date) as next_amount,
-    SUM(total_amount) OVER (ORDER BY order_date ROWS UNBOUNDED PRECEDING) as running_total
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders`
+            {
+                "name": "Daily Revenue Summary by Region",
+                "description": "Triggers Materialized View Suggestion for a frequent report pattern.",
+                "query": f"""SELECT
+  c.region,
+  DATE_TRUNC(o.order_date, WEEK) AS order_week,
+  COUNT(*) AS weekly_orders,
+  SUM(o.total_amount) AS weekly_revenue
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+JOIN `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c ON o.customer_id = c.customer_id
+WHERE o.order_date >= '2024-01-01'
+GROUP BY c.region, DATE_TRUNC(o.order_date, WEEK);"""
+            },
+            {
+                "name": "HAVING on Non-Aggregate Column",
+                "description": "Triggers HAVING→WHERE Conversion.",
+                "query": f"""SELECT product_id, COUNT(*) AS line_items
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items`
+GROUP BY product_id
+HAVING product_id IN (
+  SELECT product_id
+  FROM `your-project.optimizer_test_dataset.products`
+  WHERE category = 'Electronics'
+);"""
+            }
+        ]
+    },
+
+    "window_function": {
+        "name": "Window Function Test",
+        "description": "Inefficient window specs (Window Function Optimization; one case also hits Column Pruning).",
+        "test_cases": [
+#             {
+#                 "name": "ROW_NUMBER without PARTITION",
+#                 "description": "Triggers Window Function Optimization.",
+#                 "query": f"""SELECT 
+#   customer_id,
+#   order_id,
+#   order_date,
+#   total_amount,
+#   ROW_NUMBER() OVER (ORDER BY total_amount DESC) AS overall_rank
+# FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
+# WHERE order_date >= '2024-06-01'"""
+#             },
+            {
+                "name": "Multiple Windows Unpartitioned",
+                "description": "Triggers Window Function Optimization.",
+                "query": f"""SELECT 
+  customer_id,
+  order_date,
+  total_amount,
+  LAG(total_amount) OVER (ORDER BY order_date) AS prev_amount,
+  LEAD(total_amount) OVER (ORDER BY order_date) AS next_amount,
+  SUM(total_amount) OVER (ORDER BY order_date ROWS UNBOUNDED PRECEDING) AS running_total
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
 WHERE customer_id <= 100"""
-                    },
-                    {
-                        "name": "Window Function with SELECT *",
-                        "description": "Window function query with SELECT * needing both optimizations",
-                        "query": f"""SELECT *,
-    NTILE(4) OVER (ORDER BY total_amount) as quartile,
-    PERCENT_RANK() OVER (ORDER BY order_date) as date_percentile
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders`
+            },
+            {
+                "name": "Window with SELECT *",
+                "description": "Triggers Column Pruning + Window Function Optimization.",
+                "query": f"""SELECT *,
+  NTILE(4) OVER (ORDER BY total_amount) AS quartile,
+  PERCENT_RANK() OVER (ORDER BY order_date) AS date_percentile
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders`
 WHERE order_date >= '2024-01-01'
 LIMIT 500"""
-                    }
-                ]
-            },
-            "nested_query": {
-                "name": "Nested Query Test",
-                "description": "Deeply nested subqueries that can be flattened into JOINs for better performance",
-                "test_cases": [
-                    {
-                        "name": "Triple Nested IN Subqueries",
-                        "description": "Deeply nested IN subqueries that should be converted to JOINs",
-                        "query": f"""SELECT DISTINCT c.customer_name
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
-WHERE CAST(c.customer_id AS STRING) NOT IN (
-  SELECT CAST(o1.customer_id AS STRING)
-  FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o1
-  WHERE CAST(o1.order_id AS STRING) IN (
-    SELECT CAST(oi.order_id AS STRING)
-    FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-    WHERE oi.product_id IN (
-      SELECT p.product_id
-      FROM `gen-lang-client-0064110488.optimizer_test_dataset.products` p
-      WHERE LOWER(p.category) LIKE '%electronic%'
-    )
-  )
-);"""
-                    },
-                    {
-                        "name": "EXISTS with Nested Subquery",
-                        "description": "EXISTS subquery with nested conditions that can be flattened",
-                        "query": f"""SELECT *
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
+            }
+        ]
+    },
+
+    "nested_query": {
+        "name": "Nested Query Test",
+        "description": "Deeply nested subqueries that can be flattened (Subquery→JOIN Conversion).",
+        "test_cases": [
+            {
+                "name": "EXISTS Subquery",
+                "description": "Triggers Subquery→JOIN Conversion.",
+                "query": f"""SELECT c.customer_name
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
 WHERE EXISTS (
   SELECT 1
-  FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o
-  WHERE CAST(o.customer_id AS STRING) = CAST(c.customer_id AS STRING)
-    AND SUBSTR(CAST(o.order_date AS STRING),1,10) >= '2024-01-01'
-    AND EXISTS (
-      SELECT 1 FROM `gen-lang-client-0064110488.optimizer_test_dataset.order_items` oi
-      WHERE oi.order_id = o.order_id AND CAST(oi.quantity AS STRING) > '3'
+  FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+  WHERE o.customer_id = c.customer_id
+    AND o.status = 'completed'
+)"""
+            },
+            {
+                "name": "Nested IN Subqueries across 3 tables",
+                "description": "Triggers Subquery→JOIN Conversion.",
+                "query": f"""SELECT DISTINCT c.customer_name
+FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+WHERE c.customer_id IN (
+  SELECT o.customer_id
+  FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o
+  WHERE o.order_id IN (
+    SELECT oi.order_id
+    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.order_items` oi
+    WHERE oi.product_id IN (
+      SELECT p.product_id
+      FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.products` p
+      WHERE p.category = 'Electronics'
     )
-);
-"""
-                    },
-                    {
-                        "name": "Correlated Subquery in SELECT",
-                        "description": "Correlated subquery in SELECT clause that can be optimized",
-                        "query": f"""SELECT 
-    customer_id,
-    customer_name,
-    (SELECT COUNT(*) 
-     FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o 
-     WHERE o.customer_id = c.customer_id 
-     AND o.status = 'completed') as completed_orders,
-    (SELECT SUM(total_amount) 
-     FROM `gen-lang-client-0064110488.optimizer_test_dataset.orders` o2 
-     WHERE o2.customer_id = c.customer_id 
-     AND o2.order_date >= '2024-01-01') as total_spent_2024
-FROM `gen-lang-client-0064110488.optimizer_test_dataset.customers` c
-WHERE c.customer_tier IN ('Premium', 'Gold')"""
-                    }
-                ]
-            }
-        }
+  )
+)"""
+            },
+#             {
+#                 "name": "Correlated Subqueries in SELECT",
+#                 "description": "Triggers Subquery→JOIN Conversion.",
+#                 "query": f"""SELECT 
+#   c.customer_id,
+#   c.customer_name,
+#   (SELECT COUNT(*) 
+#    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o 
+#    WHERE o.customer_id = c.customer_id 
+#      AND o.status = 'completed') AS completed_orders,
+#   (SELECT SUM(total_amount) 
+#    FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.orders` o2 
+#    WHERE o2.customer_id = c.customer_id 
+#      AND o2.order_date >= '2024-01-01') AS total_spent_2024
+# FROM `{request.project_id or 'your-project'}.optimizer_test_dataset.customers` c
+# WHERE `customer tier` IN ('Premium', 'Gold')"""
+#             }
+        ]
+    }
+}
+
         
         if request.test_suite not in test_suites:
             raise HTTPException(

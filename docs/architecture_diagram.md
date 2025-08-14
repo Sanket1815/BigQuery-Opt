@@ -68,37 +68,7 @@
     │ 6. Enhanced result validation and comparison                    │
     └─────────────────────────────────────────────────────────────────┘
             │
-            │ Step 1: Enhanced Analysis
-            ▼
-    ┌─────────────────────────────────────────────────────────────────┐
-    │ 📊 Enhanced Query Structure Analysis                            │
-    │                                                                 │
-    │ _analyze_query_structure() - Line 200 - ENHANCED               │
-    │                                                                 │
-    │ Enhanced Analysis:                                              │
-    │ • Aggressive pattern detection (22+ patterns)                  │
-    │ • Performance issue identification                              │
-    │ • Query complexity scoring with enhanced criteria               │
-    │ • Table relationship analysis                                   │
-    │ • Optimization opportunity assessment                           │
-    └─────────────────────────────────────────────────────────────────┘
-            │
-            │ Step 2: Enhanced Metadata Extraction
-            ▼
-    ┌─────────────────────────────────────────────────────────────────┐
-    │ 🗃️ Enhanced Table Metadata Extraction                          │
-    │                                                                 │
-    │ _get_enhanced_table_metadata() - ENHANCED                      │
-    │                                                                 │
-    │ Enhanced Metadata:                                              │
-    │ • Real BigQuery table schemas                                   │
-    │ • Partitioning and clustering information                       │
-    │ • Table sizes and row counts                                    │
-    │ • Column names and types                                        │
-    │ • Performance characteristics                                   │
-    └─────────────────────────────────────────────────────────────────┘
-            │
-            │ Step 3: Enhanced Documentation Consultation
+            │ Step 2: Enhanced Documentation Consultation
             ▼
                                         │
                                         ▼
