@@ -5,6 +5,7 @@ Simplified architecture that processes raw SQL queries directly.
 
 import re
 import json
+import re
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Any
