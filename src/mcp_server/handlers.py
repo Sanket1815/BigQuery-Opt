@@ -5,7 +5,6 @@ Simplified architecture that processes raw SQL queries directly.
 
 import re
 import json
-import re
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -15,7 +14,7 @@ from src.common.logger import QueryOptimizerLogger
 class DirectSQLOptimizationHandler:
     """Handles direct SQL optimization requests using markdown documentation."""
     
-    def __init__(self, docs_directory: str = "data/optimization_patterns"):
+    def __init__(self, docs_directory: str = "data/optimization_docs_md"):
         self.logger = QueryOptimizerLogger(__name__)
         self.docs_directory = Path(docs_directory)
         self.optimization_patterns = self._load_all_pattern_files()
@@ -44,7 +43,7 @@ class DirectSQLOptimizationHandler:
     
     def process_raw_sql_query(self, sql_query: str, project_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Process raw SQL query directly and return optimization suggestions.
+        Process raw SQL query directly and return optimization context for LLM.
         
         This is the main entry point for the simplified architecture.
         """
@@ -57,14 +56,14 @@ class DirectSQLOptimizationHandler:
             # Step 2: Find applicable optimization patterns
             applicable_patterns = self._find_applicable_patterns(sql_query)
             
-            # Step 3: Prepare documentation context for LLM
-            docs_context = self._prepare_docs_context(applicable_patterns)
+            # Step 3: Prepare all documentation content for LLM
+            all_docs_content = self._prepare_all_docs_content()
             
             # Step 4: Create system prompt for LLM
             system_prompt = self._create_system_prompt()
             
-            # Step 5: Create user prompt with query and docs
-            user_prompt = self._create_user_prompt(sql_query, docs_context, project_id)
+            # Step 5: Create user prompt with query and all docs
+            user_prompt = self._create_user_prompt(sql_query, all_docs_content, project_id)
             
             processing_time = int((time.time() - start_time) * 1000)
             
@@ -74,7 +73,7 @@ class DirectSQLOptimizationHandler:
                 "applicable_patterns": [p["pattern_id"] for p in applicable_patterns],
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,
-                "docs_context": docs_context,
+                "docs_content": all_docs_content,
                 "processing_time_ms": processing_time
             }
             
@@ -125,6 +124,18 @@ class DirectSQLOptimizationHandler:
         # Sort by priority
         applicable.sort(key=lambda x: x["priority"], reverse=True)
         return applicable
+    
+    def _prepare_all_docs_content(self) -> str:
+        """Prepare ALL documentation content for LLM."""
+        all_content = "BIGQUERY OPTIMIZATION DOCUMENTATION:\n\n"
+        
+        for file_name, content in self.optimization_patterns.items():
+            all_content += f"## FILE: {file_name}.md\n"
+            all_content += f"LOCATION: data/optimization_docs_md/{file_name}.md\n\n"
+            all_content += content
+            all_content += "\n\n" + "="*80 + "\n\n"
+        
+        return all_content
     
     def _parse_pattern_metadata(self, pattern_content: str) -> Dict[str, Any]:
         """Parse metadata from pattern markdown content."""
@@ -195,37 +206,26 @@ class DirectSQLOptimizationHandler:
         
         return score
     
-    def _prepare_docs_context(self, applicable_patterns: List[Dict[str, Any]]) -> str:
-        """Prepare documentation context for LLM."""
-        if not applicable_patterns:
-            return "No specific optimization patterns found for this query."
-        
-        docs_context = "BIGQUERY OPTIMIZATION PATTERNS:\n\n"
-        
-        for pattern in applicable_patterns[:5]:  # Top 5 patterns
-            docs_context += f"{pattern['content']}\n\n"
-            docs_context += "---\n\n"
-        
-        return docs_context
-    
     def _create_system_prompt(self) -> str:
         """Create system prompt for LLM optimization."""
         return """You are an expert BigQuery SQL optimizer. Your task is to optimize SQL queries for better performance while preserving exact business logic.
 
 CRITICAL REQUIREMENTS:
 1. The optimized query MUST return identical results to the original query
-2. Apply Google's official BigQuery best practices
-3. Target 30-50% performance improvement
+2. Apply Google's official BigQuery best practices from the provided documentation
+3. Target 30-50% performance improvement minimum
 4. Use only existing table columns (no made-up column names)
 5. Preserve all business logic exactly
 
-OPTIMIZATION PRIORITIES:
+OPTIMIZATION PRIORITIES (from documentation):
 1. Replace SELECT * with specific columns (30-50% improvement)
 2. Convert COUNT(DISTINCT) to APPROX_COUNT_DISTINCT (50-80% improvement)
 3. Convert subqueries to JOINs (40-70% improvement)
 4. Reorder JOINs to place smaller tables first (25-50% improvement)
 5. Add proper PARTITION BY to window functions (25-40% improvement)
 6. Remove unnecessary CAST/string operations (20-35% improvement)
+7. Apply predicate pushdown for early filtering (25-45% improvement)
+8. Convert HAVING to WHERE when possible (15-25% improvement)
 
 RESPONSE FORMAT:
 Return a JSON object with:
@@ -236,15 +236,16 @@ Return a JSON object with:
             "pattern_id": "column_pruning",
             "pattern_name": "Column Pruning",
             "description": "What was changed and why",
-            "expected_improvement": 0.3
+            "expected_improvement": 0.3,
+            "documentation_reference": "Reference to specific documentation section"
         }
     ],
     "estimated_improvement": 0.4,
     "explanation": "Summary of all optimizations applied"
 }"""
     
-    def _create_user_prompt(self, sql_query: str, docs_context: str, project_id: Optional[str]) -> str:
-        """Create user prompt with query and documentation."""
+    def _create_user_prompt(self, sql_query: str, all_docs_content: str, project_id: Optional[str]) -> str:
+        """Create user prompt with query and ALL documentation."""
         prompt = f"""OPTIMIZE THIS BIGQUERY SQL QUERY:
 
 ```sql
@@ -256,16 +257,17 @@ PROJECT CONTEXT:
 - Target: 30-50% performance improvement minimum
 - Requirement: Preserve exact business logic
 
-APPLICABLE OPTIMIZATION DOCUMENTATION:
+COMPLETE BIGQUERY OPTIMIZATION DOCUMENTATION:
 
-{docs_context}
+{all_docs_content}
 
 INSTRUCTIONS:
-1. Analyze the query for inefficiencies
-2. Apply the optimization patterns from the documentation above
-3. Ensure the optimized query returns identical results
-4. Focus on high-impact optimizations first
-5. Provide clear explanations for each optimization
+1. Analyze the SQL query for inefficiencies using the documentation above
+2. Apply the optimization patterns from the documentation that are relevant
+3. Ensure the optimized query returns identical results to the original
+4. Focus on high-impact optimizations first (50%+ improvement patterns)
+5. Provide clear explanations for each optimization with documentation references
+6. Use the exact documentation file locations and pattern names in your response
 
 Generate the optimized query following the JSON format specified in the system prompt."""
         
