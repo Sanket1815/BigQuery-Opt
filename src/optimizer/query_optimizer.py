@@ -23,7 +23,7 @@ from src.optimizer.llm_optimizer import LLMQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
 from src.optimizer.validator import QueryValidator
 from src.mcp_server.handlers import DirectSQLOptimizationHandler
-from src.mcp_server.handlers import DirectSQLOptimizationHandler
+from src.optimizer.llm_optimizer import LLMQueryOptimizer
 
 
 class BigQueryOptimizer:
@@ -282,7 +282,112 @@ class BigQueryOptimizer:
             # Return original query on failure
             return OptimizationResult(
                 original_query=query,
-                query_analysis=QueryAnalysis(
+                query_analysis=self._create_basic_analysis(query),
+                optimized_query=query,
+                optimizations_applied=[],
+                total_optimizations=0,
+                processing_time_seconds=time.time() - start_time,
+                validation_error=str(e)
+            )
+    
+    def _create_basic_analysis(self, query: str) -> QueryAnalysis:
+        """Create basic query analysis for error cases."""
+        import hashlib
+        
+        return QueryAnalysis(
+            original_query=query,
+            query_hash=hashlib.md5(query.encode()).hexdigest(),
+            complexity=QueryComplexity.MODERATE,
+            table_count=1,
+            join_count=0,
+            subquery_count=0,
+            window_function_count=0,
+            aggregate_function_count=0,
+            potential_issues=[],
+            applicable_patterns=[]
+        )
+    
+    def _validate_optimized_query(self, optimized_query: str) -> Dict[str, Any]:
+        """Validate tables and columns in optimized query."""
+        try:
+            # Use BigQuery dry run to validate
+            validation_result = self.bq_client.validate_query(optimized_query)
+            return validation_result
+        except Exception as e:
+            return {"valid": False, "error": str(e)}
+    
+    def _validate_results_with_hashing(self, original_query: str, optimized_query: str, sample_size: int) -> Dict[str, Any]:
+        """Validate query results using hashing and return both results for UI display."""
+        try:
+            print(f"🔍 Executing original query...")
+            original_result = self.bq_client.execute_query(original_query, dry_run=False)
+            
+            print(f"🔍 Executing optimized query...")
+            optimized_result = self.bq_client.execute_query(optimized_query, dry_run=False)
+            
+            if not original_result["success"]:
+                return {
+                    "identical": False,
+                    "error": f"Original query failed: {original_result.get('error', 'Unknown error')}",
+                    "original_results": [],
+                    "optimized_results": [],
+                    "original_row_count": 0,
+                    "optimized_row_count": 0
+                }
+            
+            if not optimized_result["success"]:
+                return {
+                    "identical": False,
+                    "error": f"Optimized query failed: {optimized_result.get('error', 'Unknown error')}",
+                    "original_results": original_result.get("results", []),
+                    "optimized_results": [],
+                    "original_row_count": original_result.get("row_count", 0),
+                    "optimized_row_count": 0
+                }
+            
+            # Get results for UI display
+            original_results = original_result.get("results", [])
+            optimized_results = optimized_result.get("results", [])
+            original_count = original_result.get("row_count", 0)
+            optimized_count = optimized_result.get("row_count", 0)
+            
+            # Hash-based comparison for validation
+            original_hash = self._hash_results(original_results)
+            optimized_hash = self._hash_results(optimized_results)
+            
+            identical = (original_hash == optimized_hash and original_count == optimized_count)
+            
+            return {
+                "identical": identical,
+                "error": None if identical else "Results differ between original and optimized queries",
+                "original_results": original_results,
+                "optimized_results": optimized_results,
+                "original_row_count": original_count,
+                "optimized_row_count": optimized_count,
+                "original_hash": original_hash,
+                "optimized_hash": optimized_hash
+            }
+            
+        except Exception as e:
+            return {
+                "identical": False,
+                "error": str(e),
+                "original_results": [],
+                "optimized_results": [],
+                "original_row_count": 0,
+                "optimized_row_count": 0
+            }
+    
+    def _hash_results(self, results: List[Dict[str, Any]]) -> str:
+        """Create hash of query results for comparison."""
+        import hashlib
+        
+        if not results:
+            return hashlib.md5(b"").hexdigest()
+        
+        # Convert results to sorted JSON string for consistent hashing
+        results_str = json.dumps(results, sort_keys=True, default=str)
+        return hashlib.md5(results_str.encode()).hexdigest()
                     original_query=query,
                     query_hash=hashlib.md5(query.encode()).hexdigest(),
                     complexity=QueryComplexity.SIMPLE,

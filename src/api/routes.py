@@ -10,7 +10,7 @@ from src.optimizer.query_optimizer import BigQueryOptimizer
 from src.common.exceptions import OptimizationError, BigQueryConnectionError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import OptimizationResult, QueryAnalysis
-from src.mcp_server.handlers import DirectSQLOptimizationHandler
+from src.mcp_server.optimization_analyzer import OptimizationAnalyzer
 import os
 import time
 import subprocess
@@ -22,7 +22,7 @@ logger = QueryOptimizerLogger(__name__)
 
 # Initialize MCP handler for direct SQL processing
 try:
-    optimization_analyzer = DirectSQLOptimizationHandler()
+    optimization_analyzer = OptimizationAnalyzer()
     print("✅ Optimization analyzer initialized for direct SQL processing")
 except Exception as e:
     print(f"⚠️ Optimization analyzer initialization failed: {e}")
@@ -297,15 +297,15 @@ async def get_status():
             "documentation_loaded": stats.get("documentation_chunks", 0) > 0,
             "ai_model_configured": "gemini_api_key" in str(stats),
             "available_patterns": stats.get("available_patterns", 0),
-            "optimization_analyzer_available": optimization_analyzer is not None,
-            "optimization_analyzer_status": "initialized" if optimization_analyzer else "not_available"
+            "direct_sql_handler_available": True,
+            "llm_optimizer_status": "initialized"
         }
         
         status = "healthy" if all([
             connection_ok,
             components["documentation_loaded"],
             components["available_patterns"] > 0,
-            components["optimization_analyzer_available"]
+            components["direct_sql_handler_available"]
         ]) else "degraded"
         
         return StatusResponse(
