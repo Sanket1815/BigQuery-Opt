@@ -10,7 +10,7 @@ from src.optimizer.query_optimizer import BigQueryOptimizer
 from src.common.exceptions import OptimizationError, BigQueryConnectionError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import OptimizationResult, QueryAnalysis
-from src.mcp_server.optimization_analyzer import OptimizationAnalyzer
+from src.mcp_server.handlers import DirectSQLOptimizationHandler
 import os
 import time
 import subprocess
@@ -22,7 +22,7 @@ logger = QueryOptimizerLogger(__name__)
 
 # Initialize MCP handler for direct SQL processing
 try:
-    optimization_analyzer = OptimizationAnalyzer()
+    optimization_analyzer = DirectSQLOptimizationHandler()
     print("✅ Optimization analyzer initialized for direct SQL processing")
 except Exception as e:
     print(f"⚠️ Optimization analyzer initialization failed: {e}")

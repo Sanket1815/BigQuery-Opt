@@ -23,7 +23,7 @@ from src.optimizer.llm_optimizer import LLMQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
 from src.optimizer.validator import QueryValidator
 from src.mcp_server.handlers import DirectSQLOptimizationHandler
-from src.optimizer.llm_optimizer import LLMQueryOptimizer
+from src.mcp_server.handlers import DirectSQLOptimizationHandler
 
 
 class BigQueryOptimizer:
