@@ -1,221 +1,186 @@
 # BigQuery Query Optimizer
 
-An AI-powered BigQuery SQL query optimizer with **direct SQL processing** and **markdown pattern files** that automatically improves query performance while preserving exact business logic.
+A comprehensive AI-powered BigQuery SQL query optimization tool that combines Google's Gemini AI with BigQuery best practices to deliver significant performance improvements.
 
-## Problem Statement
+## 🚀 Features
 
-Organizations using BigQuery often have queries written by humans that fail to meet performance SLAs. These underperforming queries cost money through inefficient compute usage, delay business insights, and frustrate end users. While BigQuery documentation contains extensive optimization best practices, developers often lack the time or expertise to apply these consistently across hundreds or thousands of queries.
+### Unified SQL Optimization Workflow
+- **Single Button Interface**: One "🚀 Optimize Query" button handles the entire optimization process
+- **AI-Powered Optimization**: Uses Google's Gemini API to analyze and optimize SQL queries
+- **Smart Documentation Selection**: Intelligently selects relevant optimization patterns based on query content
+- **Token Limit Management**: Automatically handles large documentation sets within Gemini's token limits
+- **Comprehensive Validation**: Schema validation, query execution, and result comparison
+- **Performance Metrics**: Detailed performance analysis and improvement measurements
 
-## Solution
+### Core Capabilities
+- **Raw SQL Processing**: Sends SQL queries directly to MCP without intermediate validation
+- **Markdown Documentation Integration**: Loads optimization patterns from `data/optimization_docs_md/` folder
+- **Intelligent Content Selection**: Prioritizes relevant documentation based on query analysis
+- **Token-Aware Processing**: Automatically truncates content to stay within API limits
+- **Result Validation**: Uses hashing to compare original vs. optimized query results
+- **Performance Comparison**: Executes both queries and measures actual performance improvements
 
-Simplified AI-powered BigQuery query optimizer with direct SQL processing that:
-- **Input**: Underperforming BigQuery SQL query
-- **Output**: Optimized query with identical results but improved performance
-- **Additional Output**: LLM-generated explanations with pattern-based optimizations
-- **NEW**: Direct SQL processing with separate markdown pattern files
+## 🏗️ Architecture
 
-## Success Metrics
+### API Endpoints
+- **`/api/v1/optimize-gemini`**: Main optimization endpoint using Gemini AI
+- **`/api/v1/validate-schemas`**: Validates query schemas and table references
+- **`/api/v1/execute-and-compare`**: Executes both queries and compares results
 
-1. **Functional Accuracy**: 100% - Optimized queries must return identical results to original queries
-2. **Performance Improvement**: Target 30-50% reduction in query execution time
-3. **Pattern Coverage**: Tool uses 8+ distinct BigQuery optimization patterns from separate files
-4. **Explanation Quality**: Each optimization includes specific documentation references
-5. **Test Coverage**: Comprehensive test scenarios demonstrating various optimization patterns
-6. **Direct Processing**: Raw SQL queries processed without complex transformations
-7. **Modular Patterns**: Optimization patterns stored as separate markdown files
+### Token Limit Management
+The system automatically handles Gemini's token limits (1M tokens) through:
 
-## Quick Start
+1. **Smart Content Selection**: Prioritizes documentation based on query relevance
+2. **Intelligent Truncation**: Truncates content at sentence boundaries when needed
+3. **Minimal Mode**: For very long queries, uses essential optimization patterns only
+4. **Token Estimation**: Pre-checks limits before sending to Gemini API
 
-1. **Setup Environment**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+### Content Prioritization
+Documentation files are scored based on:
+- **Query Relevance**: Matches between SQL keywords and documentation content
+- **Pattern Importance**: Core optimization patterns get higher priority
+- **Content Length**: Shorter, focused files are preferred
+- **Examples**: Files with practical examples get bonus points
 
-2. **Configure Google Cloud**:
-   ```bash
-   export GOOGLE_CLOUD_PROJECT=your-project-id
-   export GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
-   export GEMINI_API_KEY=your-gemini-api-key
-   ```
+## 📁 Project Structure
 
-3. **Start the Web Interface**:
-   ```bash
-   python run_api_server.py
-   # Main API on port 8080 with direct SQL processing
-   ```
-   
-   **Optional - Start MCP Server separately** (for direct SQL processing):
-   ```bash
-   python -m src.mcp_server.server
-   # Runs on http://localhost:8001 (direct SQL processing service)
-   ```
+```
+BigQuery-Opt/
+├── src/
+│   ├── api/                    # FastAPI web server
+│   ├── mcp_server/            # Model Context Protocol server
+│   │   ├── handlers.py        # SQL optimization logic
+│   │   └── server.py          # MCP server implementation
+│   └── optimizer/             # Core optimization engine
+├── data/
+│   └── optimization_docs_md/  # Markdown optimization patterns
+├── config/
+│   └── settings.py            # Configuration and environment variables
+└── tests/                     # Test suite
+```
 
-4. **Open http://localhost:8080** and start optimizing queries!
+## 🛠️ Installation & Setup
 
-## Architecture
-
-### **Simplified Workflow**:
-
-1. **Pattern Files** (`data/optimization_patterns/*.md`): Individual markdown files for each optimization pattern
-2. **MCP Server** (`src/mcp_server/`): Direct SQL processing server (Port 8001)
-3. **SQL Handler** (`src/mcp_server/handlers.py`): Direct SQL query processing with pattern matching
-4. **Query Optimizer** (`src/optimizer/`): Simplified orchestration engine
-5. **LLM Optimizer** (`src/optimizer/llm_optimizer.py`): Direct LLM optimization with system/user prompts
-6. **BigQuery Client** (`src/optimizer/bigquery_client.py`): Table and column validation
-7. **Web Interface** (`src/api/`): REST API (Port 8080) and web UI
-
-### **Key Features**:
-- ✅ **Direct SQL Processing**: Raw SQL queries processed without complex transformations
-- ✅ **Modular Pattern Files**: Each optimization pattern stored as separate markdown file
-- ✅ **LLM Direct Integration**: System and user prompts sent directly to LLM
-- ✅ **Simplified Architecture**: Streamlined workflow with fewer components
-- ✅ **Pattern-Based Optimization**: Documentation context sent directly to LLM
-
-## Optimization Patterns (8+ Supported)
-
-The optimizer applies Google's official BigQuery best practices:
-
-- **Column Pruning**: Replace SELECT * with specific columns (30-50% improvement)
-- **JOIN Reordering**: Optimize JOIN order for better performance (25-50% improvement)
-- **Subquery Conversion**: Convert subqueries to JOINs (40-70% improvement)
-- **Approximate Aggregation**: Use APPROX_COUNT_DISTINCT for large datasets (50-80% improvement)
-- **Window Function Optimization**: Add proper PARTITION BY clauses (25-40% improvement)
-- **Predicate Pushdown**: Move filters closer to data sources (25-45% improvement)
-- **HAVING to WHERE Conversion**: Convert HAVING to WHERE when possible (15-25% improvement)
-- **Unnecessary Operations**: Remove unnecessary CAST/string operations (20-35% improvement)
-
-## Usage Examples
-
-### Web Interface
-1. Open http://localhost:8080
-2. See "Simplified with Direct SQL Processing and Pattern Files"
-3. Enter your BigQuery SQL query
-4. Configure your Google Cloud Project ID
-5. Click "Optimize Query"
-6. View optimized query with LLM-generated improvements and pattern explanations
-
-### Command Line
+### 1. Install Dependencies
 ```bash
-# Optimize a single query
-python -m src.optimizer.main optimize --query "SELECT * FROM orders WHERE date > '2024-01-01'"
-# Simplified with direct SQL processing
-
-# Optimize from file
-python -m src.optimizer.main optimize --file queries/slow_query.sql
-
-# Analyze without optimizing
-python -m src.optimizer.main analyze --query "SELECT * FROM customers"
-
-# Batch optimization
-python -m src.optimizer.main batch --queries-file queries/batch_queries.json
+pip install -r requirements.txt
 ```
 
-### Python API
-```python
-from src.optimizer.query_optimizer import BigQueryOptimizer
-
-optimizer = BigQueryOptimizer()  # Simplified with direct processing
-result = optimizer.optimize_query("""
-    SELECT * FROM orders 
-    WHERE order_date >= '2024-01-01'
-""")
-
-print(f"Optimized Query:\n{result.optimized_query}")
-print(f"Optimizations Applied: {result.total_optimizations}")
-print(f"Expected Improvement: {result.estimated_improvement:.1%}")
-print(f"Pattern-Based: {len(result.optimizations_applied)} patterns applied")
-```
-
-## Testing
-
-Run the comprehensive test suite:
-
+### 2. Set Environment Variables
+Create a `.env` file in the project root:
 ```bash
-# Run all tests
-python -m pytest tests/
+# Required for AI optimization
+GEMINI_API_KEY=your_actual_gemini_api_key_here
 
-# Run specific test categories
-python -m pytest tests/unit/
-python -m pytest tests/integration/
-
-# Run with coverage
-python -m pytest --cov=src tests/
+# Optional settings
+GOOGLE_CLOUD_PROJECT=your_project_id_here
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+DEBUG=false
+LOG_LEVEL=INFO
 ```
 
-### Test Scenarios
+### 3. Start the Server
+```bash
+python run_api_server.py
+```
 
-The simplified test suite includes:
-1. **Direct SQL Processing Test**: Verifies raw SQL processing workflow
-2. **Pattern File Loading Test**: Tests markdown pattern file loading
-3. **Simple Query Test**: Basic SELECT with direct processing
-4. **Complex JOIN Test**: Multi-table JOIN with pattern-based optimization
-5. **Aggregation Test**: GROUP BY with LLM optimization
-6. **Window Function Test**: Window functions with direct LLM processing
-7. **Nested Query Test**: Nested subqueries with pattern-based conversion
-8. **Business Logic Preservation**: Ensures 100% identical results
-9. **Performance Benchmarks**: Validates 30-50% improvement
-10. **LLM Integration Test**: Verifies direct LLM optimization quality
-11. **Table Validation Test**: Ensures valid table and column references
-12. **Pattern Coverage Test**: Validates all patterns are applicable
+The server will be available at:
+- **Web UI**: http://localhost:8080/
+- **API Docs**: http://localhost:8080/docs
+- **Health Check**: http://localhost:8080/health
 
-## Key Features
+## 🧪 Testing
 
-### Business Logic Preservation
-- **100% Functional Accuracy**: Optimized queries return identical results
-- **Direct Validation**: Row-by-row comparison with table validation
-- **Visual Proof**: Side-by-side display with optimization explanations
-- **Zero Tolerance**: Any difference in results fails the optimization
-- **Table Safety**: Validates table and column existence
+### Test Environment Variables
+```bash
+python test_env_loading.py
+```
+
+### Test Token Limits
+```bash
+python test_token_limits.py
+```
+
+### Test Full Workflow
+```bash
+python test_unified_workflow.py
+```
+
+## 🔧 Configuration
+
+### Token Limits
+- **Maximum Input Tokens**: 1,000,000 (Gemini 1.5 Flash limit)
+- **Documentation Reserve**: 800,000 tokens
+- **Query & Prompts Reserve**: 200,000 tokens
+- **Smart Truncation**: Content is truncated at sentence boundaries when needed
+
+### Content Selection Strategy
+- **High Priority**: Performance, optimization, best-practice patterns
+- **Medium Priority**: Join, partition, cluster, index, aggregation techniques
+- **Lower Priority**: Overview and introduction documentation
+- **Automatic Fallback**: Minimal essential patterns for very long queries
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+#### Token Limit Exceeded
+**Error**: `Input exceeds Gemini's token limit`
+**Solution**: The system automatically handles this by:
+- Prioritizing relevant documentation
+- Truncating content intelligently
+- Using minimal patterns for long queries
+
+#### Gemini API Not Initialized
+**Error**: `Gemini API not initialized`
+**Solution**: 
+1. Check your `.env` file has `GEMINI_API_KEY`
+2. Run `python test_env_loading.py` to verify
+3. Ensure `python-dotenv` is installed
+
+#### Import Errors
+**Error**: `No module named 'google.generativeai'`
+**Solution**: Install the required package:
+```bash
+pip install google-generativeai
+```
 
 ### Performance Optimization
-- **30-50% Target**: Aims for significant performance improvements
-- **Real Measurements**: Actual BigQuery performance metrics
-- **Cost Reduction**: Reduces bytes processed with pattern-based optimization
-- **SLA Compliance**: Helps queries meet performance requirements
-- **Error Prevention**: Table validation prevents production failures
+- **Documentation Size**: Keep markdown files focused and concise
+- **Query Length**: Very long queries automatically use minimal documentation
+- **Content Relevance**: System prioritizes most relevant optimization patterns
+- **Token Efficiency**: Content is automatically optimized for token usage
 
-### AI-Powered Intelligence
-- **Google's Best Practices**: Applies official patterns from markdown files
-- **Direct LLM Integration**: System and user prompts with documentation context
-- **Pattern Awareness**: Uses separate pattern files for optimization guidance
-- **Documentation References**: Each optimization links to official BigQuery docs
-- **Clear Explanations**: LLM-generated explanations with pattern context
-- **Table Intelligence**: Validates against actual BigQuery table structures
+## 📊 Usage Examples
 
-### Developer Experience
-- **Simplified Web Interface**: Browser-based interface with direct processing
-- **Command Line Tools**: CLI with direct SQL optimization
-- **Python API**: Programmatic access with LLM integration
-- **Batch Processing**: Optimize multiple queries with pattern-based optimization
+### Basic Optimization
+1. Enter your SQL query in the web interface
+2. Click "🚀 Optimize Query"
+3. View the AI-generated optimization suggestions
+4. Review performance improvements and validation results
 
-## Documentation
+### Advanced Features
+- **Schema Validation**: Automatically validates table and column references
+- **Result Comparison**: Compares original vs. optimized query results using hashing
+- **Performance Metrics**: Measures actual execution time improvements
+- **Documentation Context**: Shows which optimization patterns were applied
 
-- [Architecture Guide](docs/architecture.md)
-- [Simplified Workflow](docs/workflow_integration.md)
-- [Optimization Patterns](docs/optimization_patterns.md)
-- [User Guide](docs/user_guide.md)
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
+3. Make your changes
+4. Add tests for new functionality
 5. Submit a pull request
 
-## License
+## 📄 License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
+## 🆘 Support
 
 For issues and questions:
-- Check the documentation
-- Review test examples
-- Open an issue on GitHub
-
----
-
-**Transform your underperforming BigQuery queries into pattern-optimized, LLM-enhanced solutions with direct processing while preserving exact business logic!**
+1. Check the troubleshooting section above
+2. Run the test scripts to diagnose problems
+3. Review the API documentation at `/docs`
+4. Check the logs for detailed error information

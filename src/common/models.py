@@ -240,6 +240,12 @@ class OptimizationResult(BaseModel):
         description="Detailed performance comparison metrics"
     )
     
+    # Execution and comparison results from execute-and-compare endpoint
+    execution_results: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Complete execution and comparison results including hashes and performance metrics"
+    )
+    
     def get_summary(self) -> str:
         """Get a human-readable summary of the optimization."""
         if not self.optimizations_applied:

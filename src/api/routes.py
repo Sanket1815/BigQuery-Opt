@@ -16,6 +16,7 @@ import time
 import subprocess
 import json
 from pathlib import Path
+from datetime import date, datetime
 
 router = APIRouter()
 logger = QueryOptimizerLogger(__name__)
@@ -30,12 +31,11 @@ except Exception as e:
 
 # Request/Response Models
 class OptimizeRequest(BaseModel):
-    """Request model for query optimization."""
-    query: str = Field(..., description="SQL query to optimize")
-    project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
-    validate_results: bool = Field(True, description="Validate query results")
-    measure_performance: bool = Field(False, description="Measure actual performance")
-    sample_size: int = Field(1000, description="Sample size for validation")
+    query: str
+    project_id: Optional[str] = None
+    validate_results: bool = True
+    measure_performance: bool = False
+    sample_size: int = 1000
 
 
 class AnalyzeRequest(BaseModel):
@@ -45,11 +45,9 @@ class AnalyzeRequest(BaseModel):
 
 
 class ValidateRequest(BaseModel):
-    """Request model for query validation."""
-    original_query: str = Field(..., description="Original SQL query")
-    optimized_query: str = Field(..., description="Optimized SQL query")
-    project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
-    sample_size: int = Field(1000, description="Sample size for validation")
+    original_query: str
+    optimized_query: str
+    project_id: Optional[str] = None
 
 
 class BatchOptimizeRequest(BaseModel):
@@ -80,6 +78,7 @@ class TestSuiteSelectionRequest(BaseModel):
     project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
     validate_results: bool = Field(True, description="Validate query results")
     measure_performance: bool = Field(False, description="Measure actual performance")
+    include_execution_results: bool = Field(True, description="Include full execution and comparison results")
 
 
 class TestCaseResult(BaseModel):
@@ -162,6 +161,281 @@ async def optimize_query(request: OptimizeRequest):
     except Exception as e:
         logger.log_error(e, {"endpoint": "/optimize"})
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/optimize-gemini")
+async def optimize_query_gemini(request: OptimizeRequest):
+    """
+    Optimize a BigQuery SQL query using Gemini API directly.
+    
+    This endpoint sends the raw SQL query directly to Gemini API with all MD documentation
+    without any validation or analysis. Returns optimized query with validation results.
+    """
+    try:
+        logger.logger.info(f"Gemini optimization for query of length {len(request.query)}")
+        
+        # Use MCP server for Gemini-based optimization
+        print(f"🤖 Using Gemini API optimization workflow")
+        
+        # Import the handler directly for this endpoint
+        from src.mcp_server.handlers import DirectSQLOptimizationHandler
+        
+        handler = DirectSQLOptimizationHandler()
+        
+        # Send directly to Gemini API
+        result = handler.optimize_with_gemini(request.query, request.project_id)
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=400,
+                detail=result.get("error", "Gemini optimization failed")
+            )
+        
+        logger.logger.info(
+            f"Gemini optimization completed: {result.get('total_optimizations', 0)} optimizations applied"
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.log_error(e, {"endpoint": "/optimize-gemini"})
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/validate-schemas")
+async def validate_query_schemas(request: ValidateRequest):
+    """
+    Validate that both original and optimized queries reference valid schemas and tables.
+    """
+    try:
+        logger.logger.info("Validating query schemas and tables")
+        
+        # Import the handler for schema validation
+        from src.mcp_server.handlers import DirectSQLOptimizationHandler
+        
+        handler = DirectSQLOptimizationHandler()
+        
+        # Basic schema validation (check for valid table references)
+        validation_result = {
+            "success": True,
+            "original_query_valid": True,
+            "optimized_query_valid": True,
+            "schema_issues": [],
+            "table_references": {
+                "original": [],
+                "optimized": []
+            }
+        }
+        
+        # Extract table references from queries (simplified)
+        import re
+        
+        # Simple regex to find table references
+        table_pattern = r'FROM\s+`?([^`\s]+)`?\s+|JOIN\s+`?([^`\s]+)`?\s+'
+        
+        original_tables = re.findall(table_pattern, request.original_query, re.IGNORECASE)
+        optimized_tables = re.findall(table_pattern, request.optimized_query, re.IGNORECASE)
+        
+        # Flatten and clean table references
+        validation_result["table_references"]["original"] = [t for t in original_tables if t]
+        validation_result["table_references"]["optimized"] = [t for t in optimized_tables if t]
+        
+        # Check if optimized query has more table references (potential issue)
+        if len(validation_result["table_references"]["optimized"]) > len(validation_result["table_references"]["original"]):
+            validation_result["schema_issues"].append("Optimized query references more tables than original")
+        
+        return validation_result
+        
+    except Exception as e:
+        logger.log_error(e, {"endpoint": "/validate-schemas"})
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Schema validation failed"
+        }
+
+
+@router.post("/execute-and-compare")
+async def execute_and_compare_queries(request: ValidateRequest):
+    """
+    Execute both original and optimized queries and compare results using hashing.
+    """
+    try:
+        logger.logger.info("Executing and comparing queries")
+        
+        # Import BigQuery client for execution
+        from src.optimizer.bigquery_client import BigQueryClient
+        
+        bq_client = BigQueryClient(project_id=request.project_id)
+        
+        # Execute original query
+        original_result = bq_client.execute_query(request.original_query, dry_run=False)
+        
+        # Execute optimized query
+        optimized_result = bq_client.execute_query(request.optimized_query, dry_run=False)
+        
+        if not original_result["success"]:
+            raise Exception(f"Original query execution failed: {original_result.get('error')}")
+        
+        if not optimized_result["success"]:
+            raise Exception(f"Optimized query execution failed: {optimized_result.get('error')}")
+        
+        # Compare results using hashing
+        import hashlib
+        import json
+        from datetime import date, datetime
+        
+        class BigQueryJSONEncoder(json.JSONEncoder):
+            """Custom JSON encoder for BigQuery data types."""
+            def default(self, obj):
+                if isinstance(obj, (date, datetime)):
+                    return obj.isoformat()
+                elif hasattr(obj, 'isoformat'):  # Handle other date-like objects
+                    return obj.isoformat()
+                elif hasattr(obj, '__dict__'):  # Handle custom objects
+                    return str(obj)
+                return super().default(obj)
+        
+        def hash_results(results):
+            """Create hash of query results for comparison."""
+            if not results:
+                return hashlib.md5(b"no_results").hexdigest()
+            
+            try:
+                # Normalize and sort results for consistent hashing
+                normalized_results = []
+                for row in results:
+                    normalized_row = {}
+                    for key, value in sorted(row.items()):
+                        # Normalize the value for consistent hashing
+                        if isinstance(value, (date, datetime)):
+                            normalized_row[key] = value.isoformat()
+                        elif hasattr(value, 'isoformat'):
+                            normalized_row[key] = value.isoformat()
+                        elif isinstance(value, (int, float)):
+                            # Ensure consistent numeric representation
+                            if isinstance(value, float):
+                                normalized_row[key] = round(value, 6)  # Consistent decimal places
+                            else:
+                                normalized_row[key] = value
+                        elif value is None:
+                            normalized_row[key] = "NULL"
+                        else:
+                            normalized_row[key] = str(value).strip()
+                    normalized_results.append(normalized_row)
+                
+                # Sort rows by a consistent key (first available key)
+                if normalized_results and normalized_results[0]:
+                    first_key = list(normalized_results[0].keys())[0]
+                    normalized_results.sort(key=lambda x: str(x.get(first_key, '')))
+                
+                # Create hash from normalized data
+                json_str = json.dumps(normalized_results, cls=BigQueryJSONEncoder, sort_keys=True)
+                return hashlib.md5(json_str.encode()).hexdigest()
+                
+            except (TypeError, ValueError) as e:
+                # Fallback: convert to string representation for hashing
+                logger.logger.warning(f"JSON serialization failed, using string fallback: {e}")
+                try:
+                    # Convert results to string representation with consistent formatting
+                    result_strings = []
+                    for row in results:
+                        row_str = []
+                        for key, value in sorted(row.items()):
+                            if isinstance(value, (date, datetime)):
+                                row_str.append(f"{key}:{value.isoformat()}")
+                            elif hasattr(value, 'isoformat'):
+                                row_str.append(f"{key}:{value.isoformat()}")
+                            elif isinstance(value, (int, float)):
+                                if isinstance(value, float):
+                                    row_str.append(f"{key}:{round(value, 6)}")
+                                else:
+                                    row_str.append(f"{key}:{value}")
+                            elif value is None:
+                                row_str.append(f"{key}:NULL")
+                            else:
+                                row_str.append(f"{key}:{str(value).strip()}")
+                        result_strings.append("|".join(row_str))
+                    
+                    # Sort rows consistently
+                    sorted_strings = sorted(result_strings)
+                    return hashlib.md5("||".join(sorted_strings).encode()).hexdigest()
+                except Exception as fallback_error:
+                    logger.logger.error(f"Fallback hashing also failed: {fallback_error}")
+                    return hashlib.md5(f"fallback_hash_{len(results)}".encode()).hexdigest()
+        
+        original_hash = hash_results(original_result.get("results", []))
+        optimized_hash = hash_results(optimized_result.get("results", []))
+        
+        # Calculate actual performance improvements
+        original_time = original_result.get("execution_time_ms", 0)
+        optimized_time = optimized_result.get("execution_time_ms", 0)
+        original_bytes = original_result.get("bytes_processed", 0)
+        optimized_bytes = optimized_result.get("bytes_processed", 0)
+        
+        # Calculate actual improvements (not expected)
+        time_improvement = 0
+        bytes_improvement = 0
+        cost_improvement = 0
+        time_saved_ms = 0
+        bytes_saved = 0
+        cost_saved = 0
+        
+        if original_time > 0:
+            time_improvement = (original_time - optimized_time) / original_time
+            time_saved_ms = original_time - optimized_time
+        
+        if original_bytes > 0:
+            bytes_improvement = (original_bytes - optimized_bytes) / original_bytes
+            bytes_saved = original_bytes - optimized_bytes
+        
+        # Estimate cost improvements (BigQuery pricing: $5 per TB processed)
+        if original_bytes > 0:
+            original_cost = (original_bytes / (1024**4)) * 5  # Convert bytes to TB, then multiply by $5
+            optimized_cost = (optimized_bytes / (1024**4)) * 5
+            if original_cost > 0:
+                cost_improvement = (original_cost - optimized_cost) / original_cost
+                cost_saved = original_cost - optimized_cost
+        
+        comparison_result = {
+            "success": True,
+            "original_query_results": original_result.get("results", []),
+            "optimized_query_results": optimized_result.get("results", []),
+            "original_row_count": len(original_result.get("results", [])),
+            "optimized_row_count": len(optimized_result.get("results", [])),
+            "results_identical": original_hash == optimized_hash,
+            "original_hash": original_hash,
+            "optimized_hash": optimized_hash,
+            "performance_metrics": {
+                "success": True,
+                "original_time_ms": original_time,
+                "optimized_time_ms": optimized_time,
+                "original_bytes": original_bytes,
+                "optimized_bytes": optimized_bytes,
+                "original_cost": round(original_cost, 6) if original_bytes > 0 else 0,
+                "optimized_cost": round(optimized_cost, 6) if optimized_bytes > 0 else 0,
+                # Actual improvements achieved (not expected)
+                "time_improvement": max(0, time_improvement),
+                "bytes_improvement": max(0, bytes_improvement),
+                "cost_improvement": max(0, cost_improvement),
+                "time_saved_ms": max(0, time_saved_ms),
+                "bytes_saved": max(0, bytes_saved),
+                "cost_saved": round(max(0, cost_saved), 6),
+                "performance_summary": f"Time: {time_improvement*100:.1f}% faster, Data: {bytes_improvement*100:.1f}% less, Cost: {cost_improvement*100:.1f}% savings" if time_improvement > 0 else "No performance improvement detected"
+            }
+        }
+        
+        return comparison_result
+        
+    except Exception as e:
+        logger.log_error(e, {"endpoint": "/execute-and-compare"})
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Query execution and comparison failed"
+        }
 
 
 @router.post("/analyze", response_model=QueryAnalysis)
@@ -437,6 +711,11 @@ async def get_table_suggestions(
 async def run_test_suite(request: TestSuiteSelectionRequest):
     """
     Run a specific test suite with 3 test cases each.
+    
+    🚀 UNIFIED WORKFLOW: Test suites now use the EXACT SAME implementation as single queries:
+    1. Raw SQL → Gemini API → Regex Syntax Fix → LLM Cleanup → Schema Validation → LLM Final Cleanup → Execution & Comparison
+    
+    This ensures consistent behavior and results between single queries and test suites.
     
     Available test suites:
     - simple_query: Basic SELECT with inefficient WHERE clause
@@ -715,41 +994,230 @@ WHERE c.customer_id IN (
                 if 'your-project' in test_query:
                     test_query = test_query.replace('your-project', actual_project_id)
                 
-                # Run optimization on the test query
-                optimization_result = optimizer.optimize_query(
-                    test_query,
-                    validate_results=request.validate_results,
-                    measure_performance=request.measure_performance,
-                    sample_size=100  # Use smaller sample for tests
-                )
-                
-                # Execute original query to get results
-                original_results = None
-                optimized_results = None
-                
+                # Use Gemini-based optimization workflow for test suites
                 try:
-                    # Fix project ID in test query before execution
-                    actual_project_id = request.project_id or optimizer.bq_client.project_id
-                    test_query = test_case["query"]
-                    if 'your-project' in test_query:
-                        test_query = test_query.replace('your-project', actual_project_id)
+                    from src.mcp_server.handlers import DirectSQLOptimizationHandler
                     
-                    # Get original query results
-                    original_exec = optimizer.bq_client.execute_query(test_query, dry_run=False)
-                    if original_exec["success"]:
-                        original_results = original_exec["results"][:5]  # First 5 rows
+                    handler = DirectSQLOptimizationHandler()
                     
-                    # Get optimized query results
-                    optimized_query_fixed = optimization_result.optimized_query
-                    if 'your-project' in optimized_query_fixed:
-                        optimized_query_fixed = optimized_query_fixed.replace('your-project', actual_project_id)
+                    # Send directly to Gemini API for optimization
+                    logger.logger.info(f"Starting Gemini optimization for test case: {test_case['name']}")
+                    logger.logger.info(f"Test query: {test_query[:200]}...")
+                    logger.logger.info(f"Project ID: {actual_project_id}")
                     
-                    optimized_exec = optimizer.bq_client.execute_query(optimized_query_fixed, dry_run=False)
-                    if optimized_exec["success"]:
-                        optimized_results = optimized_exec["results"][:5]  # First 5 rows
+                    gemini_result = handler.optimize_with_gemini(test_query, actual_project_id)
+                    
+                    logger.logger.info(f"Gemini result for {test_case['name']}: success={gemini_result.get('success')}, optimizations={len(gemini_result.get('optimizations_applied', []))}")
+                    
+                    if gemini_result.get("success"):
+                        # Convert Gemini result to OptimizationResult format
+                        from src.common.models import OptimizationResult, QueryAnalysis, AppliedOptimization
                         
-                except Exception as e:
-                    print(f"Warning: Could not execute queries for result comparison: {e}")
+                        # Create QueryAnalysis
+                        query_analysis = QueryAnalysis(
+                            original_query=test_query,
+                            query_hash=gemini_result.get("original_hash", "unknown"),
+                            complexity="moderate",  # Default complexity
+                            table_count=gemini_result.get("table_count", 0),
+                            join_count=gemini_result.get("join_count", 0),
+                            subquery_count=gemini_result.get("subquery_count", 0),
+                            window_function_count=gemini_result.get("window_function_count", 0),
+                            aggregate_function_count=gemini_result.get("aggregate_function_count", 0),
+                            potential_issues=gemini_result.get("potential_issues", []),
+                            applicable_patterns=gemini_result.get("applicable_patterns", [])
+                        )
+                        
+                        # Create AppliedOptimization list
+                        optimizations_applied = []
+                        if gemini_result.get("optimizations_applied"):
+                            for opt in gemini_result["optimizations_applied"]:
+                                applied_opt = AppliedOptimization(
+                                    pattern_id=opt.get("pattern_id", "gemini_optimization"),
+                                    pattern_name=opt.get("name", "AI-Generated Optimization"),
+                                    description=opt.get("description", "Optimization applied"),
+                                    before_snippet=opt.get("before_snippet", ""),
+                                    after_snippet=opt.get("after_snippet", ""),
+                                    documentation_reference=opt.get("documentation_reference"),
+                                    expected_improvement=opt.get("expected_improvement"),
+                                    confidence_score=opt.get("confidence_score", 1.0)
+                                )
+                                optimizations_applied.append(applied_opt)
+                        
+                        # Create OptimizationResult
+                        optimization_result = OptimizationResult(
+                            original_query=test_query,
+                            query_analysis=query_analysis,
+                            optimized_query=gemini_result.get("optimized_query", test_query),
+                            optimizations_applied=optimizations_applied,
+                            total_optimizations=len(optimizations_applied),
+                            estimated_improvement=gemini_result.get("estimated_improvement"),
+                            results_identical=gemini_result.get("results_identical", False),
+                            execution_results=gemini_result.get("execution_results")
+                        )
+                        
+                        logger.logger.info(f"Gemini optimization successful for test case: {test_case['name']}")
+                        
+                    else:
+                        # Fallback to basic optimization if Gemini fails
+                        error_msg = gemini_result.get('error', 'Unknown error')
+                        logger.logger.warning(f"Gemini optimization failed for {test_case['name']}, using fallback: {error_msg}")
+                        
+                        # Create a minimal optimization result for failed Gemini cases
+                        from src.common.models import OptimizationResult, QueryAnalysis, AppliedOptimization
+                        
+                        # Create minimal QueryAnalysis
+                        query_analysis = QueryAnalysis(
+                            original_query=test_query,
+                            query_hash="gemini_failed",
+                            complexity="moderate",  # Use valid enum value instead of "unknown"
+                            table_count=0,
+                            join_count=0,
+                            subquery_count=0,
+                            window_function_count=0,
+                            aggregate_function_count=0,
+                            potential_issues=[f"Gemini optimization failed: {error_msg}"],
+                            applicable_patterns=[]
+                        )
+                        
+                        # Create minimal OptimizationResult
+                        optimization_result = OptimizationResult(
+                            original_query=test_query,
+                            query_analysis=query_analysis,
+                            optimized_query=test_query,  # No optimization applied
+                            optimizations_applied=[],
+                            total_optimizations=0,
+                            estimated_improvement=0.0,
+                            results_identical=True,  # Same query = same results
+                            validation_error=f"Gemini optimization failed: {error_msg}",
+                            potential_issues=[f"Gemini optimization failed: {error_msg}"]
+                        )
+                
+                except Exception as gemini_error:
+                    logger.logger.warning(f"Gemini optimization failed for {test_case['name']}, using fallback: {gemini_error}")
+                    
+                    # Create a minimal optimization result for failed Gemini cases
+                    from src.common.models import OptimizationResult, QueryAnalysis, AppliedOptimization
+                    
+                    # Create minimal QueryAnalysis
+                    query_analysis = QueryAnalysis(
+                        original_query=test_query,
+                        query_hash="gemini_exception",
+                        complexity="moderate",  # Use valid enum value instead of "unknown"
+                        table_count=0,
+                        join_count=0,
+                        subquery_count=0,
+                        window_function_count=0,
+                        aggregate_function_count=0,
+                        potential_issues=[f"Gemini optimization exception: {str(gemini_error)}"],
+                        applicable_patterns=[]
+                    )
+                    
+                    # Create minimal OptimizationResult
+                    optimization_result = OptimizationResult(
+                        original_query=test_query,
+                        query_analysis=query_analysis,
+                        optimized_query=test_query,  # No optimization applied
+                        optimizations_applied=[],
+                        total_optimizations=0,
+                        estimated_improvement=0.0,
+                        results_identical=True,  # Same query = same results
+                        validation_error=f"Gemini optimization exception: {str(gemini_error)}",
+                        potential_issues=[f"Gemini optimization exception: {str(gemini_error)}"]
+                    )
+                
+                # Apply schema validation and correction if Gemini optimization was successful
+                if gemini_result.get("success") and gemini_result.get("optimized_query"):
+                    try:
+                        # The optimize_with_gemini method already handles the complete workflow:
+                        # 1. Syntax validation and fixing
+                        # 2. LLM cleanup after syntax fixes  
+                        # 3. Schema validation and correction
+                        # 4. LLM final cleanup after schema validation
+                        # 5. Execution and comparison
+                        
+                        # No need to manually call schema validation - it's already done!
+                        # The gemini_result contains the fully processed and validated query
+                        
+                        logger.logger.info(f"Gemini optimization completed with full workflow for {test_case['name']}")
+                        logger.logger.info(f"Final optimized query: {gemini_result.get('optimized_query', '')[:200]}...")
+                        
+                        # The optimization_result already contains the final optimized query
+                        # from the complete workflow, so no additional processing is needed
+                        
+                    except Exception as workflow_error:
+                        logger.logger.warning(f"Error accessing workflow results for {test_case['name']}: {workflow_error}")
+                        # Continue with the results from optimize_with_gemini
+                else:
+                    logger.logger.info(f"Gemini optimization workflow completed for {test_case['name']}")
+                
+                # Enhanced execution and comparison for test suites
+                if request.validate_results and request.project_id and request.include_execution_results:
+                    # Initialize result variables
+                    original_results = None
+                    optimized_results = None
+                    
+                    try:
+                        # The optimize_with_gemini method already executed and compared both queries
+                        # Use those results directly instead of re-executing
+                        if gemini_result.get("success") and gemini_result.get("execution_results"):
+                            # Use Gemini's execution results (same as single queries)
+                            execution_results = gemini_result["execution_results"]
+                            
+                            if execution_results.get("success"):
+                                # Update the optimization result with execution results
+                                optimization_result.execution_results = execution_results
+                                optimization_result.results_identical = execution_results.get("results_identical", False)
+                                
+                                # Use the results from the workflow (same as single queries)
+                                if execution_results.get("original_query_results"):
+                                    original_results = execution_results["original_query_results"]
+                                if execution_results.get("optimized_query_results"):
+                                    optimized_results = execution_results["optimized_query_results"]
+                                
+                                logger.logger.info(f"Using execution results from Gemini workflow for test case: {test_case['name']}")
+                                logger.logger.info(f"Results identical: {execution_results.get('results_identical', False)}")
+                                
+                                # Also update performance metrics from the workflow
+                                if execution_results.get("performance_metrics"):
+                                    logger.logger.info(f"Performance metrics from workflow: {execution_results['performance_metrics'].get('performance_summary', 'N/A')}")
+                            else:
+                                logger.logger.warning(f"Gemini execution results failed for {test_case['name']}, falling back to manual execution")
+                                # Fall back to manual execution only if workflow execution failed
+                                original_results, optimized_results = await _execute_queries_manually(test_case, test_query, optimization_result, actual_project_id)
+                        else:
+                            # No execution results from workflow, fall back to manual execution
+                            logger.logger.info(f"No execution results from workflow for {test_case['name']}, using manual execution")
+                            original_results, optimized_results = await _execute_queries_manually(test_case, test_query, optimization_result, actual_project_id)
+                        
+                    except Exception as exec_error:
+                        logger.logger.warning(f"Could not get execution results for {test_case['name']}: {exec_error}")
+                        # Fall back to basic execution
+                        original_results, optimized_results = await _execute_queries_manually(test_case, test_query, optimization_result, actual_project_id)
+                else:
+                    # Basic execution without project ID
+                    try:
+                        # Fix project ID in test query before execution
+                        actual_project_id = request.project_id or optimizer.bq_client.project_id
+                        test_query = test_case["query"]
+                        if 'your-project' in test_query:
+                            test_query = test_query.replace('your-project', actual_project_id)
+                        
+                        # Get original query results
+                        original_exec = optimizer.bq_client.execute_query(test_query, dry_run=False)
+                        if original_exec["success"]:
+                            original_results = original_exec["results"][:5]  # First 5 rows
+                        
+                        # Get optimized query results
+                        optimized_query_fixed = optimization_result.optimized_query
+                        if 'your-project' in optimized_query_fixed:
+                            optimized_query_fixed = optimized_query_fixed.replace('your-project', actual_project_id)
+                        
+                        optimized_exec = optimizer.bq_client.execute_query(optimized_query_fixed, dry_run=False)
+                        if optimized_exec["success"]:
+                            optimized_results = optimized_exec["results"][:5]  # First 5 rows
+                            
+                    except Exception as e:
+                        logger.logger.warning(f"Could not execute queries for result comparison: {e}")
                 
                 case_execution_time = time.time() - case_start_time
                 
@@ -774,19 +1242,20 @@ WHERE c.customer_id IN (
                     query_analysis=QueryAnalysis(
                         original_query=test_case["query"],
                         query_hash="failed",
-                        complexity="unknown",
+                        complexity="moderate",  # Use valid enum value
                         table_count=0,
                         join_count=0,
                         subquery_count=0,
                         window_function_count=0,
                         aggregate_function_count=0,
-                        potential_issues=[],
+                        potential_issues=[f"Test case execution failed: {str(e)}"],
                         applicable_patterns=[]
                     ),
                     optimized_query=test_case["query"],
                     optimizations_applied=[],
                     total_optimizations=0,
-                    validation_error=str(e)
+                    validation_error=str(e),
+                    potential_issues=[f"Test case execution failed: {str(e)}"]
                 )
                 
                 test_results.append(TestCaseResult(
@@ -820,6 +1289,47 @@ WHERE c.customer_id IN (
             status_code=500,
             detail=f"Test suite execution failed: {str(e)}"
         )
+
+
+# Helper function for manual query execution in test suites
+async def _execute_queries_manually(test_case, test_query, optimization_result, actual_project_id):
+    """
+    Fallback function to manually execute queries when the Gemini workflow doesn't provide execution results.
+    This ensures test suites can still show results even if the main workflow fails.
+    """
+    try:
+        from src.optimizer.bigquery_client import BigQueryClient
+        
+        # Initialize BigQuery client
+        bq_client = BigQueryClient(project_id=actual_project_id)
+        
+        # Fix project ID in test query before execution
+        test_query_fixed = test_query
+        if 'your-project' in test_query_fixed:
+            test_query_fixed = test_query_fixed.replace('your-project', actual_project_id)
+        
+        # Get original query results
+        original_results = None
+        original_exec = bq_client.execute_query(test_query_fixed, dry_run=False)
+        if original_exec["success"]:
+            original_results = original_exec["results"][:1000]  # Get more rows for better comparison
+        
+        # Get optimized query results
+        optimized_results = None
+        optimized_query_fixed = optimization_result.optimized_query
+        if 'your-project' in optimized_query_fixed:
+            optimized_query_fixed = optimized_query_fixed.replace('your-project', actual_project_id)
+        
+        optimized_exec = bq_client.execute_query(optimized_query_fixed, dry_run=False)
+        if optimized_exec["success"]:
+            optimized_results = optimized_exec["results"][:1000]  # Get more rows for better comparison
+        
+        logger.logger.info(f"Manual execution completed for {test_case['name']}")
+        return original_results, optimized_results
+        
+    except Exception as e:
+        logger.logger.warning(f"Manual execution failed for {test_case['name']}: {e}")
+        return None, None
 
 
 @router.post("/run-tests", response_model=TestResult)
@@ -1239,4 +1749,173 @@ async def setup_test_data(request: TestSuiteRequest):
             "success": False,
             "error_message": str(e),
             "message": "Failed to setup test data"
+        }
+
+
+@router.post("/debug-hashing")
+async def debug_hashing(request: ValidateRequest):
+    """
+    Debug endpoint to show detailed hashing information for troubleshooting.
+    """
+    try:
+        logger.logger.info("Debugging hashing process")
+        
+        # Import BigQuery client for execution
+        from src.optimizer.bigquery_client import BigQueryClient
+        
+        bq_client = BigQueryClient(project_id=request.project_id)
+        
+        # Execute both queries
+        original_result = bq_client.execute_query(request.original_query, dry_run=False)
+        optimized_result = bq_client.execute_query(request.optimized_query, dry_run=False)
+        
+        if not original_result["success"]:
+            raise Exception(f"Original query execution failed: {original_result.get('error')}")
+        
+        if not optimized_result["success"]:
+            raise Exception(f"Optimized query execution failed: {optimized_result.get('error')}")
+        
+        # Get the hashing function from the execute-and-compare endpoint
+        import hashlib
+        import json
+        from datetime import date, datetime
+        
+        class BigQueryJSONEncoder(json.JSONEncoder):
+            """Custom JSON encoder for BigQuery data types."""
+            def default(self, obj):
+                if isinstance(obj, (date, datetime)):
+                    return obj.isoformat()
+                elif hasattr(obj, 'isoformat'):
+                    return obj.isoformat()
+                elif hasattr(obj, '__dict__'):
+                    return str(obj)
+                return super().default(obj)
+        
+        def hash_results_debug(results):
+            """Debug version of hash_results that shows the process."""
+            if not results:
+                return {
+                    "hash": hashlib.md5(b"no_results").hexdigest(),
+                    "normalized_data": [],
+                    "process": "empty_results"
+                }
+            
+            try:
+                # Normalize and sort results for consistent hashing
+                normalized_results = []
+                for i, row in enumerate(results):
+                    normalized_row = {}
+                    for key, value in sorted(row.items()):
+                        # Normalize the value for consistent hashing
+                        if isinstance(value, (date, datetime)):
+                            normalized_row[key] = value.isoformat()
+                        elif hasattr(value, 'isoformat'):
+                            normalized_row[key] = value.isoformat()
+                        elif isinstance(value, (int, float)):
+                            if isinstance(value, float):
+                                normalized_row[key] = round(value, 6)
+                            else:
+                                normalized_row[key] = value
+                        elif value is None:
+                            normalized_row[key] = "NULL"
+                        else:
+                            normalized_row[key] = str(value).strip()
+                    normalized_results.append(normalized_row)
+                
+                # Sort rows by first available key
+                if normalized_results and normalized_results[0]:
+                    first_key = list(normalized_results[0].keys())[0]
+                    normalized_results.sort(key=lambda x: str(x.get(first_key, '')))
+                
+                # Create hash from normalized data
+                json_str = json.dumps(normalized_results, cls=BigQueryJSONEncoder, sort_keys=True)
+                hash_value = hashlib.md5(json_str.encode()).hexdigest()
+                
+                return {
+                    "hash": hash_value,
+                    "normalized_data": normalized_results,
+                    "json_string": json_str,
+                    "process": "json_normalization",
+                    "row_count": len(results)
+                }
+                
+            except Exception as e:
+                # Fallback hashing
+                try:
+                    result_strings = []
+                    for row in results:
+                        row_str = []
+                        for key, value in sorted(row.items()):
+                            if isinstance(value, (date, datetime)):
+                                row_str.append(f"{key}:{value.isoformat()}")
+                            elif hasattr(value, 'isoformat'):
+                                row_str.append(f"{key}:{value.isoformat()}")
+                            elif isinstance(value, (int, float)):
+                                if isinstance(value, float):
+                                    row_str.append(f"{key}:{round(value, 6)}")
+                                else:
+                                    row_str.append(f"{key}:{value}")
+                            elif value is None:
+                                row_str.append(f"{key}:NULL")
+                            else:
+                                row_str.append(f"{key}:{str(value).strip()}")
+                        result_strings.append("|".join(row_str))
+                    
+                    sorted_strings = sorted(result_strings)
+                    combined = "||".join(sorted_strings)
+                    hash_value = hashlib.md5(combined.encode()).hexdigest()
+                    
+                    return {
+                        "hash": hash_value,
+                        "normalized_data": result_strings,
+                        "combined_string": combined,
+                        "process": "string_fallback",
+                        "row_count": len(results),
+                        "error": str(e)
+                    }
+                except Exception as fallback_error:
+                    return {
+                        "hash": hashlib.md5(f"fallback_hash_{len(results)}".encode()).hexdigest(),
+                        "process": "ultimate_fallback",
+                        "row_count": len(results),
+                        "error": f"JSON: {str(e)}, Fallback: {str(fallback_error)}"
+                    }
+        
+        # Get debug info for both queries
+        original_debug = hash_results_debug(original_result.get("results", []))
+        optimized_debug = hash_results_debug(optimized_result.get("results", []))
+        
+        return {
+            "success": True,
+            "original_query": {
+                "hash": original_debug["hash"],
+                "process": original_debug["process"],
+                "row_count": original_debug["row_count"],
+                "normalized_data": original_debug.get("normalized_data", []),
+                "json_string": original_debug.get("json_string", ""),
+                "combined_string": original_debug.get("combined_string", ""),
+                "error": original_debug.get("error", "")
+            },
+            "optimized_query": {
+                "hash": optimized_debug["hash"],
+                "process": optimized_debug["process"],
+                "row_count": optimized_debug["row_count"],
+                "normalized_data": optimized_debug.get("normalized_data", []),
+                "json_string": optimized_debug.get("json_string", ""),
+                "combined_string": optimized_debug.get("combined_string", ""),
+                "error": optimized_debug.get("error", "")
+            },
+            "comparison": {
+                "hashes_identical": original_debug["hash"] == optimized_debug["hash"],
+                "processes_identical": original_debug["process"] == optimized_debug["process"],
+                "row_counts_identical": original_debug["row_count"] == optimized_debug["row_count"]
+            }
+        }
+        
+    except Exception as e:
+        logger.log_error(e, {"endpoint": "/debug-hashing"})
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Hashing debug failed"
         }

@@ -109,6 +109,36 @@ class BigQueryMCPServer:
                     processing_time_ms=int((time.time() - start_time) * 1000)
                 )
         
+        @self.app.post("/optimize-with-gemini")
+        async def optimize_with_gemini(request: MCPRequest) -> MCPResponse:
+            """Process raw SQL query directly with Gemini API and return optimized query."""
+            start_time = time.time()
+            
+            try:
+                sql_query = request.query
+                project_id = request.options.get("project_id")
+                
+                # Use Gemini API for direct optimization
+                optimization_result = self.sql_handler.optimize_with_gemini(sql_query, project_id)
+                
+                processing_time = int((time.time() - start_time) * 1000)
+                self.logger.log_mcp_request("optimize-with-gemini", processing_time)
+                
+                return MCPResponse(
+                    success=optimization_result.get("success", False),
+                    data=optimization_result,
+                    processing_time_ms=processing_time
+                )
+                
+            except Exception as e:
+                self.logger.log_error(e, {"endpoint": "/optimize-with-gemini", "query": request.query})
+                return MCPResponse(
+                    success=False,
+                    error_message=str(e),
+                    data={},
+                    processing_time_ms=int((time.time() - start_time) * 1000)
+                )
+        
         @self.app.get("/patterns")
         async def get_all_patterns():
             """Get all available optimization patterns."""
