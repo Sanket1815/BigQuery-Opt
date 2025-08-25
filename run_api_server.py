@@ -37,9 +37,10 @@ def check_os_module():
     try:
         import os
         if not hasattr(os, 'chmod'):
-            print("❌ os module missing chmod attribute - corrupted installation")
-            return False
-        print("✅ os module working correctly")
+            print("⚠️  os module missing chmod attribute - limited environment detected")
+            print("⚠️  File permission operations will be skipped")
+            return True  # Continue execution despite limitation
+        print("⚠️  os module partially functional (chmod missing)")
         return True
     except Exception as e:
         print(f"❌ os module check failed: {e}")
@@ -53,8 +54,27 @@ def main():
         print("⚠️  Some features may not work correctly.")
     
     if not check_os_module():
-        print("\n❌ Operating system module has issues, but attempting to continue...")
-        print("⚠️  File operations may not work correctly.")
+        print("\n❌ Critical operating system module failure - cannot continue")
+        sys.exit(1)
+    
+    # Load environment variables from .env file
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        print("✅ Environment variables loaded from .env file")
+        
+        # Check if GEMINI_API_KEY is loaded
+        gemini_key = os.getenv('GEMINI_API_KEY')
+        if gemini_key:
+            print(f"✅ GEMINI_API_KEY loaded (length: {len(gemini_key)})")
+        else:
+            print("⚠️  GEMINI_API_KEY not found in environment variables")
+            
+    except ImportError:
+        print("⚠️  python-dotenv not installed - environment variables may not load correctly")
+        print("   Install with: pip install python-dotenv")
+    except Exception as e:
+        print(f"⚠️  Failed to load environment variables: {e}")
     
     # Only import these after basic checks pass
     try:

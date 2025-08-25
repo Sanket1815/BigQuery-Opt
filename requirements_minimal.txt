@@ -1,0 +1,16 @@
+# Minimal requirements for Gemini SQL optimization
+# This avoids conflicts with existing MCP server packages
+
+# Essential for Gemini API
+google-generativeai>=0.3.0
+
+# Core web framework (if not already installed)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Basic utilities
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Optional: For better performance
+numpy>=1.24.0 

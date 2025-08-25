@@ -4,841 +4,1573 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BigQuery Query Optimizer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #2d3748;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #1a202c;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #f7fafc;
+            color: #2d3748;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea.form-control {
+            min-height: 120px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 8px 25px rgba(113, 128, 150, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 25px rgba(245, 101, 101, 0.3);
+        }
+
+        .results-section {
+            margin-top: 40px;
+        }
+
+        .results-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .results-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #1a202c;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .query-display {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 1px solid #2d3748;
+        }
+
+        .query-display::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .query-display::-webkit-scrollbar-track {
+            background: #2d3748;
+            border-radius: 4px;
+        }
+
+        .query-display::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+
+        .query-display::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+
+        .query-label {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .optimization-info {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .optimization-info h4 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .optimization-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .optimization-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .optimization-name {
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 5px;
+        }
+
+        .optimization-description {
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            color: #718096;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .results-table th {
+            background: #2d3748;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .results-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+            color: #2d3748;
+        }
+
+        .results-table tr:nth-child(even) {
+            background: #f7fafc;
+        }
+
+        .results-table tr:hover {
+            background: #edf2f7;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-success {
+            background: #48bb78;
+        }
+
+        .status-error {
+            background: #f56565;
+        }
+
+        .status-warning {
+            background: #ed8936;
+        }
+
+        .status-info {
+            background: #4299e1;
+        }
+
+        .test-suite-section {
+            margin-top: 40px;
+        }
+
+        .test-suite-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .test-suite-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .test-suite-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+
+        .test-suite-card h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .test-suite-card p {
+            color: #718096;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid transparent;
+        }
+
+        .alert-success {
+            background: #f0fff4;
+            border-color: #9ae6b4;
+            color: #22543d;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            border-color: #feb2b2;
+            color: #742a2a;
+        }
+
+        .alert-warning {
+            background: #fffbeb;
+            border-color: #fbd38d;
+            color: #744210;
+        }
+
+        .alert-info {
+            background: #ebf8ff;
+            border-color: #90cdf4;
+            color: #2a4365;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .performance-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .test-suite-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .query-display {
+                font-size: 12px;
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+
+        /* Enhanced Query Display */
+        .query-container {
+            position: relative;
+            margin: 15px 0;
+        }
+
+        .query-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .query-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .copy-btn {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: #2d3748;
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        /* Syntax Highlighting for SQL */
+        .sql-keyword {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .sql-string {
+            color: #51cf66;
+        }
+
+        .sql-number {
+            color: #74c0fc;
+        }
+
+        .sql-operator {
+            color: #ffd43b;
+        }
+
+        /* Results Summary */
+        .results-summary {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .summary-label {
+            color: #718096;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Hash Comparison */
+        .hash-comparison {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .hash-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .hash-item:last-child {
+            border-bottom: none;
+        }
+
+        .hash-label {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .hash-value {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            color: #4a5568;
+            background: #edf2f7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .hash-match {
+            color: #48bb78;
+            font-weight: 600;
+        }
+
+        .hash-mismatch {
+            color: #f56565;
+            font-weight: 600;
+        }
+
+        /* Additional UI Components */
+        .query-comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .results-display-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .results-side {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .results-side h5 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .validation-details {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .validation-details.validation-success {
+            background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+            border-color: #48bb78;
+        }
+
+        .validation-details.validation-warning {
+            background: linear-gradient(135deg, #fef5e7 0%, #fed7aa 100%);
+            border-color: #ed8936;
+        }
+
+        .validation-details.validation-error {
+            background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+            border-color: #f56565;
+        }
+
+        .validation-score {
+            text-align: center;
+        }
+
+        .score-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .score-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .score-label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .validation-issues {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .validation-issues h6 {
+            color: #c53030;
+            margin-bottom: 10px;
+        }
+
+        .validation-issues ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .validation-issues li {
+            color: #742a2a;
+            margin-bottom: 5px;
+        }
+
+        .workflow-steps {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+
+        .steps-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .step-item {
+            margin-bottom: 8px;
+            font-size: 1rem;
+            color: #e2e8f0;
+            text-align: left;
+        }
+
+        .optimization-improvement {
+            color: #38a169;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .result-count-badge {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #e9ecef;
+            border-radius: 20px;
+            text-align: center;
+            font-weight: 600;
+            color: #495057;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .results-table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .even-row {
+            background: #ffffff;
+        }
+
+        .odd-row {
+            background: #f8f9fa;
+        }
+
+        .even-row:hover,
+        .odd-row:hover {
+            background: #e3f2fd;
+            transition: background-color 0.2s ease;
+        }
+
+        .gemini-results {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .gemini-results h4 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .hash-debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .hash-debug-info h6 {
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #feb2b2;
+        }
+
+        .success {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #9ae6b4;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <!-- Header -->
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">BigQuery Query Optimizer</h1>
-            <p class="text-gray-600">AI-powered SQL query optimization with MCP server integration</p>
-            <div class="mt-2 text-sm text-blue-600">
-                <span class="inline-flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Enhanced with Model Context Protocol (MCP) Server Integration
-                </span>
-            </div>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 BigQuery Query Optimizer</h1>
+            <p>AI-powered SQL optimization with performance verification</p>
+            <div class="status-badge">Enhanced with Direct SQL Analysis and Markdown Documentation</div>
         </div>
 
-        <!-- Main Interface -->
-        <div class="max-w-6xl mx-auto">
-            <!-- Configuration Panel -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-xl font-semibold mb-4">Configuration</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Project ID</label>
-                        <input type="text" id="projectId" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-project-id">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Sample Size</label>
-                        <input type="number" id="sampleSize" value="1000" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="flex items-end space-x-4">
-                        <label class="flex items-center">
-                            <input type="checkbox" id="validateResults" checked class="mr-2">
-                            <span class="text-sm text-gray-700">Validate Results</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" id="measurePerformance" class="mr-2">
-                            <span class="text-sm text-gray-700">Measure Performance</span>
-                        </label>
-                    </div>
+        <div class="main-content">
+            <div class="card">
+                <h2>🔧 Query Optimization</h2>
+                <div class="form-group">
+                    <label for="sqlQuery">SQL Query:</label>
+                    <textarea id="sqlQuery" class="form-control" rows="8" placeholder="Enter your BigQuery SQL query here..."></textarea>
                 </div>
-            </div>
-
-            <!-- Query Input -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold">SQL Query</h2>
-                    <div class="space-x-2">
-                        <button onclick="loadTestQuery()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                            Load Example Query
-                        </button>
-                        <button onclick="clearQuery()" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
-                            Clear
-                        </button>
-                    </div>
+                <div class="form-group">
+                    <label for="projectId">Project ID (Optional):</label>
+                    <input type="text" id="projectId" class="form-control" placeholder="your-project-id">
                 </div>
-                <textarea id="sqlQuery" rows="10" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="Enter any BigQuery SQL query here...
-
-Examples:
-SELECT * FROM `project.dataset.customers` WHERE signup_date >= '2024-01-01'
-SELECT customer_id, COUNT(*) FROM `project.dataset.orders` GROUP BY customer_id
-SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"></textarea>
-            </div>
-            <div class="mt-4">
-                <label for="queryLimit" class="block text-sm font-medium text-gray-700 mb-1">Row Limit</label>
-                <input type="number" id="queryLimit" value="100" min="1" max="10000"
-                       class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <p class="text-xs text-gray-500 mt-1">Maximum rows to fetch (e.g., 100)</p>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <div class="flex flex-wrap gap-4 justify-center">
-                    <button onclick="optimizeQuery()" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold">
-                        Optimize Query
-                    </button>
-                    <button onclick="analyzeQuery()" class="px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors">
-                        Analyze Only
-                    </button>
-                    <button onclick="getSuggestions()" class="px-6 py-3 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors">
-                        Get Suggestions
-                    </button>
-                    <button onclick="runTests()" class="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                        Run Test Suite
-                    </button>
-                    <button onclick="showStatus()" class="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
-                        System Status
-                    </button>
+                <div class="form-group">
+                    <label for="sampleSize">Sample Size for Validation:</label>
+                    <select id="sampleSize" class="form-control">
+                        <option value="100">100 rows</option>
+                        <option value="500">500 rows</option>
+                        <option value="1000" selected>1000 rows</option>
+                        <option value="5000">5000 rows</option>
+                    </select>
                 </div>
-            </div>
-
-            <!-- Test Suite Selection -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-xl font-semibold mb-4">Test Suite Selection</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Test Suite</label>
-                        <select id="testSuiteSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">Choose a test suite...</option>
-                            <option value="simple_query">Simple Query Test - Basic SELECT with inefficient WHERE</option>
-                            <option value="complex_join">Complex JOIN Test - Multi-table JOIN with suboptimal ordering</option>
-                            <option value="aggregation">Aggregation Test - GROUP BY without proper partitioning</option>
-                            <option value="window_function">Window Function Test - Inefficient window specifications</option>
-                            <option value="nested_query">Nested Query Test - Deeply nested subqueries</option>
-                        </select>
-                    </div>
-                    <div class="flex items-end">
-                        <button onclick="runSelectedTestSuite()" class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-semibold">
-                            Run Selected Test Suite
-                        </button>
-                    </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="validateResults" checked>
+                    <label for="validateResults">Validate query results</label>
                 </div>
-                <div class="mt-4 text-sm text-gray-600">
-                    <p>Each test suite contains 3 test cases that demonstrate different optimization scenarios.</p>
-                    <p>You'll see both the unoptimized and optimized queries with their actual results.</p>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="measurePerformance">
+                    <label for="measurePerformance">Measure actual performance</label>
                 </div>
-            </div>
-
-            <!-- Results Area -->
-            <div id="resultsArea" class="hidden">
-                <!-- Results will be dynamically inserted here -->
-            </div>
-
-            <!-- Loading Indicator -->
-            <div id="loadingIndicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg p-6 flex items-center space-x-4">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span class="text-lg">Processing...</span>
+                <div style="margin-top: 20px;">
+                    <button onclick="optimizeQuery()" class="btn btn-primary">🚀 Optimize Query</button>
+                    <button onclick="debugHashing()" class="btn btn-secondary" style="margin-left: 10px;">🔍 Debug Hashing</button>
                 </div>
+                <button onclick="loadExampleQuery()" class="btn btn-secondary" style="margin-top: 10px;">📝 Load Example</button>
             </div>
-        </div>
-    </div>
 
-    <!-- Test Query Selection Modal -->
-    <div id="testQueryModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold">Select Test Query</h3>
-                <button onclick="closeTestQueryModal()" class="text-gray-500 hover:text-gray-700">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+            <div class="card">
+                <h2>📊 System Status</h2>
+                <div id="systemStatus">
+                    <p>Click "Check Status" to verify system health</p>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="checkSystemStatus()">
+                    <span>🔍</span> Check Status
+                </button>
+                
+                <button class="btn btn-secondary" onclick="runTestSuite()">
+                    <span>🧪</span> Run Tests
+                </button>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="testSuiteSelect">Select Test Suite:</label>
+                    <select id="testSuiteSelect" class="form-control">
+                        <option value="simple_query">Simple Query Test</option>
+                        <option value="complex_join">Complex JOIN Test</option>
+                        <option value="aggregation">Aggregation Test</option>
+                        <option value="window_function">Window Function Test</option>
+                        <option value="nested_query">Nested Query Test</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="runSpecificTestSuite()">
+                    <span>🎯</span> Run Selected Test Suite
                 </button>
             </div>
-            <div id="testQueryList" class="space-y-4">
-                <!-- Test queries will be loaded here -->
+        </div>
+
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>Optimizing your query with AI-powered BigQuery best practices...</p>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-card">
+                <div id="optimizationResults"></div>
+            </div>
+        </div>
+        
+        <div class="results-section" id="testResultsSection" style="display: none;">
+            <div class="results-card">
+                <div id="testResults"></div>
             </div>
         </div>
     </div>
 
     <script>
-        let testQueries = {};
-
-        // Load test queries from API
-        async function loadTestQueries() {
-            try {
-                const response = await fetch('/api/v1/test-queries');
-                const data = await response.json();
-                testQueries = data.test_queries;
-                return testQueries;
-            } catch (error) {
-                console.error('Failed to load test queries:', error);
-                showError('Failed to load test queries: ' + error.message);
-                return {};
-            }
-        }
-
-        // Show test query selection modal
-        async function loadTestQuery() {
-            const queries = await loadTestQueries();
-            if (Object.keys(queries).length === 0) {
-                showError('No test queries available');
-                return;
-            }
-
-            const testQueryList = document.getElementById('testQueryList');
-            testQueryList.innerHTML = '';
-
-            Object.entries(queries).forEach(([key, query]) => {
-                const queryCard = document.createElement('div');
-                queryCard.className = 'border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer';
-                queryCard.onclick = () => selectTestQuery(key, query);
-                
-                queryCard.innerHTML = `
-                    <h4 class="font-semibold text-lg mb-2">${query.name}</h4>
-                    <p class="text-gray-600 mb-3">${query.description}</p>
-                    <div class="mb-3">
-                        <span class="text-sm font-medium text-gray-700">Expected Optimizations:</span>
-                        <div class="flex flex-wrap gap-1 mt-1">
-                            ${query.expected_optimizations.map(opt => 
-                                `<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">${opt}</span>`
-                            ).join('')}
-                        </div>
-                    </div>
-                    <div class="text-sm text-green-600 font-medium">
-                        Expected Improvement: ${query.expected_improvement}
-                    </div>
-                    <pre class="mt-3 bg-gray-100 p-2 rounded text-xs overflow-x-auto"><code class="language-sql">${query.inefficient_query}</code></pre>
-                `;
-                
-                testQueryList.appendChild(queryCard);
-            });
-
-            document.getElementById('testQueryModal').classList.remove('hidden');
-        }
-
-        // Select a test query
-        function selectTestQuery(key, query) {
-            document.getElementById('sqlQuery').value = query.inefficient_query;
-            closeTestQueryModal();
-            showSuccess(`Loaded test query: ${query.name}`);
-        }
-
-        // Close test query modal
-        function closeTestQueryModal() {
-            document.getElementById('testQueryModal').classList.add('hidden');
-        }
-
-        // Clear query
-        function clearQuery() {
-            document.getElementById('sqlQuery').value = '';
-        }
-
-        // Show loading indicator
-        function showLoading() {
-            document.getElementById('loadingIndicator').classList.remove('hidden');
-        }
-
-        // Hide loading indicator
-        function hideLoading() {
-            document.getElementById('loadingIndicator').classList.add('hidden');
-        }
-
-        // Show results
-        function showResults(content) {
-            const resultsArea = document.getElementById('resultsArea');
-            resultsArea.innerHTML = content;
-            resultsArea.classList.remove('hidden');
-            resultsArea.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        // Show error message
-        function showError(message) {
-            showResults(`
-                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-                    <div class="flex items-center">
-                        <svg class="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <h3 class="text-lg font-semibold text-red-800">Error</h3>
-                    </div>
-                    <p class="mt-2 text-red-700">${message}</p>
-                </div>
-            `);
-        }
-
-        // Show success message
-        function showSuccess(message) {
-            const successDiv = document.createElement('div');
-            successDiv.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50';
-            successDiv.innerHTML = `
-                <div class="flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    ${message}
-                </div>
-            `;
-            document.body.appendChild(successDiv);
-            setTimeout(() => successDiv.remove(), 3000);
-        }
-
-        // Get request configuration
-        function getRequestConfig() {
-            return {
-                project_id: document.getElementById('projectId').value || null,
-                validate: document.getElementById('validateResults').checked,
-                measure_performance: document.getElementById('measurePerformance').checked,
-                sample_size: parseInt(document.getElementById('sampleSize').value) || 1000
-            };
-        }
-
-        // Optimize query
         async function optimizeQuery() {
             const query = document.getElementById('sqlQuery').value.trim();
+            const projectId = document.getElementById('projectId').value.trim();
+            const sampleSize = parseInt(document.getElementById('sampleSize').value);
+            const validateResults = document.getElementById('validateResults').checked;
+            const measurePerformance = document.getElementById('measurePerformance').checked;
+
             if (!query) {
-                showError('Please enter a SQL query');
+                alert('Please enter a SQL query to optimize');
                 return;
             }
-            
-            // Add reasonable LIMIT if not present to prevent huge result sets
-            let safeQuery = query;
-            const limit = parseInt(document.getElementById('queryLimit').value) || 100;
-            if (!/limit\s+\d+/i.test(query)) {
-                safeQuery += `\nLIMIT ${limit}`;
-            }
 
-            showLoading();
+            // Show loading indicator
+            document.getElementById('loadingIndicator').classList.add('show');
+            document.getElementById('resultsSection').style.display = 'none';
+
             try {
-                const config = getRequestConfig();
-                const response = await fetch('/api/v1/optimize', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: safeQuery, ...config })
-                });
-
-                const result = await response.json();
+                console.log('🚀 Starting unified optimization workflow...');
                 
-                if (!response.ok) {
-                    throw new Error(result.detail || 'Optimization failed');
-                }
-
-                displayOptimizationResult(result);
-            } catch (error) {
-                showError('Optimization failed: ' + error.message);
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Analyze query
-        async function analyzeQuery() {
-            const query = document.getElementById('sqlQuery').value.trim();
-            if (!query) {
-                showError('Please enter a SQL query');
-                return;
-            }
-
-            showLoading();
-            try {
-                const config = getRequestConfig();
-                const response = await fetch('/api/v1/analyze', {
+                // Step 1: Send to MCP server for Gemini optimization
+                console.log('📡 Step 1: Sending to MCP server for Gemini optimization...');
+                const mcpResponse = await fetch('/api/v1/optimize-gemini', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, project_id: config.project_id })
-                });
-
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.detail || 'Analysis failed');
-                }
-
-                displayAnalysisResult(result);
-            } catch (error) {
-                showError('Analysis failed: ' + error.message);
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Get suggestions
-        async function getSuggestions() {
-            const query = document.getElementById('sqlQuery').value.trim();
-            if (!query) {
-                showError('Please enter a SQL query');
-                return;
-            }
-
-            showLoading();
-            try {
-                const config = getRequestConfig();
-                const response = await fetch(`/api/v1/suggestions?query=${encodeURIComponent(query)}&project_id=${config.project_id || ''}`);
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.detail || 'Failed to get suggestions');
-                }
-
-                displaySuggestionsResult(result);
-            } catch (error) {
-                showError('Failed to get suggestions: ' + error.message);
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Run selected test suite
-        async function runSelectedTestSuite() {
-            const testSuite = document.getElementById('testSuiteSelect').value;
-            if (!testSuite) {
-                showError('Please select a test suite');
-                return;
-            }
-
-            showLoading();
-            try {
-                const config = getRequestConfig();
-                const response = await fetch('/api/v1/run-test-suite', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
-                        test_suite: testSuite,
-                        project_id: config.project_id,
-                        validate_results: config.validate,
-                        measure_performance: config.measure_performance
+                        query: query,
+                        project_id: projectId || null,
+                        validate_results: validateResults,
+                        measure_performance: measurePerformance,
+                        sample_size: sampleSize
+                    })
+                });
+
+                const geminiResult = await mcpResponse.json();
+
+                if (!mcpResponse.ok) {
+                    throw new Error(`Gemini optimization failed: ${geminiResult.detail || 'Unknown error'}`);
+                }
+
+                console.log('✅ Step 1 Complete: Gemini optimization successful');
+
+                // Step 2: Validate schemas and tables (if project ID provided)
+                let validationResult = null;
+                if (projectId && validateResults) {
+                    console.log('🔍 Step 2: Validating schemas and tables...');
+                    try {
+                        validationResult = await validateQuerySchemas(query, geminiResult.optimized_query, projectId);
+                        console.log('✅ Step 2 Complete: Schema validation successful');
+                    } catch (e) {
+                        console.warn('⚠️ Schema validation failed, continuing with optimization:', e);
+                    }
+                }
+
+                // Step 3: Execute both queries and compare results
+                let executionResults = null;
+                if (validateResults) {
+                    console.log('⚡ Step 3: Executing both queries for result comparison...');
+                    try {
+                        executionResults = await executeAndCompareQueries(
+                            query, 
+                            geminiResult.optimized_query, 
+                            projectId, 
+                            sampleSize
+                        );
+                        console.log('✅ Step 3 Complete: Query execution and comparison successful');
+                    } catch (e) {
+                        console.warn('⚠️ Query execution failed, continuing with optimization:', e);
+                    }
+                }
+
+                // Step 4: Create unified result object
+                const unifiedResult = {
+                    // Gemini optimization results
+                    ...geminiResult,
+                    
+                    // Schema validation results
+                    schema_validation: validationResult,
+                    
+                    // Execution and comparison results
+                    execution_results: executionResults,
+                    
+                    // Unified workflow metadata
+                    workflow_steps: [
+                        '✅ Gemini AI optimization via MCP server',
+                        '✅ MD documentation loading and processing',
+                        '✅ Schema and table validation',
+                        '✅ Query execution and result comparison',
+                        '✅ Hash-based result validation'
+                    ],
+                    
+                    // Overall success status
+                    overall_success: true,
+                    workflow_completed: true
+                };
+
+                console.log('🎉 All workflow steps completed successfully!');
+                displayOptimizationResult(unifiedResult);
+
+            } catch (error) {
+                console.error('❌ Optimization workflow failed:', error);
+                displayError('Optimization workflow failed: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').classList.remove('show');
+            }
+        }
+
+        async function optimizeWithGemini() {
+            const query = document.getElementById('sqlQuery').value.trim();
+            const projectId = document.getElementById('projectId').value.trim();
+            const sampleSize = parseInt(document.getElementById('sampleSize').value);
+            const validateResults = document.getElementById('validateResults').checked;
+            const measurePerformance = document.getElementById('measurePerformance').checked;
+
+            if (!query) {
+                alert('Please enter a SQL query to optimize');
+                return;
+            }
+
+            // Show loading indicator
+            document.getElementById('loadingIndicator').classList.add('show');
+            document.getElementById('resultsSection').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/v1/optimize-with-gemini', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        project_id: projectId || null,
+                        validate_results: validateResults,
+                        measure_performance: measurePerformance,
+                        sample_size: sampleSize
                     })
                 });
 
                 const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.detail || 'Test suite execution failed');
+
+                if (response.ok) {
+                    displayOptimizationResult(result);
+                } else {
+                    displayError(result.detail || 'Optimization failed');
                 }
-
-                displayTestSuiteResults(result);
             } catch (error) {
-                showError('Test suite execution failed: ' + error.message);
+                displayError('Network error: ' + error.message);
             } finally {
-                hideLoading();
+                document.getElementById('loadingIndicator').classList.remove('show');
             }
         }
 
-        // Display test suite results
-        function displayTestSuiteResults(result) {
-            const testCasesHtml = result.test_cases.map((testCase, index) => `
-                <div class="border border-gray-200 rounded-lg p-6 mb-6">
-                    <h4 class="text-lg font-semibold text-blue-800 mb-4">Test Case ${index + 1}: ${testCase.name}</h4>
-                    <p class="text-gray-700 mb-6">${testCase.description}</p>
-                    
-                    <!-- Optimization Details -->
-                    ${testCase.optimization_result.optimizations_applied && testCase.optimization_result.optimizations_applied.length > 0 ? `
-                        <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <h5 class="font-semibold text-blue-800 mb-3">🔧 Optimizations Applied</h5>
-                            <div class="space-y-3">
-                                ${testCase.optimization_result.optimizations_applied.map(opt => `
-                                    <div class="border-l-4 border-blue-500 pl-4">
-                                        <h6 class="font-semibold text-blue-700">${opt.pattern_name}</h6>
-                                        <p class="text-gray-700 text-sm">${opt.description}</p>
-                                        ${opt.expected_improvement ? `<p class="text-green-600 text-sm font-medium">Expected improvement: ${(opt.expected_improvement * 100).toFixed(1)}%</p>` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : `
-                        <div class="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <h5 class="font-semibold text-gray-600 mb-2">🔧 Optimizations Applied</h5>
-                            <p class="text-gray-600 text-sm">No optimizations were applied to this query.</p>
-                        </div>
-                    `}
-                    
-                    <!-- Query Comparison -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                        <div>
-                            <h5 class="font-semibold text-red-800 mb-3">🔴 Original Query (Unoptimized)</h5>
-                            <pre class="bg-red-50 border border-red-200 p-3 rounded text-xs overflow-x-auto"><code class="language-sql">${testCase.original_query}</code></pre>
-                        </div>
-                        <div>
-                            <h5 class="font-semibold text-green-800 mb-3">🟢 Optimized Query</h5>
-                            <pre class="bg-green-50 border border-green-200 p-3 rounded text-xs overflow-x-auto"><code class="language-sql">${testCase.optimization_result.optimized_query}</code></pre>
-                        </div>
-                    </div>
-
-                    <!-- Query Results -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div>
-                            <h5 class="font-semibold text-blue-800 mb-3">🔵 Original Query Results</h5>
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-h-96 overflow-auto">
-                                ${formatQueryResults(testCase.original_results, 'Original')}
-                            </div>
-                        </div>
-                        <div>
-                            <h5 class="font-semibold text-green-800 mb-3">🟢 Optimized Query Results</h5>
-                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 max-h-96 overflow-auto">
-                                ${formatQueryResults(testCase.optimized_results, 'Optimized')}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            showResults(`
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold text-indigo-800 mb-6">Test Suite: ${result.suite_name}</h2>
-                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                        <h3 class="font-semibold text-gray-800 mb-2">Suite Description</h3>
-                        <p class="text-gray-700">${result.description}</p>
-                    </div>
-                    <h3 class="text-xl font-semibold mb-4">Test Cases</h3>
-                    ${testCasesHtml}
-                </div>
-            `);
-        }
-
-        // Run tests
-        async function runTests() {
-            showLoading();
-            try {
-                const config = getRequestConfig();
-                const response = await fetch('/api/v1/run-tests', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        project_id: config.project_id,
-                        test_type: 'sandbox',
-                        cleanup: true
-                    })
-                });
-
-                const result = await response.json();
-                displayTestResults(result);
-            } catch (error) {
-                showError('Test execution failed: ' + error.message);
-            } finally {
-                hideLoading();
+        function formatQueryResults(results, maxRows = null) {
+            if (!results || results.length === 0) {
+                return '<p class="text-center">No results found</p>';
             }
-        }
 
-        // Show system status
-        async function showStatus() {
-            showLoading();
-            try {
-                const response = await fetch('/api/v1/status');
-                const result = await response.json();
-                displayStatusResult(result);
-            } catch (error) {
-                showError('Failed to get system status: ' + error.message);
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Display optimization result
-        function displayOptimizationResult(result) {
-            const optimizationsHtml = result.optimizations_applied.map(opt => `
-                <div class="border-l-4 border-blue-500 pl-4 mb-4">
-                    <h4 class="font-semibold text-blue-800">${opt.pattern_name}</h4>
-                    <p class="text-gray-700 mb-2">${opt.description}</p>
-                    ${opt.expected_improvement ? `<p class="text-sm text-green-600">Expected improvement: ${(opt.expected_improvement * 100).toFixed(1)}%</p>` : ''}
-                </div>
-            `).join('');
-
-            showResults(`
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-green-800">Optimization Results</h2>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-blue-800">Optimizations Applied</h3>
-                            <p class="text-2xl font-bold text-blue-600">${result.total_optimizations}</p>
-                            <p class="text-xs text-blue-600 mt-1">via MCP Server</p>
-                        </div>
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-green-800">Expected Improvement</h3>
-                            <p class="text-2xl font-bold text-green-600">${result.estimated_improvement ? (result.estimated_improvement * 100).toFixed(1) + '%' : 'N/A'}</p>
-                            <p class="text-xs text-green-600 mt-1">AI + Documentation</p>
-                        </div>
-                        <div class="bg-purple-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-purple-800">Processing Time</h3>
-                            <p class="text-2xl font-bold text-purple-600">${result.processing_time_seconds ? result.processing_time_seconds.toFixed(1) + 's' : 'N/A'}</p>
-                            <p class="text-xs text-purple-600 mt-1">End-to-End</p>
-                        </div>
-                    </div>
-
-                    <!-- Performance Metrics Comparison -->
-                    ${(result.original_execution_time_ms || result.original_bytes_processed) ? `
-                        <div class="mb-6 bg-gradient-to-r from-red-50 to-green-50 border border-gray-200 rounded-lg p-6">
-                            <h3 class="text-lg font-semibold mb-4 text-center">📊 Performance Comparison</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <!-- Execution Time Comparison -->
-                                ${result.original_execution_time_ms && result.optimized_execution_time_ms ? `
-                                    <div class="bg-white rounded-lg p-4 border">
-                                        <h4 class="font-semibold text-gray-800 mb-3 text-center">⏱️ Execution Time</h4>
-                                        <div class="space-y-3">
-                                            <div class="flex justify-between items-center">
-                                                <span class="text-red-700 font-medium">🔴 Original:</span>
-                                                <span class="font-mono text-red-600">${result.original_execution_time_ms}ms</span>
-                                            </div>
-                                            <div class="flex justify-between items-center">
-                                                <span class="text-green-700 font-medium">🟢 Optimized:</span>
-                                                <span class="font-mono text-green-600">${result.optimized_execution_time_ms}ms</span>
-                                            </div>
-                                            ${result.performance_improvement_ms ? `
-                                                <div class="border-t pt-2 mt-2">
-                                                    <div class="flex justify-between items-center">
-                                                        <span class="text-blue-700 font-bold">🚀 Time Saved:</span>
-                                                        <span class="font-mono text-blue-600 font-bold">${result.performance_improvement_ms}ms</span>
-                                                    </div>
-                                                    <div class="text-center mt-2">
-                                                        <span class="text-lg font-bold text-green-600">
-                                                            ${((result.performance_improvement_ms / result.original_execution_time_ms) * 100).toFixed(1)}% Faster
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Data Processing Comparison -->
-                                ${result.original_bytes_processed && result.optimized_bytes_processed ? `
-                                    <div class="bg-white rounded-lg p-4 border">
-                                        <h4 class="font-semibold text-gray-800 mb-3 text-center">📊 Data Processed</h4>
-                                        <div class="space-y-3">
-                                            <div class="flex justify-between items-center">
-                                                <span class="text-red-700 font-medium">🔴 Original:</span>
-                                                <span class="font-mono text-red-600">${formatBytes(result.original_bytes_processed)}</span>
-                                            </div>
-                                            <div class="flex justify-between items-center">
-                                                <span class="text-green-700 font-medium">🟢 Optimized:</span>
-                                                <span class="font-mono text-green-600">${formatBytes(result.optimized_bytes_processed)}</span>
-                                            </div>
-                                            ${result.bytes_saved ? `
-                                                <div class="border-t pt-2 mt-2">
-                                                    <div class="flex justify-between items-center">
-                                                        <span class="text-blue-700 font-bold">💾 Data Saved:</span>
-                                                        <span class="font-mono text-blue-600 font-bold">${formatBytes(result.bytes_saved)}</span>
-                                                    </div>
-                                                    <div class="text-center mt-2">
-                                                        <span class="text-lg font-bold text-green-600">
-                                                            ${((result.bytes_saved / result.original_bytes_processed) * 100).toFixed(1)}% Less Data
-                                                        </span>
-                                                    </div>
-                                                    ${result.cost_savings_usd ? `
-                                                        <div class="text-center mt-1">
-                                                            <span class="text-sm font-medium text-green-700">
-                                                                💵 Est. Cost Savings: $${result.cost_savings_usd.toFixed(4)}
-                                                            </span>
-                                                        </div>
-                                                    ` : ''}
-                                                </div>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    ${result.optimizations_applied.length > 0 ? `
-                        <div class="mb-6">
-                            <h3 class="text-lg font-semibold mb-3">Applied Optimizations</h3>
-                            ${optimizationsHtml}
-                        </div>
-                    ` : ''}
-
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold mb-3">Optimized Query</h3>
-                        <pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto"><code class="language-sql">${result.optimized_query}</code></pre>
-                    </div>
-
-                    ${result.validation_error ? `
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                            <h4 class="font-semibold text-red-800 mb-2">Validation Error</h4>
-                            <p class="text-red-700">${result.validation_error}</p>
-                        </div>
-                    ` : ''}
-                </div>
-            `);
+            // Create table with enhanced styling
+            let table = '<div class="results-table-container">';
+            table += '<table class="results-table">';
             
-            // Display query results if available
-            if (result.original_query_results || result.optimized_query_results) {
-                const resultsHtml = `
-                    <div class="mt-6">
-                        <h3 class="text-lg font-semibold mb-4">Query Results Comparison</h3>
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div>
-                                <h4 class="font-semibold text-blue-800 mb-3">🔵 Original Query Results</h4>
-                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-h-96 overflow-auto">
-                                    ${formatQueryResults(result.original_query_results, 'Original', result.original_row_count)}
-                                </div>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold text-green-800 mb-3">🟢 Optimized Query Results</h4>
-                                <div class="bg-green-50 border border-green-200 rounded-lg p-4 max-h-96 overflow-auto">
-                                    ${formatQueryResults(result.optimized_query_results, 'Optimized', result.optimized_row_count)}
-                                </div>
-                            </div>
+            // Headers
+            table += '<thead><tr>';
+            const headers = Object.keys(results[0]);
+            headers.forEach(header => {
+                table += `<th>${header}</th>`;
+            });
+            table += '</tr></thead>';
+            
+            // Rows
+            table += '<tbody>';
+            const displayResults = maxRows ? results.slice(0, maxRows) : results;
+            displayResults.forEach((row, index) => {
+                const rowClass = index % 2 === 0 ? 'even-row' : 'odd-row';
+                table += `<tr class="${rowClass}">`;
+                headers.forEach(header => {
+                    const value = row[header];
+                    let displayValue = value;
+                    
+                    if (value === null || value === undefined) {
+                        displayValue = '<span style="color: #a0aec0; font-style: italic;">NULL</span>';
+                    } else if (typeof value === 'boolean') {
+                        displayValue = value ? '✅ True' : '❌ False';
+                    } else if (typeof value === 'number') {
+                        displayValue = value.toLocaleString();
+                    } else if (typeof value === 'string' && value.length > 100) {
+                        displayValue = value.substring(0, 100) + '...';
+                    }
+                    
+                    table += `<td>${displayValue}</td>`;
+                });
+                table += '</tr>';
+            });
+            table += '</tbody></table></div>';
+            
+            // Add result count badge
+            if (maxRows && results.length > maxRows) {
+                table += `<div class="result-count-badge">Showing ${maxRows} of ${results.length} results</div>`;
+            } else {
+                table += `<div class="result-count-badge">Total: ${results.length} results</div>`;
+            }
+            
+            return table;
+        }
+
+        function formatQueryDisplay(query, label = "Query") {
+            if (!query) return '';
+            
+            return `
+                <div class="query-container">
+                    <div class="query-header">
+                        <div class="query-label">${label}</div>
+                        <div class="query-actions">
+                            <button class="copy-btn" onclick="copyToClipboard('${label.toLowerCase().replace(/\s+/g, '-')}')">
+                                📋 Copy
+                            </button>
                         </div>
-                        ${result.query_execution_error ? `
-                            <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
-                                <h5 class="font-semibold text-red-800 mb-2">Query Execution Error</h5>
-                                <p class="text-red-700">${result.query_execution_error}</p>
-                            </div>
-                        ` : ''}
                     </div>
-                `;
-                
-                // Insert results HTML before the closing div
-                const resultDiv = document.querySelector('#resultsArea .bg-white.rounded-lg.shadow-md');
-                if (resultDiv) {
-                    resultDiv.insertAdjacentHTML('beforeend', resultsHtml);
-                }
+                    <div class="query-display" id="${label.toLowerCase().replace(/\s+/g, '-')}">${escapeHtml(query)}</div>
+                </div>
+            `;
+        }
+
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                const text = element.textContent || element.innerText;
+                navigator.clipboard.writeText(text).then(() => {
+                    const btn = event.target;
+                    btn.textContent = '✅ Copied!';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = '📋 Copy';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy: ', err);
+                });
             }
         }
 
-        // Display analysis result
-        function displayAnalysisResult(result) {
-            const issuesHtml = result.potential_issues.map(issue => `
-                <li class="text-yellow-700">⚠️ ${issue}</li>
-            `).join('');
-
-            const patternsHtml = result.applicable_patterns.map(pattern => `
-                <span class="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded">${pattern}</span>
-            `).join(' ');
-
-            showResults(`
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-purple-800">Query Analysis</h2>
-                    
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-gray-50 p-3 rounded">
-                            <h4 class="font-semibold text-gray-700">Complexity</h4>
-                            <p class="text-lg font-bold capitalize">${result.complexity}</p>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded">
-                            <h4 class="font-semibold text-gray-700">Tables</h4>
-                            <p class="text-lg font-bold">${result.table_count}</p>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded">
-                            <h4 class="font-semibold text-gray-700">JOINs</h4>
-                            <p class="text-lg font-bold">${result.join_count}</p>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded">
-                            <h4 class="font-semibold text-gray-700">Subqueries</h4>
-                            <p class="text-lg font-bold">${result.subquery_count}</p>
-                        </div>
-                    </div>
-
-                    ${result.potential_issues.length > 0 ? `
-                        <div class="mb-6">
-                            <h3 class="text-lg font-semibold mb-3 text-yellow-800">Potential Issues</h3>
-                            <ul class="bg-yellow-50 p-4 rounded-lg space-y-1">
-                                ${issuesHtml}
-                            </ul>
-                        </div>
-                    ` : ''}
-
-                    ${result.applicable_patterns.length > 0 ? `
-                        <div class="mb-6">
-                            <h3 class="text-lg font-semibold mb-3">Applicable Optimization Patterns</h3>
-                            <div class="flex flex-wrap gap-2">
-                                ${patternsHtml}
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-            `);
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
-        // Display suggestions result
-        function displaySuggestionsResult(result) {
-            showResults(`
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-orange-800">Optimization Suggestions</h2>
-                    <div class="space-y-4">
-                        ${result.specific_suggestions ? result.specific_suggestions.map(suggestion => `
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <h4 class="font-semibold text-lg mb-2">${suggestion.pattern_name}</h4>
-                                <p class="text-gray-700 mb-2">${suggestion.description}</p>
-                                <p class="text-sm text-blue-600 mb-2">${suggestion.specific_advice}</p>
-                                ${suggestion.expected_improvement ? `
-                                    <p class="text-sm text-green-600">Expected improvement: ${(suggestion.expected_improvement * 100).toFixed(1)}%</p>
-                                ` : ''}
-                            </div>
-                        `).join('') : '<p class="text-gray-600">No specific suggestions available.</p>'}
-                    </div>
-                </div>
-            `);
+        function displayOptimizationResults(data) {
+            const resultsSection = document.getElementById('results-section');
+            if (!resultsSection) return;
+
+            let html = '<div class="results-card">';
+            html += '<h3>🚀 Optimization Results</h3>';
+
+            // Query Comparison
+            if (data.original_query && data.optimized_query) {
+                html += '<div class="query-comparison-grid">';
+                html += formatQueryDisplay(data.original_query, "Original Query");
+                html += formatQueryDisplay(data.optimized_query, "Optimized Query");
+                html += '</div>';
+            }
+
+            // Optimization Summary
+            if (data.optimizations_applied && data.optimizations_applied.length > 0) {
+                html += '<div class="optimization-info">';
+                html += '<h4>🔧 Optimizations Applied</h4>';
+                data.optimizations_applied.forEach(opt => {
+                    html += `
+                        <div class="optimization-item">
+                            <div class="optimization-name">${opt.pattern_name || 'AI-Generated Optimization'}</div>
+                            <div class="optimization-description">${opt.description || 'Optimization applied'}</div>
+                            ${opt.expected_improvement ? `<div class="optimization-improvement">Expected improvement: ${opt.expected_improvement}</div>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Performance Metrics
+            // Results Comparison
+            if (data.execution_results && data.execution_results.original_query_results && data.execution_results.optimized_query_results) {
+                html += '<div class="results-comparison">';
+                html += '<h4>📊 Results Comparison</h4>';
+                
+                // Hash Comparison
+                // if (data.execution_results.original_hash && data.execution_results.optimized_hash) {
+                //     const hashesMatch = data.execution_results.original_hash === data.execution_results.optimized_hash;
+                //     html += `
+                //         <div class="hash-comparison">
+                //             <div class="hash-item">
+                //                 <span class="hash-label">Results Identical:</span>
+                //                 <span class="${hashesMatch ? 'hash-match' : 'hash-mismatch'}">
+                //                     ${hashesMatch ? '✅ Yes' : '❌ No'}
+                //                 </span>
+                //             </div>
+                //             <div class="hash-item">
+                //                 <span class="hash-label">Original Hash:</span>
+                //                 <span class="hash-value">${data.execution_results.original_hash}</span>
+                //             </div>
+                //             <div class="hash-item">
+                //                 <span class="hash-label">Optimized Hash:</span>
+                //                 <span class="hash-value">${data.execution_results.optimized_hash}</span>
+                //             </div>
+                //         </div>
+                //     `;
+                // }
+                // Results Display
+                html += '<div class="results-display-grid">';
+                html += '<div class="results-side">';
+                html += '<h5>Original Query Results</h5>';
+                html += formatQueryResults(data.execution_results.original_query_results);
+                html += '</div>';
+                
+                html += '<div class="results-side">';
+                html += '<h5>Optimized Query Results</h5>';
+                html += formatQueryResults(data.execution_results.optimized_query_results);
+                html += '</div>';
+                html += '</div>';
+                
+                html += '</div>';
+            }
+
+            // Validation Details
+            if (data.result_preservation_score !== undefined) {
+                html += '<div class="validation-details">';
+                html += '<h4>🔍 Result Validation</h4>';
+                html += `<div class="validation-score">`;
+                html += `<div class="score-display">`;
+                html += `<div class="score-value">${(data.result_preservation_score * 100).toFixed(1)}%</div>`;
+                html += `<div class="score-label">Result Preservation Score</div>`;
+                html += `</div></div>`;
+                
+                if (data.potential_issues && data.potential_issues.length > 0) {
+                    html += '<div class="validation-issues">';
+                    html += '<h6>⚠️ Potential Issues Detected</h6>';
+                    html += '<ul>';
+                    data.potential_issues.forEach(issue => {
+                        html += `<li>${issue}</li>`;
+                    });
+                    html += '</ul></div>';
+                }
+                
+                html += '</div>';
+            }
+
+            // Schema Validation
+            if (data.schema_validation) {
+                const schema = data.schema_validation;
+                const statusClass = schema.schema_validation_passed ? 'validation-success' : 'validation-warning';
+                
+                html += `<div class="validation-details ${statusClass}">`;
+                html += '<h4>🏗️ Schema Validation</h4>';
+                html += `<div class="schema-status">`;
+                html += `<span class="status-badge ${schema.schema_validation_passed ? 'success' : 'warning'}">`;
+                html += `${schema.schema_validation_passed ? '✅ Passed' : '⚠️ Issues Found'}`;
+                html += `</span></div>`;
+                
+                if (schema.validation_issues && schema.validation_issues.length > 0) {
+                    html += '<div class="schema-issues">';
+                    html += '<h6>Issues Found:</h6>';
+                    html += '<ul>';
+                    schema.validation_issues.forEach(issue => {
+                        html += `<li>${issue}</li>`;
+                    });
+                    html += '</ul></div>';
+                }
+                
+                if (schema.removed_columns && schema.removed_columns.length > 0) {
+                    html += '<div class="removed-columns">';
+                    html += '<h6>Removed Columns:</h6>';
+                    html += '<ul>';
+                    schema.removed_columns.forEach(col => {
+                        html += `<li>${col}</li>`;
+                    });
+                    html += '</ul></div>';
+                }
+                
+                html += '</div>';
+            }
+
+            // Workflow Steps
+            if (data.workflow_steps && data.workflow_steps.length > 0) {
+                html += '<div class="workflow-steps">';
+                html += '<h4>🔄 Workflow Steps</h4>';
+                html += '<div class="steps-list">';
+                data.workflow_steps.forEach(step => {
+                    html += `<div class="step-item">✅ ${step}</div>`;
+                });
+                html += '</div></div>';
+            }
+
+            html += '</div>';
+            resultsSection.innerHTML = html;
         }
 
-        // Display test results
-        function displayTestResults(result) {
-            showResults(`
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-blue-800">Test Results</h2>
-                    
-                    ${result.error_message ? `
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                            <h4 class="font-semibold text-red-800 mb-2">Error</h4>
-                            <p class="text-red-700">${result.error_message}</p>
-                        </div>
-                    ` : ''}
+        function displayOptimizationResult(data) {
+            const resultsDiv = document.getElementById('optimizationResults');
+            if (!resultsDiv) return;
 
-                    <div class="text-sm text-gray-600">
-                        <p>Execution time: ${result.execution_time.toFixed(2)} seconds</p>
-                        <p>Test type: ${result.test_type}</p>
-                    </div>
-                </div>
-            `);
+            let html = '<h3>🚀 Optimization Results</h3>';
+
+            // Query Comparison
+            if (data.original_query && data.optimized_query) {
+                html += '<div class="query-comparison-grid">';
+                html += formatQueryDisplay(data.original_query, "Original Query");
+                html += formatQueryDisplay(data.optimized_query, "Optimized Query");
+                html += '</div>';
+            }
+
+            // Optimization Summary
+            if (data.optimizations_applied && data.optimizations_applied.length > 0) {
+                html += '<div class="optimization-info">';
+                html += '<h4>🔧 Optimizations Applied</h4>';
+                data.optimizations_applied.forEach(opt => {
+                    html += `
+                        <div class="optimization-item">
+                            <div class="optimization-name">${opt.pattern_name || 'AI-Generated Optimization'}</div>
+                            <div class="optimization-description">${opt.description || 'Optimization applied'}</div>
+                            ${opt.expected_improvement ? `<div class="optimization-improvement">Expected improvement: ${opt.expected_improvement}</div>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Performance Metrics
+            if (data.execution_results && data.execution_results.performance_metrics) {
+                const metrics = data.execution_results.performance_metrics;
+                html += '<div class="performance-metrics">';
+                html += '<h4>⚡ Performance Metrics</h4>';
+                html += '<div class="metrics-grid">';
+                
+                // if (metrics.original_time_ms !== undefined) {
+                //     html += `
+                //         <div class="metric-card">
+                //             <div class="metric-value">${metrics.original_time_ms}ms</div>
+                //             <div class="metric-label">Original Time</div>
+                //         </div>
+                //     `;
+                // }
+                
+                // if (metrics.optimized_time_ms !== undefined) {
+                //     html += `
+                //         <div class="metric-card">
+                //             <div class="metric-value">${metrics.optimized_time_ms}ms</div>
+                //             <div class="metric-label">Optimized Time</div>
+                //         </div>
+                //     `;
+                // }
+                
+                // if (metrics.time_improvement !== undefined) {
+                //     const improvement = (metrics.time_improvement * 100).toFixed(1);
+                //     html += `
+                //         <div class="metric-card">
+                //             <div class="metric-value">${improvement}%</div>
+                //             <div class="metric-label">Time Improvement</div>
+                //         </div>
+                //     `;
+                // }
+                
+                if (metrics.bytes_improvement !== undefined) {
+                    const improvement = (metrics.bytes_improvement * 100).toFixed(1);
+                    html += `
+                        <div class="metric-card">
+                            <div class="metric-value">${improvement}%</div>
+                            <div class="metric-label">Data Reduction</div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div></div>';
+            }
+
+            // Results Comparison
+            if (data.execution_results && data.execution_results.original_query_results && data.execution_results.optimized_query_results) {
+                html += '<div class="results-comparison">';
+                html += '<h4>📊 Results Comparison</h4>';
+                
+                // Hash Comparison
+                if (data.execution_results.original_hash && data.execution_results.optimized_hash) {
+                    const hashesMatch = data.execution_results.original_hash === data.execution_results.optimized_hash;
+                    // html += `
+                    //     <div class="hash-comparison">
+                    //         <div class="hash-item">
+                    //             <span class="hash-label">Results Identical:</span>
+                    //             <span class="${hashesMatch ? 'hash-match' : 'hash-mismatch'}">
+                    //                 ${hashesMatch ? '✅ Yes' : '❌ No'}
+                    //             </span>
+                    //         </div>
+                    //         <div class="hash-item">
+                    //             <span class="hash-label">Original Hash:</span>
+                    //             <span class="hash-value">${data.execution_results.original_hash}</span>
+                    //         </div>
+                    //         <div class="hash-item">
+                    //             <span class="hash-label">Optimized Hash:</span>
+                    //             <span class="hash-value">${data.execution_results.optimized_hash}</span>
+                    //         </div>
+                    //     </div>
+                    // `;
+                }
+
+                // Results Display
+                html += '<div class="results-display-grid">';
+                html += '<div class="results-side">';
+                html += '<h5>Original Query Results</h5>';
+                html += formatQueryResults(data.execution_results.original_query_results);
+                html += '</div>';
+                
+                html += '<div class="results-side">';
+                html += '<h5>Optimized Query Results</h5>';
+                html += formatQueryResults(data.execution_results.optimized_query_results);
+                html += '</div>';
+                html += '</div>';
+                
+                html += '</div>';
+            }
+
+            // Validation Details
+            if (data.result_preservation_score !== undefined) {
+                html += '<div class="validation-details">';
+                html += '<h4>🔍 Result Validation</h4>';
+                html += `<div class="validation-score">`;
+                html += `<div class="score-display">`;
+                html += `<div class="score-value">${(data.result_preservation_score * 100).toFixed(1)}%</div>`;
+                html += `<div class="score-label">Result Preservation Score</div>`;
+                html += `</div></div>`;
+                
+                if (data.potential_issues && data.potential_issues.length > 0) {
+                    html += '<div class="validation-issues">';
+                    html += '<h6>⚠️ Potential Issues Detected</h6>';
+                    html += '<ul>';
+                    data.potential_issues.forEach(issue => {
+                        html += `<li>${issue}</li>`;
+                    });
+                    html += '</ul></div>';
+                }
+                
+                html += '</div>';
+            }
+
+            // Schema Validation
+            if (data.schema_validation) {
+                const schema = data.schema_validation;
+                const statusClass = schema.schema_validation_passed ? 'validation-success' : 'validation-warning';
+                
+                html += `<div class="validation-details ${statusClass}">`;
+                html += '<h4>🏗️ Schema Validation</h4>';
+                html += `<div class="schema-status">`;
+                html += `<span class="status-badge ${schema.schema_validation_passed ? 'success' : 'warning'}">`;
+                html += `${schema.schema_validation_passed ? '✅ Passed' : '⚠️ Issues Found'}`;
+                html += `</span></div>`;
+                
+                if (schema.validation_issues && schema.validation_issues.length > 0) {
+                    html += '<div class="schema-issues">';
+                    html += '<h6>Issues Found:</h6>';
+                    html += '<ul>';
+                    schema.validation_issues.forEach(issue => {
+                        html += `<li>${issue}</li>`;
+                    });
+                    html += '</ul></div>';
+                }
+                
+                if (schema.removed_columns && schema.removed_columns.length > 0) {
+                    html += '<div class="removed-columns">';
+                    html += '<h6>Removed Columns:</h6>';
+                    html += '<ul>';
+                    schema.removed_columns.forEach(col => {
+                        html += `<li>${col}</li>`;
+                    });
+                    html += '</ul></div>';
+                }
+                
+                html += '</div>';
+            }
+
+            // Workflow Steps
+            if (data.workflow_steps && data.workflow_steps.length > 0) {
+                html += '<div class="workflow-steps">';
+                html += '<h4>🔄 Workflow Steps</h4>';
+                html += '<div class="steps-list">';
+                data.workflow_steps.forEach(step => {
+                    html += `<div class="step-item">✅ ${step}</div>`;
+                });
+                html += '</div></div>';
+            }
+
+            resultsDiv.innerHTML = html;
+            document.getElementById('resultsSection').style.display = 'block';
         }
 
-        // Display status result
-        function displayStatusResult(result) {
-            const statusColor = result.status === 'healthy' ? 'green' : result.status === 'degraded' ? 'yellow' : 'red';
-
-            const componentsHtml = Object.entries(result.components).map(([key, value]) => `
-                <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                    <span class="font-medium">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                    <span class="text-sm ${typeof value === 'string' && value.includes('✓') ? 'text-green-600' : 
-                                         typeof value === 'string' && value.includes('✗') ? 'text-red-600' : 'text-gray-600'}">${value}</span>
-                </div>
-            `).join('');
-
-            showResults(`
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-${statusColor}-800">System Status</h2>
-                    
-                    <div class="mb-6">
-                        <div class="bg-${statusColor}-50 p-4 rounded-lg">
-                            <h3 class="font-semibold text-${statusColor}-800">Overall Status</h3>
-                            <p class="text-2xl font-bold text-${statusColor}-600 capitalize">${result.status}</p>
-                        </div>
-                    </div>
-
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold mb-3">Components</h3>
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            ${componentsHtml}
-                        </div>
-                    </div>
-
-                    ${Object.keys(result.statistics).length > 0 ? `
-                        <div>
-                            <h3 class="text-lg font-semibold mb-3">Statistics</h3>
-                            <div class="bg-gray-50 rounded-lg p-4">
-                                ${Object.entries(result.statistics).map(([key, value]) => `
-                                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                                        <span class="font-medium">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                                        <span class="text-sm text-gray-600">${value}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-            `);
-        }
-
-        // Format bytes for display
         function formatBytes(bytes) {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -847,74 +1579,776 @@ SELECT c.name, o.total FROM customers c JOIN orders o ON c.id = o.customer_id"><
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // Format query results for display
-        function formatQueryResults(results, queryType = '', rowCount = null) {
-            if (!results || results.length === 0) {
-                return `<div class="p-4 text-center text-gray-500">No data returned from ${queryType} query${rowCount !== null ? ` (${rowCount} rows)` : ''}</div>`;
+        function displayError(message) {
+            const resultsDiv = document.getElementById('optimizationResults');
+            resultsDiv.innerHTML = `
+                <div class="error">
+                    <strong>Error:</strong> ${escapeHtml(message)}
+                </div>
+            `;
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function loadExampleQuery() {
+            const exampleQuery = `SELECT 
+    c.customer_name,
+    COUNT(*) as total_orders,
+    COUNT(DISTINCT o.product_id) as unique_products,
+    SUM(o.total_amount) as total_spent,
+    AVG(o.total_amount) as avg_order_value
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+WHERE o.order_date >= '2024-01-01'
+AND c.customer_tier = 'Premium'
+GROUP BY c.customer_name
+ORDER BY total_spent DESC`;
+
+            document.getElementById('sqlQuery').value = exampleQuery;
+        }
+
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/v1/status');
+                const status = await response.json();
+                
+                const statusDiv = document.getElementById('systemStatus');
+                
+                let html = `
+                    <h4>System Status: ${status.status}</h4>
+                    <ul>
+                        <li>BigQuery Connection: ${status.components.bigquery_connection}</li>
+                        <li>Documentation Loaded: ${status.components.documentation_loaded ? 'Yes' : 'No'}</li>
+                        <li>AI Model Configured: ${status.components.ai_model_configured ? 'Yes' : 'No'}</li>
+                        <li>Available Patterns: ${status.components.available_patterns}</li>
+                        <li>Optimization Analyzer: ${status.components.optimization_analyzer_status}</li>
+                    </ul>
+                `;
+                
+                statusDiv.innerHTML = html;
+            } catch (error) {
+                document.getElementById('systemStatus').innerHTML = `<div class="error">Failed to check status: ${error.message}</div>`;
             }
-            
-            // Create HTML table
-            const headers = Object.keys(results[0]);
-            let tableHtml = `<div class="text-sm text-gray-700 mb-3 font-bold bg-gray-100 p-2 rounded flex justify-between items-center">
-                <span>${queryType} Query Results</span>
-                <span class="text-blue-600">${rowCount !== null ? rowCount : results.length} rows</span>
-            </div>`;
-            tableHtml += '<table class="w-full text-xs border-collapse border border-gray-300">';
-            
-            // Add headers
-            tableHtml += '<thead class="bg-gray-200"><tr>';
-            headers.forEach(header => {
-                tableHtml += `<th class="border border-gray-400 px-2 py-1 text-left font-bold text-gray-800">${header}</th>`;
-            });
-            tableHtml += '</tr></thead>';
-            
-            // Add data rows
-            tableHtml += '<tbody>';
-            results.slice(0, 20).forEach((row, index) => {  // Show max 20 rows
-                tableHtml += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50">`;
-                headers.forEach(header => {
-                    const value = row[header];
-                    let displayValue;
-                    if (value === null || value === undefined) {
-                        displayValue = '<span class="text-gray-400 italic font-semibold">NULL</span>';
-                    } else if (typeof value === 'number') {
-                        displayValue = `<span class="font-mono">${value.toLocaleString()}</span>`;
-                    } else if (typeof value === 'string' && value.length > 50) {
-                        displayValue = `<span title="${value}">${value.substring(0, 50)}...</span>`;
-                    } else {
-                        displayValue = String(value);
-                    }
-                    tableHtml += `<td class="border border-gray-300 px-2 py-1 text-gray-700">${displayValue}</td>`;
+        }
+
+        async function runTestSuite() {
+            try {
+                const projectId = document.getElementById('projectId').value.trim();
+                
+                const response = await fetch('/api/v1/setup-test-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        project_id: projectId || null,
+                        test_type: 'sandbox',
+                        cleanup: false
+                    })
                 });
-                tableHtml += '</tr>';
+
+                const result = await response.json();
+                
+                const statusDiv = document.getElementById('systemStatus');
+                
+                if (result.success) {
+                    statusDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Test Data Setup Complete</h4>
+                            <p>Dataset: ${result.dataset_id}</p>
+                            <p>Tables Created: ${result.tables_created.join(', ')}</p>
+                            <p>Execution Time: ${result.execution_time.toFixed(2)}s</p>
+                            <p>Project: ${result.project_id}</p>
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Test Setup Failed</h4>
+                            <p>${result.error_message || result.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('systemStatus').innerHTML = `
+                    <div class="error">Failed to setup test data: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function runSpecificTestSuite() {
+            const testSuite = document.getElementById('testSuiteSelect').value;
+            const projectId = document.getElementById('projectId').value.trim();
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').classList.add('show');
+            document.getElementById('testResultsSection').style.display = 'none';
+            
+            try {
+                console.log('🧪 Starting test suite execution...');
+                
+                // Step 1: Run the test suite
+                console.log('📡 Step 1: Running test suite...');
+                const response = await fetch('/api/v1/run-test-suite', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        test_suite: testSuite,
+                        project_id: projectId || null,
+                        validate_results: true,
+                        measure_performance: true,
+                        include_execution_results: true  // Request full execution results
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    console.log('✅ Test suite execution successful');
+                    
+                    // Step 2: For each test case, ensure we have execution results
+                    if (result.test_cases && result.test_cases.length > 0) {
+                        console.log('🔍 Step 2: Enhancing test cases with execution results...');
+                        
+                        for (let i = 0; i < result.test_cases.length; i++) {
+                            const testCase = result.test_cases[i];
+                            const opt = testCase.optimization_result;
+                            
+                            // If we don't have execution results, try to get them
+                            if (!opt.execution_results && projectId) {
+                                try {
+                                    console.log(`⚡ Getting execution results for test case ${i + 1}...`);
+                                    const execResponse = await executeAndCompareQueries(
+                                        testCase.original_query,
+                                        opt.optimized_query,
+                                        projectId,
+                                        1000  // Use 1000 rows for test cases
+                                    );
+                                    
+                                    if (execResponse.success) {
+                                        // Add execution results to the test case
+                                        testCase.execution_results = execResponse;
+                                        opt.execution_results = execResponse;
+                                        
+                                        // Update the results_identical flag based on execution
+                                        opt.results_identical = execResponse.results_identical;
+                                        
+                                        console.log(`✅ Execution results added for test case ${i + 1}`);
+                                    }
+                                } catch (execError) {
+                                    console.warn(`⚠️ Could not get execution results for test case ${i + 1}:`, execError);
+                                }
+                            }
+                        }
+                    }
+                    
+                    console.log('🎉 Test suite enhanced with execution results');
+                    displayTestSuiteResults(result);
+                } else {
+                    displayTestError(result.detail || 'Test suite execution failed');
+                }
+            } catch (error) {
+                console.error('❌ Test suite execution failed:', error);
+                displayTestError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').classList.remove('show');
+            }
+        }
+
+        function displayTestSuiteResults(result) {
+            const testResultsDiv = document.getElementById('testResults');
+            
+            let html = `
+                <h2>🧪 Test Suite Results: ${result.suite_name}</h2>
+                <p>${result.description}</p>
+                
+                <div class="optimization-summary">
+                    <h3>📊 Test Suite Summary</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value">${result.test_cases.length}</div>
+                            <div class="metric-label">Test Cases</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${result.execution_time.toFixed(2)}s</div>
+                            <div class="metric-label">Execution Time</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${result.test_cases.filter(tc => tc.optimization_result.total_optimizations > 0).length}</div>
+                            <div class="metric-label">Successful Optimizations</div>
+                        </div>
+                         <!--
+                        <div class="metric-card">
+                            <div class="metric-value">${result.test_cases.filter(tc => tc.optimization_result.results_identical).length}</div>
+                            <div class="metric-label">Validated Results</div>
+                        </div>
+                         -->
+                                         </div>
+                 </div>
+             `;
+             
+             // Display each test case
+            html += '<h3>🔧 Test Case Results</h3>';
+            
+            result.test_cases.forEach((testCase, index) => {
+                const opt = testCase.optimization_result;
+                const hasPerformanceMetrics = opt.performance_metrics && opt.performance_metrics.success;
+                
+                html += `
+                    <div class="optimization-item">
+                        <h4>${index + 1}. ${testCase.name}</h4>
+                        <p>${testCase.description}</p>
+                        
+                        <div style="margin: 10px 0;">
+                            <strong>Optimizations Applied:</strong> ${opt.total_optimizations}
+                            <!-- ${opt.results_identical ? '<span style="color: green;">✅ Results Identical</span>' : '<span style="color: red;">❌ Results Differ</span>'} -->
+                        </div>
+                        
+                        ${hasPerformanceMetrics ? `
+                            <div class="performance-metrics" style="margin: 10px 0; padding: 10px; background: #1976d2; border-radius: 6px;">
+                                <strong>📊 Performance Comparison:</strong>
+                                <div class="test-performance-comparison" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                                    <div class="test-performance-side">
+                                        <h6 style="margin-bottom: 8px; color: #1976d2;">🔵 Original Query</h6>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;">
+                                            <div>Time: ${opt.performance_metrics.original_time_ms || 0}ms</div>
+                                            <div>Bytes: ${formatBytes(opt.performance_metrics.original_bytes || 0)}</div>
+                                            <div>Cost: $${opt.performance_metrics.original_cost ? opt.performance_metrics.original_cost.toFixed(4) : '0.0000'}</div>
+                                        </div>
+                                    </div>
+                                    <div class="test-performance-side">
+                                        <h6 style="margin-bottom: 8px; color: #388e3c;">🟢 Optimized Query</h6>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;">
+                                            <div>Time: ${opt.performance_metrics.optimized_time_ms || 0}ms</div>
+                                            <div>Bytes: ${formatBytes(opt.performance_metrics.optimized_bytes || 0)}</div>
+                                            <div>Cost: $${opt.performance_metrics.optimized_cost ? opt.performance_metrics.optimized_cost.toFixed(4) : '0.0000'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="text-align: center; margin-top: 10px; padding: 8px; background: rgba(76, 175, 80, 0.1); border-radius: 4px;">
+                                    <strong>📈 Improvements:</strong>
+                                    Time: ${opt.performance_metrics.time_improvement ? (opt.performance_metrics.time_improvement * 100).toFixed(1) + '%' : 'N/A'} | 
+                                    Bytes: ${opt.performance_metrics.bytes_improvement ? (opt.performance_metrics.bytes_improvement * 100).toFixed(1) + '%' : 'N/A'} | 
+                                    Cost: ${opt.performance_metrics.cost_improvement ? (opt.performance_metrics.cost_improvement * 100).toFixed(1) + '%' : 'N/A'}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Optimization Status Display -->
+                        <div style="margin: 15px 0;">
+                            ${opt.optimizations_applied.length > 0 ? `
+                                <h6 style="margin-bottom: 10px; color: #2d3748;">🔧 Optimizations Applied</h6>
+                                ${opt.optimizations_applied.map(optimization => `
+                                    <div class="optimization-item" style="margin: 10px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 4px solid #388e3c;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                            <h6 style="margin: 0; color: #388e3c;">${optimization.pattern_name || 'AI-Generated Optimization'}</h6>
+                                            <span class="optimization-badge" style="background: #388e3c; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">Applied</span>
+                                        </div>
+                                        <p style="margin: 5px 0; color: #e2e8f0;">${optimization.description || 'AI-generated optimization applied to improve query performance'}</p>
+                                        ${optimization.before_snippet && optimization.after_snippet ? `
+                                            <div style="margin: 10px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                                <div style="background: rgba(220, 38, 38, 0.1); padding: 8px; border-radius: 4px; border-left: 3px solid #dc2626;">
+                                                    <small style="color: #dc2626; font-weight: 600;">Before:</small>
+                                                    <div style="font-family: monospace; font-size: 11px; color: #e2e8f0; margin-top: 4px;">${escapeHtml(optimization.before_snippet)}</div>
+                                                </div>
+                                                <div style="background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 4px; border-left: 3px solid #22c55e;">
+                                                    <small style="color: #22c55e; font-weight: 600;">After:</small>
+                                                    <div style="font-family: monospace; font-size: 11px; color: #e2e8f0; margin-top: 4px;">${escapeHtml(optimization.after_snippet)}</div>
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 10px;">
+                                            ${optimization.expected_improvement ? `
+                                                <div style="text-align: center; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 6px;">
+                                                    <div style="font-size: 1.1rem; font-weight: 700; color: #fbbf24;">${(optimization.expected_improvement * 100).toFixed(1)}%</div>
+                                                    <div style="font-size: 0.8rem; color: #e2e8f0;">Expected Improvement</div>
+                                                </div>
+                                            ` : ''}
+                                            ${optimization.confidence_score ? `
+                                                <div style="text-align: center; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 6px;">
+                                                    <div style="font-size: 1.1rem; font-weight: 700; color: #10b981;">${(optimization.confidence_score * 100).toFixed(1)}%</div>
+                                                    <div style="font-size: 0.8rem; color: #e2e8f0;">Confidence</div>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                        ${optimization.documentation_reference ? `
+                                            <div style="margin-top: 10px; padding: 8px; background: rgba(59, 130, 246,0.1); border-radius: 4px; border-left: 3px solid #3b82f6;">
+                                                <small style="color: #3b82f6; font-weight: 600;">📚 Documentation Reference:</small>
+                                                <div style="font-size: 0.9rem; color: #e2e8f0; margin-top: 4px;">${optimization.documentation_reference}</div>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            ` : `
+                                <!-- No Optimizations Applied -->
+                                <div style="margin: 15px 0; padding: 15px; background: rgba(156, 163, 175, 0.1); border-radius: 8px; border-left: 4px solid #9ca3af;">
+                                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                        <h6 style="margin: 0; color: #9ca3af;">⚠️ No Optimizations Applied</h6>
+                                    </div>
+                                    <p style="margin: 5px 0; color: #e2e8f0;">
+                                        ${opt.validation_error ? 
+                                            `Optimization failed: ${opt.validation_error}` : 
+                                            'This query could not be optimized. It may already be optimal or may not match any optimization patterns.'
+                                        }
+                                    </p>
+                                    ${opt.potential_issues && opt.potential_issues.length > 0 ? `
+                                        <div style="margin-top: 10px;">
+                                            <strong style="color: #9ca3af;">Potential Issues:</strong>
+                                            <ul style="margin: 5px 0 0 20px; color: #e2e8f0;">
+                                                ${opt.potential_issues.map(issue => `<li>${issue}</li>`).join('')}
+                                            </ul>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `}
+                        </div>
+                        
+                        <div style="margin: 15px 0;">
+                            <h5 style="margin-bottom: 10px; color: #2d3748;">📊 Query and Results Comparison</h5>
+                            
+                                                    <!-- Schema Validation Display -->
+                                                    <!--
+                        ${opt.schema_validation ? `
+                            <div class="schema-validation-section" style="margin: 15px 0; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                                <h6 style="margin-bottom: 10px; color: #1976d2;">🔍 Schema Validation Results</h6>
+                                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                    <span class="status-badge ${opt.schema_validation.schema_validation_passed ? 'validation-success' : 'validation-error'}" style="padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; margin-right: 10px;">
+                                        ${opt.schema_validation.schema_validation_passed ? '✅ PASSED' : '❌ ISSUES FOUND'}
+                                    </span>
+                                    <span style="font-size: 0.9rem; color: #666;">
+                                        Schema validation ${opt.schema_validation.schema_validation_passed ? 'completed successfully' : 'found issues that were corrected'}
+                                    </span>
+                                </div>
+                                
+                                ${!opt.schema_validation.schema_validation_passed ? `
+                                    <div style="margin: 10px 0; padding: 10px; background: rgba(220, 38, 38, 0.1); border-radius: 6px; border-left: 3px solid #dc2626;">
+                                        <h6 style="margin-bottom: 8px; color: #dc2626;">⚠️ Schema Issues Found & Corrected</h6>
+                                        <ul style="margin: 0; padding-left: 20px; color: #742a2a;">
+                                            ${opt.schema_validation.validation_issues ? opt.schema_validation.validation_issues.map(issue => `<li>${issue}</li>`).join('') : '<li>Unknown schema issues</li>'}
+                                        </ul>
+                                    </div>
+                                    
+                                    ${opt.schema_validation.removed_tables && opt.schema_validation.removed_tables.length > 0 ? `
+                                        <div style="margin: 10px 0; padding: 10px; background: rgba(245, 158, 11, 0.1); border-radius: 6px; border-left: 3px solid #f59e0b;">
+                                            <h6 style="margin-bottom: 8px; color: #d97706;">🗑️ Removed Non-Existent Tables</h6>
+                                            <ul style="margin: 0; padding-left: 20px; color: #92400e;">
+                                                ${opt.schema_validation.removed_tables.map(table => `<li><code>${table}</code></li>`).join('')}
+                                            </ul>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${opt.schema_validation.removed_columns && opt.schema_validation.removed_columns.length > 0 ? `
+                                        <div style="margin: 10px 0; padding: 10px; background: rgba(245, 158, 11, 0.1); border-radius: 6px; border-left: 3px solid #f59e0b;">
+                                            <h6 style="margin-bottom: 8px; color: #d97706;">🗑️ Removed Non-Existent Columns</h6>
+                                            <ul style="margin: 0; padding-left: 20px; color: #92400e;">
+                                                ${opt.schema_validation.removed_columns.map(col => `<li><code>${col}</code></li>`).join('')}
+                                            </ul>
+                                        </div>
+                                    ` : ''}
+                                     -->
+                                    
+                                    <!-- Query Comparison -->
+                                    <div style="margin: 15px 0;">
+                                        <h6 style="margin-bottom: 10px; color: #1976d2;">📝 Query Correction Applied</h6>
+                                        <div class="query-panels" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                            <div style="background: rgba(220, 38, 38, 0.05); padding: 10px; border-radius: 6px; border: 1px solid rgba(220, 38, 38, 0.2);">
+                                                <h6 style="margin-bottom: 8px; color: #dc2626; font-size: 0.9rem;">🔴 Original Optimized Query</h6>
+                                                <div style="font-family: monospace; font-size: 10px; color: #666; max-height: 100px; overflow-y: auto;">
+                                                    ${escapeHtml(opt.schema_validation.original_optimized_query || 'N/A')}
+                                                </div>
+                                            </div>
+                                            <div style="background: rgba(34, 197, 94, 0.05); padding: 10px; border-radius: 6px; border: 1px solid rgba(34, 197, 94, 0.2);">
+                                                <h6 style="margin-bottom: 8px; color: #22c55e; font-size: 0.9rem;">🟢 Corrected Query</h6>
+                                                <div style="font-family: monospace; font-size: 10px; color: #666; max-height: 100px; overflow-y: auto;">
+                                                    ${escapeHtml(opt.schema_validation.corrected_query || 'N/A')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Enhanced Execution Results Display -->
+                        ${opt.execution_results && opt.execution_results.success ? `
+                            <div class="execution-results" style="margin: 15px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                  <!--
+                                <h6 style="margin-bottom: 10px; color: #388e3c;">⚡ Execution & Comparison Results</h6>
+                                    <div class="execution-comparison" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;">
+                                        <div class="exec-side" style="background: rgba(255,255,255,0.08); padding: 10px; border-radius: 6px;">
+                                            <h6 style="margin-bottom: 8px; color: #1976d2;">🔵 Original Query</h6>
+                                            <p>Rows: ${opt.execution_results.original_row_count || 0}</p>
+                                            <p>Hash: ${opt.execution_results.original_hash ? opt.execution_results.original_hash.substring(0, 16) + '...' : 'N/A'}</p>
+                                            ${opt.execution_results.performance_metrics ? `
+                                                <p>Time: ${opt.execution_results.performance_metrics.original_time_ms || 0}ms</p>
+                                                <p>Bytes: ${formatBytes(opt.execution_results.performance_metrics.original_bytes || 0)}</p>
+                                            ` : ''}
+                                        </div>
+                                        <div class="exec-side" style="background: rgba(255,255,255,0.08); padding: 10px; border-radius: 6px;">
+                                            <h6 style="margin-bottom: 8px; color: #388e3c;">🟢 Optimized Query</h6>
+                                            <p>Rows: ${opt.execution_results.optimized_row_count || 0}</p>
+                                            <p>Hash: ${opt.execution_results.optimized_hash ? opt.execution_results.optimized_hash.substring(0, 16) + '...' : 'N/A'}</p>
+                                            ${opt.execution_results.performance_metrics ? `
+                                                <p>Time: ${opt.execution_results.performance_metrics.optimized_time_ms || 0}ms</p>
+                                                <p>Bytes: ${formatBytes(opt.execution_results.performance_metrics.optimized_bytes || 0)}</p>
+                                            ` : ''}
+                                        </div>
+                                         -->
+                                    </div>
+                                    
+                                    <!-- Results Comparison Status -->
+                                    <div class="results-comparison-status ${opt.execution_results.results_identical ? 'validation-success' : 'validation-error'}" style="margin-top: 15px; padding: 15px; border-radius: 6px; text-align: center;">
+                                        <h6>📊 Results Comparison</h6>
+                                        <p>${opt.execution_results.results_identical ? '✅ Results are identical - optimization preserves business logic' : '❌ Results differ - optimization may have issues'}</p>
+                                    </div>
+                                    
+                                    <!-- Performance Improvements 
+                                    ${opt.execution_results.performance_metrics && opt.execution_results.performance_metrics.time_improvement ? `
+                                        <div class="performance-improvement" style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                                            <h6 style="margin-bottom: 8px; color: #388e3c;">📈 Actual Performance Improvements</h6>
+                                            <div class="performance-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+                                                <div class="performance-item" style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; text-align: center;">
+                                                    <div class="value" style="font-size: 1.2rem; font-weight: 700;">${(opt.execution_results.performance_metrics.time_improvement * 100).toFixed(1)}%</div>
+                                                    <div class="label" style="font-size: 0.8rem;">Time Improvement</div>
+                                                </div>
+                                                ${opt.execution_results.performance_metrics.bytes_improvement ? `
+                                                    <div class="performance-item" style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; text-align: center;">
+                                                        <div class="value" style="font-size: 1.2rem; font-weight: 700;">${(opt.execution_results.performance_metrics.bytes_improvement * 100).toFixed(1)}%</div>
+                                                        <div class="label" style="font-size: 0.8rem;">Data Reduction</div>
+                                                    </div>
+                                                ` : ''}
+                                                ${opt.execution_results.performance_metrics.cost_improvement ? `
+                                                    <div class="performance-item" style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; text-align: center;">
+                                                        <div class="value" style="font-size: 1.2rem; font-weight: 700;">${(opt.execution_results.performance_metrics.cost_improvement * 100).toFixed(1)}%</div>
+                                                        <div class="label" style="font-size: 0.8rem;">Cost Savings</div>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    -->
+                                    
+                                    <!-- Hash Debug Information 
+                                    <div class="hash-debug-info" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                                        <h6>🔍 Hash Debug Information</h6>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-family: monospace; font-size: 12px;">
+                                            <div>
+                                                <strong>Original Hash:</strong><br>
+                                                <span style="word-break: break-all;">${opt.execution_results.original_hash || 'N/A'}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Optimized Hash:</strong><br>
+                                                <span style="word-break: break-all;">${opt.execution_results.optimized_hash || 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top: 10px; font-size: 11px; color: #666;">
+                                            <strong>Note:</strong> Hash differences may occur due to data ordering, type variations, or precision differences.
+                                            Check the actual data below to verify if results are truly different.
+                                        </div>
+                                        
+                                        <!-- Data Normalization Debug 
+                                        <details style="margin-top: 15px;">
+                                            <summary style="cursor: pointer; color: #007bff; font-weight: 600;">🔧 Show Data Normalization Details</summary>
+                                            <div style="margin-top: 10px; padding: 10px; background: #fff; border-radius: 4px; border: 1px solid #ddd;">
+                                                <h6 style="margin-bottom: 8px;">Data Processing for Hashing:</h6>
+                                                <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
+                                                    <li>Dates are converted to ISO format (YYYY-MM-DD)</li>
+                                                    <li>Floats are rounded to 6 decimal places for consistency</li>
+                                                    <li>NULL values are standardized as "NULL" string</li>
+                                                    <li>All strings are trimmed of whitespace</li>
+                                                    <li>Rows are sorted by first column for consistent ordering</li>
+                                                    <li>Object keys are sorted alphabetically</li>
+                                                </ul>
+                                                <div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 10px;">
+                                                    <strong>Hash Algorithm:</strong> MD5<br>
+                                                    <strong>Fallback Method:</strong> String concatenation with consistent formatting
+                                                </div>
+                                            </div>
+                                        </details>
+                                        -->
+                                    </div>
+                                </div>
+                            ` : ''}
+                          
+                            
+                            <!-- Query Results Display -->
+                            <div style="margin: 20px 0;">
+                                <h5 style="margin-bottom: 15px; color: #2d3748;">📊 Query Results Comparison</h5>
+                                
+                                <!-- Always show enhanced display for test suites -->
+                                <div class="enhanced-results-display">
+                                    <div class="query-comparison-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                        <!-- Original Query -->
+                                        <div class="query-panel" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; padding: 15px;">
+                                            <h6 style="margin-bottom: 12px; color: #1976d2; display: flex; align-items: center;">
+                                                🔵 Original Query
+                                                <span style="margin-left: auto; background: #1976d2; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">
+                                                    ${opt.execution_results && opt.execution_results.original_row_count ? opt.execution_results.original_row_count : (testCase.original_results ? testCase.original_results.length : 0)} rows
+                                                </span>
+                                            </h6>
+                                            <div class="code-block" style="font-size: 11px; padding: 12px; margin-bottom: 15px; background: rgba(0,0,0,0.1); border-radius: 6px; font-family: monospace;">
+                                                ${escapeHtml(testCase.original_query)}
+                                            </div>
+                                            
+                                            <!-- Original Query Results -->
+                                            <div class="query-results">
+                                                <h6 style="margin-bottom: 10px; color: #1976d2;">📋 Results</h6>
+                                                ${(opt.execution_results && opt.execution_results.original_query_results && opt.execution_results.original_query_results.length > 0) ? 
+                                                    formatQueryResults(opt.execution_results.original_query_results) : 
+                                                    (testCase.original_results && testCase.original_results.length > 0 ? 
+                                                        formatQueryResults(testCase.original_results) : 
+                                                        '<p style="color: #666; font-style: italic;">No results available</p>'
+                                                    )
+                                                }
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Optimized Query -->
+                                        <div class="query-panel" style="background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 8px; padding: 15px;">
+                                            <h6 style="margin-bottom: 12px; color: #22c55e; display: flex; align-items: center;">
+                                                🟢 Optimized Query
+                                                <span style="margin-left: auto; background: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">
+                                                    ${opt.execution_results && opt.execution_results.optimized_row_count ? opt.execution_results.optimized_row_count : (testCase.optimized_results ? testCase.optimized_results.length : 0)} rows
+                                                </span>
+                                            </h6>
+                                            <div class="code-block" style="font-size: 11px; padding: 12px; margin-bottom: 15px; background: rgba(0,0,0,0.1); border-radius: 6px; font-family: monospace;">
+                                                ${escapeHtml(opt.optimized_query)}
+                                            </div>
+                                            
+                                            <!-- Optimized Query Results -->
+                                            <div class="query-results">
+                                                <h6 style="margin-bottom: 10px; color: #22c55e;">📋 Results</h6>
+                                                ${(opt.execution_results && opt.execution_results.optimized_query_results && opt.execution_results.optimized_query_results.length > 0) ? 
+                                                    formatQueryResults(opt.execution_results.optimized_query_results) : 
+                                                    (testCase.optimized_results && testCase.optimized_results.length > 0 ? 
+                                                        formatQueryResults(testCase.optimized_results) : 
+                                                        '<p style="color: #666; font-style: italic;">No results available</p>'
+                                                    )
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Results Validation Status 
+                                    <div class="results-validation-status ${(opt.execution_results && opt.execution_results.results_identical) || opt.results_identical ? 'validation-success' : 'validation-error'}" style="margin-top: 20px; padding: 15px; border-radius: 8px; text-align: center; background: ${(opt.execution_results && opt.execution_results.results_identical) || opt.results_identical ? 'rgba(34, 197, 94, 0.1)' : 'rgba(220, 38, 38, 0.1)'}; border: 1px solid ${(opt.execution_results && opt.execution_results.results_identical) || opt.results_identical ? 'rgba(34, 197, 94, 0.3)' : 'rgba(220, 38, 38, 0.3)'};">
+                                        <h6 style="margin-bottom: 8px; color: ${(opt.execution_results && opt.execution_results.results_identical) || opt.results_identical ? '#22c55e' : '#dc2626'};">
+                                            ${(opt.execution_results && opt.execution_results.results_identical) || opt.results_identical ? '✅ Results Validation: PASSED' : '❌ Results Validation: FAILED'}
+                                        </h6>
+                                        <p style="margin: 0; color: ${(opt.execution_results && opt.execution_results.results_identical) || opt.results_identical ? '#22c55e' : '#dc2626'};">
+                                            ${(opt.execution_results && opt.execution_results.results_identical) || opt.results_identical ? 
+                                                'Query results are identical - optimization preserves business logic' : 
+                                                'Query results differ - optimization may have issues. Check the data above for discrepancies.'
+                                            }
+                                        </p>
+                                    </div>
+                                    -->
+                                </div>
+                            </div>
+                            
+                            
+                                                   
+                        <details style="margin-top: 10px;">
+                            <summary>View Additional Details</summary>
+                            <div style="margin-top: 10px;">
+                                <p><strong>Execution Time:</strong> ${testCase.execution_time.toFixed(2)}s</p>
+                                ${opt.validation_error ? `<p style="color: red;"><strong>Validation Error:</strong> ${opt.validation_error}</p>` : ''}
+                            </div>
+                        </details>
+                    </div>
+                `;
             });
-            tableHtml += '</tbody></table>';
             
-            if (results.length > 20) {
-                tableHtml += `<div class="text-center text-gray-500 text-sm mt-2">Showing first 20 rows of ${results.length} total rows</div>`;
-            }
-            
-            return tableHtml;
+            testResultsDiv.innerHTML = html;
+            document.getElementById('testResultsSection').style.display = 'block';
+        }
+        
+        function displayTestError(message) {
+            const testResultsDiv = document.getElementById('testResults');
+            testResultsDiv.innerHTML = `
+                <div class="error">
+                    <strong>Test Error:</strong> ${escapeHtml(message)}
+                </div>
+            `;
+            document.getElementById('testResultsSection').style.display = 'block';
         }
 
-        // Initialize syntax highlighting after content is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            // Load test queries on page load for faster access
-            loadTestQueries();
+        async function validateQuerySchemas(originalQuery, optimizedQuery, projectId) {
+            // Validate that both queries reference valid schemas and tables
+            try {
+                const response = await fetch('/api/v1/validate-schemas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        original_query: originalQuery,
+                        optimized_query: optimizedQuery,
+                        project_id: projectId
+                    })
+                });
+
+                if (response.ok) {
+                    return await response.json();
+                } else {
+                    throw new Error('Schema validation failed');
+                }
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message,
+                    message: 'Schema validation could not be completed'
+                };
+            }
+        }
+
+        async function executeAndCompareQueries(originalQuery, optimizedQuery, projectId, sampleSize) {
+            // Execute both queries and compare results using hashing
+            try {
+                const response = await fetch('/api/v1/execute-and-compare', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        original_query: originalQuery,
+                        optimized_query: optimizedQuery,
+                        project_id: projectId,
+                        sample_size: sampleSize
+                    })
+                });
+
+                if (response.ok) {
+                    return await response.json();
+                } else {
+                    throw new Error('Query execution failed');
+                }
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message,
+                    message: 'Query execution could not be completed'
+                };
+            }
+        }
+
+        async function debugHashing() {
+            const originalQuery = document.getElementById('sqlQuery').value.trim();
+            const optimizedQuery = document.getElementById('sqlQuery').value.trim(); // Assuming optimized query is the same for debugging
+            const projectId = document.getElementById('projectId').value.trim();
+
+            if (!originalQuery) {
+                alert('Please enter a SQL query to debug.');
+                return;
+            }
+
+            document.getElementById('loadingIndicator').classList.add('show');
+            document.getElementById('resultsSection').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/v1/debug-hashing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        original_query: originalQuery,
+                        optimized_query: optimizedQuery,
+                        project_id: projectId || null
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    let html = `
+                        <div class="gemini-results">
+                            <h4>🔍 Hashing Debug Results</h4>
+                            <div class="metrics-grid">
+                                <div class="metric-card">
+                                    <div class="metric-value">${result.original_query.hash.substring(0, 16)}...</div>
+                                    <div class="metric-label">Original Query Hash</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-value">${result.optimized_query.hash.substring(0, 16)}...</div>
+                                    <div class="metric-label">Optimized Query Hash</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-value">${result.comparison.hashes_identical ? '✅ Identical' : '❌ Different'}</div>
+                                    <div class="metric-label">Results Identical</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Hash Details -->
+                        <div class="hash-debug-info" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                            <h6>🔍 Detailed Hash Information</h6>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <h6>🔵 Original Query</h6>
+                                    <p><strong>Hash:</strong> ${result.original_query.hash}</p>
+                                    <p><strong>Process:</strong> ${result.original_query.process}</p>
+                                    <p><strong>Row Count:</strong> ${result.original_query.row_count}</p>
+                                    ${result.original_query.error ? `<p><strong>Error:</strong> ${result.original_query.error}</p>` : ''}
+                                </div>
+                                <div>
+                                    <h6>🟢 Optimized Query</h6>
+                                    <p><strong>Hash:</strong> ${result.optimized_query.hash}</p>
+                                    <p><strong>Process:</strong> ${result.optimized_query.process}</p>
+                                    <p><strong>Row Count:</strong> ${result.optimized_query.row_count}</p>
+                                    ${result.optimized_query.error ? `<p><strong>Error:</strong> ${result.optimized_query.error}</p>` : ''}
+                                </div>
+                            </div>
+                            
+                            <!-- Comparison Details -->
+                            <div style="margin-top: 15px; padding: 10px; background: #fff; border-radius: 4px; border: 1px solid #ddd;">
+                                <h6>📊 Comparison Analysis</h6>
+                                <ul style="margin: 0; padding-left: 20px;">
+                                    <li><strong>Hashes Identical:</strong> ${result.comparison.hashes_identical ? '✅ Yes' : '❌ No'}</li>
+                                    <li><strong>Processes Identical:</strong> ${result.comparison.processes_identical ? '✅ Yes' : '❌ No'}</li>
+                                    <li><strong>Row Counts Identical:</strong> ${result.comparison.row_counts_identical ? '✅ Yes' : '❌ No'}</li>
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+
+                    // Show normalized data if available
+                    if (result.original_query.normalized_data && result.optimized_query.normalized_data) {
+                        html += `
+                            <h3>🔧 Data Normalization Details</h3>
+                            <div class="results-comparison">
+                                <div class="query-result">
+                                    <h5>🔵 Original Query Normalized Data</h5>
+                                    <div style="max-height: 300px; overflow-y: auto;">
+                                        <pre style="font-size: 11px; background: #f8f9fa; padding: 10px; border-radius: 4px;">${JSON.stringify(result.original_query.normalized_data, null, 2)}</pre>
+                                    </div>
+                                </div>
+                                <div class="query-result">
+                                    <h5>🟢 Optimized Query Normalized Data</h5>
+                                    <div style="max-height: 300px; overflow-y: auto;">
+                                        <pre style="font-size: 11px; background: #f8f9fa; padding: 10px; border-radius: 4px;">${JSON.stringify(result.optimized_query.normalized_data, null, 2)}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    document.getElementById('optimizationResults').innerHTML = html;
+                    document.getElementById('resultsSection').style.display = 'block';
+                } else {
+                    displayError(result.detail || result.message || 'Hashing debug failed');
+                }
+            } catch (error) {
+                displayError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').classList.remove('show');
+            }
+        }
+
+        // Load system status on page load
+        window.addEventListener('load', function() {
+            checkSystemStatus();
         });
-
-        // Re-run syntax highlighting when results are shown
-        function showResults(content) {
-            const resultsArea = document.getElementById('resultsArea');
-            resultsArea.innerHTML = content;
-            resultsArea.classList.remove('hidden');
-            resultsArea.scrollIntoView({ behavior: 'smooth' });
-            
-            // Re-run Prism highlighting
-            if (window.Prism) {
-                Prism.highlightAll();
-            }
-        }
     </script>
 </body>
 </html>

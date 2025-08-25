@@ -1,224 +1,186 @@
 # BigQuery Query Optimizer
 
-An AI-powered BigQuery SQL query optimizer with **MCP server integration** and **schema validation** that automatically improves query performance while preserving exact business logic and preventing column errors.
+A comprehensive AI-powered BigQuery SQL query optimization tool that combines Google's Gemini AI with BigQuery best practices to deliver significant performance improvements.
 
-## Problem Statement
+## 🚀 Features
 
-Organizations using BigQuery often have queries written by humans that fail to meet performance SLAs. These underperforming queries cost money through inefficient compute usage, delay business insights, and frustrate end users. While BigQuery documentation contains extensive optimization best practices, developers often lack the time or expertise to apply these consistently across hundreds or thousands of queries.
+### Unified SQL Optimization Workflow
+- **Single Button Interface**: One "🚀 Optimize Query" button handles the entire optimization process
+- **AI-Powered Optimization**: Uses Google's Gemini API to analyze and optimize SQL queries
+- **Smart Documentation Selection**: Intelligently selects relevant optimization patterns based on query content
+- **Token Limit Management**: Automatically handles large documentation sets within Gemini's token limits
+- **Comprehensive Validation**: Schema validation, query execution, and result comparison
+- **Performance Metrics**: Detailed performance analysis and improvement measurements
 
-## Solution
+### Core Capabilities
+- **Raw SQL Processing**: Sends SQL queries directly to MCP without intermediate validation
+- **Markdown Documentation Integration**: Loads optimization patterns from `data/optimization_docs_md/` folder
+- **Intelligent Content Selection**: Prioritizes relevant documentation based on query analysis
+- **Token-Aware Processing**: Automatically truncates content to stay within API limits
+- **Result Validation**: Uses hashing to compare original vs. optimized query results
+- **Performance Comparison**: Executes both queries and measures actual performance improvements
 
-Enhanced AI-powered BigQuery query optimizer with MCP integration that:
-- **Input**: Underperforming BigQuery SQL query
-- **Output**: Schema-validated optimized query with identical results but improved performance
-- **Additional Output**: MCP-enhanced explanations with official documentation references
-- **NEW**: Schema validation prevents column errors and BigQuery failures
+## 🏗️ Architecture
 
-## Success Metrics
+### API Endpoints
+- **`/api/v1/optimize-gemini`**: Main optimization endpoint using Gemini AI
+- **`/api/v1/validate-schemas`**: Validates query schemas and table references
+- **`/api/v1/execute-and-compare`**: Executes both queries and compares results
 
-1. **Functional Accuracy**: 100% - Optimized queries must return identical results to original queries
-2. **Performance Improvement**: Target 30-50% reduction in query execution time
-3. **Documentation Coverage**: Tool references 20+ distinct BigQuery optimization patterns
-4. **Explanation Quality**: Each optimization includes specific documentation references
-5. **Test Coverage**: Comprehensive test scenarios demonstrating various optimization patterns
-6. **Schema Validation**: 100% - No column errors or BigQuery failures
-7. **MCP Integration**: Documentation-backed optimization suggestions
+### Token Limit Management
+The system automatically handles Gemini's token limits (1M tokens) through:
 
-## Quick Start
+1. **Smart Content Selection**: Prioritizes documentation based on query relevance
+2. **Intelligent Truncation**: Truncates content at sentence boundaries when needed
+3. **Minimal Mode**: For very long queries, uses essential optimization patterns only
+4. **Token Estimation**: Pre-checks limits before sending to Gemini API
 
-1. **Setup Environment**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+### Content Prioritization
+Documentation files are scored based on:
+- **Query Relevance**: Matches between SQL keywords and documentation content
+- **Pattern Importance**: Core optimization patterns get higher priority
+- **Content Length**: Shorter, focused files are preferred
+- **Examples**: Files with practical examples get bonus points
 
-2. **Configure Google Cloud**:
-   ```bash
-   export GOOGLE_CLOUD_PROJECT=your-project-id
-   export GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
-   export GEMINI_API_KEY=your-gemini-api-key
-   ```
+## 📁 Project Structure
 
-3. **Start the Web Interface**:
-   ```bash
-   python run_api_server.py
-   # Main API on port 8080 with embedded MCP components
-   ```
-   
-   **Optional - Start MCP Server separately** (for advanced debugging):
-   ```bash
-   python -m src.mcp_server.server
-   # Runs on http://localhost:8001 (documentation service)
-   ```
+```
+BigQuery-Opt/
+├── src/
+│   ├── api/                    # FastAPI web server
+│   ├── mcp_server/            # Model Context Protocol server
+│   │   ├── handlers.py        # SQL optimization logic
+│   │   └── server.py          # MCP server implementation
+│   └── optimizer/             # Core optimization engine
+├── data/
+│   └── optimization_docs_md/  # Markdown optimization patterns
+├── config/
+│   └── settings.py            # Configuration and environment variables
+└── tests/                     # Test suite
+```
 
-4. **Open http://localhost:8080** and start optimizing queries!
+## 🛠️ Installation & Setup
 
-## Architecture
-
-### **Enhanced Workflow Integration**:
-
-1. **Enhanced Documentation Crawler** (`src/crawler/`): Crawls Google Cloud BigQuery documentation with better pattern extraction
-2. **MCP Server** (`src/mcp_server/`): Model Context Protocol server (Port 8001) serving documentation-backed suggestions  
-3. **Enhanced Schema Extractor** (`src/optimizer/query_optimizer.py`): Extracts actual table schemas and validates column usage
-4. **Enhanced Query Optimizer** (`src/optimizer/`): Main optimization engine with MCP integration and schema validation
-5. **Enhanced AI Optimizer** (`src/optimizer/ai_optimizer.py`): Gemini-powered optimization with MCP context and schema awareness
-6. **Enhanced BigQuery Client** (`src/optimizer/bigquery_client.py`): BigQuery service wrapper with schema extraction
-7. **Enhanced Result Validator** (`src/optimizer/validator.py`): Ensures optimized queries return identical results with schema validation
-8. **Enhanced Web Interface** (`src/api/`): REST API (Port 8080) and web UI with MCP integration indicators
-
-### **Enhanced Key Features**:
-- ✅ **Schema Validation**: Extracts actual column names and validates usage
-- ✅ **MCP Integration**: Documentation-backed optimization suggestions with official references
-- ✅ **Port Separation**: Main API (8080) and MCP Server (8001) with no conflicts
-- ✅ **Error Prevention**: Comprehensive validation prevents BigQuery failures
-- ✅ **Enhanced Context**: AI optimization with official documentation backing
-
-## Optimization Patterns (20+ Supported)
-
-The optimizer applies Google's official BigQuery best practices:
-
-- **Enhanced Column Pruning**: Replace SELECT * with actual schema columns (prevents errors)
-- **Enhanced JOIN Reordering**: Optimize JOIN order with schema awareness
-- **Enhanced Subquery Conversion**: Convert subqueries to JOINs with schema validation
-- **Enhanced Approximate Aggregation**: Use approximate functions with MCP documentation backing
-- **Enhanced Window Function Optimization**: Improve specifications with official best practices
-- **Enhanced Predicate Pushdown**: Move filters with schema awareness
-- **Enhanced Clustering Optimization**: Leverage clustering with actual table metadata
-- **Enhanced Materialized View Suggestions**: Identify opportunities with MCP context
-- **And 14+ more enhanced patterns with schema validation and MCP backing...**
-
-## Usage Examples
-
-### Web Interface
-1. Open http://localhost:8080
-2. See "Enhanced with Model Context Protocol (MCP) Server Integration"
-3. Enter your BigQuery SQL query
-4. Configure your Google Cloud Project ID
-5. Click "Optimize Query"
-6. View schema-validated optimized query with MCP-enhanced suggestions and documentation references
-
-### Command Line
+### 1. Install Dependencies
 ```bash
-# Optimize a single query
-python -m src.optimizer.main optimize --query "SELECT * FROM orders WHERE date > '2024-01-01'"
-# Enhanced with MCP integration and schema validation
-
-# Optimize from file
-python -m src.optimizer.main optimize --file queries/slow_query.sql
-
-# Analyze without optimizing
-python -m src.optimizer.main analyze --query "SELECT * FROM customers"
-
-# Batch optimization
-python -m src.optimizer.main batch --queries-file queries/batch_queries.json
+pip install -r requirements.txt
 ```
 
-### Python API
-```python
-from src.optimizer.query_optimizer import BigQueryOptimizer
-
-optimizer = BigQueryOptimizer()  # Enhanced with MCP + schema integration
-result = optimizer.optimize_query("""
-    SELECT * FROM orders 
-    WHERE order_date >= '2024-01-01'
-""")
-
-print(f"Optimized Query:\n{result.optimized_query}")
-print(f"Optimizations Applied: {result.total_optimizations}")
-print(f"Expected Improvement: {result.estimated_improvement:.1%}")
-print(f"Schema Validated: No column errors")
-print(f"MCP Enhanced: {len(result.optimizations_applied)} patterns with official documentation backing")
-```
-
-## Testing
-
-Run the comprehensive test suite:
-
+### 2. Set Environment Variables
+Create a `.env` file in the project root:
 ```bash
-# Run all tests
-python -m pytest tests/
+# Required for AI optimization
+GEMINI_API_KEY=your_actual_gemini_api_key_here
 
-# Run specific test categories
-python -m pytest tests/unit/
-python -m pytest tests/integration/
-
-# Run with coverage
-python -m pytest --cov=src tests/
+# Optional settings
+GOOGLE_CLOUD_PROJECT=your_project_id_here
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+DEBUG=false
+LOG_LEVEL=INFO
 ```
 
-### Test Scenarios
+### 3. Start the Server
+```bash
+python run_api_server.py
+```
 
-The enhanced test suite includes:
-1. **Enhanced Documentation Crawler Test**: Verifies Google Cloud docs with better pattern extraction
-2. **Enhanced MCP Server Test**: Tests Model Context Protocol server with schema integration
-3. **Enhanced Simple Query Test**: Basic SELECT with schema validation
-4. **Enhanced Complex JOIN Test**: Multi-table JOIN with schema-aware optimization
-5. **Enhanced Aggregation Test**: GROUP BY with schema validation and MCP context
-6. **Enhanced Window Function Test**: Window functions with schema awareness
-7. **Enhanced Nested Query Test**: Nested subqueries with schema validation
-8. **Enhanced Business Logic Preservation**: Ensures 100% identical results with schema validation
-9. **Enhanced Performance Benchmarks**: Validates 30-50% improvement with MCP enhancement
-10. **Enhanced MCP Integration Test**: Verifies MCP server enhances optimization quality
-11. **NEW: Schema Validation Test**: Ensures no column errors in optimized queries
-12. **NEW: Column Error Prevention Test**: Validates schema-aware optimization
+The server will be available at:
+- **Web UI**: http://localhost:8080/
+- **API Docs**: http://localhost:8080/docs
+- **Health Check**: http://localhost:8080/health
 
-## Key Features
+## 🧪 Testing
 
-### Business Logic Preservation
-- **100% Functional Accuracy**: Optimized queries return identical results
-- **Enhanced Validation**: Row-by-row comparison with schema validation
-- **Enhanced Visual Proof**: Side-by-side display with schema information
-- **Zero Tolerance**: Any difference in results fails the optimization
-- **NEW: Schema Safety**: Prevents column errors and BigQuery failures
+### Test Environment Variables
+```bash
+python test_env_loading.py
+```
+
+### Test Token Limits
+```bash
+python test_token_limits.py
+```
+
+### Test Full Workflow
+```bash
+python test_unified_workflow.py
+```
+
+## 🔧 Configuration
+
+### Token Limits
+- **Maximum Input Tokens**: 1,000,000 (Gemini 1.5 Flash limit)
+- **Documentation Reserve**: 800,000 tokens
+- **Query & Prompts Reserve**: 200,000 tokens
+- **Smart Truncation**: Content is truncated at sentence boundaries when needed
+
+### Content Selection Strategy
+- **High Priority**: Performance, optimization, best-practice patterns
+- **Medium Priority**: Join, partition, cluster, index, aggregation techniques
+- **Lower Priority**: Overview and introduction documentation
+- **Automatic Fallback**: Minimal essential patterns for very long queries
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+#### Token Limit Exceeded
+**Error**: `Input exceeds Gemini's token limit`
+**Solution**: The system automatically handles this by:
+- Prioritizing relevant documentation
+- Truncating content intelligently
+- Using minimal patterns for long queries
+
+#### Gemini API Not Initialized
+**Error**: `Gemini API not initialized`
+**Solution**: 
+1. Check your `.env` file has `GEMINI_API_KEY`
+2. Run `python test_env_loading.py` to verify
+3. Ensure `python-dotenv` is installed
+
+#### Import Errors
+**Error**: `No module named 'google.generativeai'`
+**Solution**: Install the required package:
+```bash
+pip install google-generativeai
+```
 
 ### Performance Optimization
-- **30-50% Target**: Aims for significant performance improvements
-- **Real Measurements**: Actual BigQuery performance metrics
-- **Enhanced Cost Reduction**: Reduces bytes processed with schema-aware optimization
-- **SLA Compliance**: Helps queries meet performance requirements
-- **NEW: Error Prevention**: Schema validation prevents production failures
+- **Documentation Size**: Keep markdown files focused and concise
+- **Query Length**: Very long queries automatically use minimal documentation
+- **Content Relevance**: System prioritizes most relevant optimization patterns
+- **Token Efficiency**: Content is automatically optimized for token usage
 
-### AI-Powered Intelligence
-- **Enhanced Google's Best Practices**: Applies official patterns with schema awareness
-- **Enhanced MCP Server Integration**: Model Context Protocol with documentation backing
-- **Enhanced Context Awareness**: Considers table schemas, metadata, and MCP suggestions
-- **Enhanced Documentation References**: Each optimization links to official docs via MCP
-- **Enhanced Explanation Quality**: Clear explanations with official documentation backing
-- **NEW: Schema Intelligence**: AI understands actual table structures
+## 📊 Usage Examples
 
-### Developer Experience
-- **Enhanced Web Interface**: Browser-based interface with MCP integration indicators
-- **Enhanced Command Line Tools**: CLI with schema validation and MCP integration
-- **Enhanced Python API**: Programmatic access with schema awareness
-- **Enhanced Batch Processing**: Optimize hundreds of queries with schema validation
+### Basic Optimization
+1. Enter your SQL query in the web interface
+2. Click "🚀 Optimize Query"
+3. View the AI-generated optimization suggestions
+4. Review performance improvements and validation results
 
-## Documentation
+### Advanced Features
+- **Schema Validation**: Automatically validates table and column references
+- **Result Comparison**: Compares original vs. optimized query results using hashing
+- **Performance Metrics**: Measures actual execution time improvements
+- **Documentation Context**: Shows which optimization patterns were applied
 
-- [Architecture Guide](docs/architecture.md)
-- [Enhanced Workflow Integration](docs/workflow_integration.md)
-- [Optimization Patterns](docs/optimization_patterns.md)
-- [User Guide](docs/user_guide.md)
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
+3. Make your changes
+4. Add tests for new functionality
 5. Submit a pull request
 
-## License
+## 📄 License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
+## 🆘 Support
 
 For issues and questions:
-- Check the documentation
-- Review test examples
-- Open an issue on GitHub
-
----
-
-**Transform your underperforming BigQuery queries into schema-validated, MCP-enhanced, optimized solutions while preserving exact business logic and preventing errors!**
+1. Check the troubleshooting section above
+2. Run the test scripts to diagnose problems
+3. Review the API documentation at `/docs`
+4. Check the logs for detailed error information

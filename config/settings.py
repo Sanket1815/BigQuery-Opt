@@ -129,8 +129,18 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         
         # Create directories if they don't exist
-        self.docs_output_dir.mkdir(parents=True, exist_ok=True)
-        self.vector_db_path.mkdir(parents=True, exist_ok=True)
+        try:
+            self.docs_output_dir.mkdir(parents=True, exist_ok=True)
+            self.vector_db_path.mkdir(parents=True, exist_ok=True)
+        except AttributeError as e:
+            if "'os' has no attribute 'chmod'" in str(e):
+                print("⚠️  File permission operations not available - using fallback directory creation")
+                # Fallback to os.makedirs when Path.mkdir fails due to missing chmod
+                import os
+                os.makedirs(self.docs_output_dir, exist_ok=True)
+                os.makedirs(self.vector_db_path, exist_ok=True)
+            else:
+                raise
         
         # Debug: Print the actual project ID being used
         if self.google_cloud_project:

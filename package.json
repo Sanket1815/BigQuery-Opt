@@ -1,0 +1,22 @@
+{
+  "name": "bigquery-optimizer",
+  "version": "1.0.0",
+  "description": "BigQuery SQL optimization tool with AI-powered analysis",
+  "main": "src/api/server.py",
+  "scripts": {
+    "test": "python -m pytest",
+    "start": "python run_api_server.py",
+    "install-deps": "pip install -r requirements.txt"
+  },
+  "keywords": [
+    "bigquery",
+    "sql",
+    "optimization",
+    "ai",
+    "query-analysis"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {}
+}

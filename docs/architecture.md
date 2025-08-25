@@ -1,284 +1,245 @@
-# BigQuery Query Optimizer Architecture
+# BigQuery Query Optimizer - Simplified Direct Processing Architecture
 
 ## Overview
 
-The BigQuery Query Optimizer is an AI-powered system that automatically optimizes BigQuery SQL queries while preserving exact business logic and results. The system combines documentation crawling, semantic search, AI-powered optimization, and comprehensive validation to deliver performance improvements of 30-50%.
+The BigQuery Query Optimizer implements a **simplified direct processing architecture** that sends raw SQL queries directly to the MCP server, uses separate markdown files for optimization patterns, and leverages LLM with system/user prompts for optimization.
 
-## System Architecture
+## Simplified System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    BigQuery Query Optimizer                     │
+│                   Simplified Direct Processing                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐ │
-│  │   CLI/API       │    │   Web UI        │    │   Batch         │ │
-│  │   Interface     │    │   (Future)      │    │   Processing    │ │
+│  │   Web UI        │    │   CLI Tool      │    │   Python API    │ │
+│  │   (Port 8080)   │    │   (Terminal)    │    │   (Direct)      │ │
+│  │ • Query Input   │    │ • Direct SQL    │    │ • Raw SQL       │ │
+│  │ • Raw SQL       │    │   Processing    │    │   Processing    │ │
+│  │   Processing    │    │ • Pattern Files │    │ • LLM Direct    │ │
 │  └─────────────────┘    └─────────────────┘    └─────────────────┘ │
 │           │                       │                       │        │
 │           └───────────────────────┼───────────────────────┘        │
 │                                   │                                │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │              Query Optimizer Core                          │   │
+│  │              Simplified Query Processor                    │   │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │   │
-│  │  │   Query     │  │    AI       │  │     Validator       │ │   │
-│  │  │  Analyzer   │  │ Optimizer   │  │                     │ │   │
+│  │  │   Raw SQL   │  │    LLM      │  │   Table/Column      │ │   │
+│  │  │  Handler    │  │ Optimizer   │  │   Validator         │ │   │
+│  │  │ (Direct)    │  │ (Direct)    │  │   (Direct)          │ │   │
 │  │  └─────────────┘  └─────────────┘  └─────────────────────┘ │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │           │                       │                       │        │
 │           │                       │                       │        │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐ │
-│  │      MCP        │    │  Documentation │    │    BigQuery     │ │
-│  │     Server      │    │   Processor     │    │     Client      │ │
+│  │  MCP Server     │    │   Markdown      │    │    BigQuery     │ │
+│  │  (Direct SQL)   │    │   Pattern       │    │     Client      │ │
+│  │                 │    │   Files         │    │   (Validation)  │ │
 │  └─────────────────┘    └─────────────────┘    └─────────────────┘ │
 │           │                       │                       │        │
 │           │                       │                       │        │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐ │
-│  │   Vector DB     │    │  Documentation │    │   BigQuery      │ │
-│  │   (ChromaDB)    │    │    Crawler     │    │   Service       │ │
+│  │   Pattern       │    │  Optimization   │    │   BigQuery      │ │
+│  │   Matcher       │    │   Patterns      │    │   Service       │ │
+│  │   (Direct)      │    │   (Separate     │    │   (Direct)      │ │
+│  │                 │    │    MD Files)    │    │                 │ │
 │  └─────────────────┘    └─────────────────┘    └─────────────────┘ │
-│                                   │                                │
-│                          ┌─────────────────┐                       │
-│                          │  Google Cloud   │                       │
-│                          │ Documentation   │                       │
-│                          └─────────────────┘                       │
 └─────────────────────────────────────────────────────────────────┘
 
 External Services:
 ┌─────────────────┐    ┌─────────────────┐
-│   Gemini API    │    │   BigQuery      │
-│   (Google AI)   │    │   Service       │
+│   Gemini LLM    │    │   BigQuery      │
+│   (Direct       │    │   Service       │
+│    Prompts)     │    │   (Validation)  │
 └─────────────────┘    └─────────────────┘
+```
+
+## Simplified Processing Flow
+
+### 1. **Direct SQL Input** → **MCP Server Processing**
+```
+Raw SQL Query → MCP Server → Pattern Matching → Documentation Context
+```
+
+### 2. **LLM Optimization** → **Direct Prompting**
+```
+System Prompt + User Prompt + Docs → Gemini LLM → Optimized SQL
+```
+
+### 3. **Validation** → **Table/Column Checking**
+```
+Optimized SQL → BigQuery Validation → Column Verification → Final Result
 ```
 
 ## Core Components
 
-### 1. Documentation Crawler (`src/crawler/`)
+### 1. **Direct SQL Handler** (`src/mcp_server/handlers.py`)
 
-**Purpose**: Crawls and processes BigQuery optimization documentation from Google Cloud.
+**Purpose**: Processes raw SQL queries directly and prepares context for LLM.
 
-**Key Components**:
-- `BigQueryDocsCrawler`: Main crawler that fetches documentation pages
-- `DocumentationProcessor`: Processes and creates embeddings for semantic search
+**Key Functions**:
+- `process_raw_sql_query()`: Main entry point for raw SQL processing
+- `_find_applicable_patterns()`: Matches SQL to optimization patterns
+- `_prepare_docs_context()`: Prepares documentation for LLM
+- `_create_system_prompt()`: Creates system prompt for LLM
+- `_create_user_prompt()`: Creates user prompt with query and docs
 
-**Features**:
-- Respects rate limits with configurable delays
-- Caches documentation locally to avoid repeated requests
-- Extracts optimization patterns from documentation
-- Creates searchable embeddings using sentence transformers
+**Processing Flow**:
+1. Receive raw SQL query from UI
+2. Analyze SQL structure directly
+3. Find applicable optimization patterns from markdown files
+4. Prepare documentation context for LLM
+5. Create system and user prompts
+6. Return optimization context
 
-**Flow**:
-1. Crawls predefined BigQuery documentation URLs
-2. Extracts and cleans HTML content
-3. Converts to markdown format
-4. Identifies optimization patterns in content
-5. Creates embeddings and stores in vector database
+### 2. **LLM Optimizer** (`src/optimizer/llm_optimizer.py`)
 
-### 2. MCP Server (`src/mcp_server/`)
+**Purpose**: Direct LLM optimization using system and user prompts.
 
-**Purpose**: Model Context Protocol server that provides documentation and optimization suggestions.
+**Key Functions**:
+- `optimize_with_llm()`: Main optimization using LLM
+- `_parse_llm_response()`: Parse JSON response from LLM
+- `_validate_optimized_query()`: Validate and fix optimized query
+- `_create_optimization_result()`: Create structured result
 
-**Key Components**:
-- `BigQueryMCPServer`: FastAPI-based server
-- `DocumentationHandler`: Handles documentation search requests
-- `OptimizationHandler`: Provides query analysis and optimization suggestions
+**Processing Flow**:
+1. Receive system prompt, user prompt, and raw SQL
+2. Send to Gemini LLM with proper prompt structure
+3. Parse JSON response with optimizations
+4. Validate optimized query syntax and structure
+5. Return optimization result
 
-**API Endpoints**:
-- `POST /search`: Search documentation semantically
-- `POST /patterns`: Get applicable optimization patterns
-- `POST /analyze`: Analyze query structure and complexity
-- `POST /optimize`: Get detailed optimization suggestions
-- `GET /health`: Health check and system status
+### 3. **Markdown Pattern Files** (`data/optimization_patterns/`)
 
-### 3. Query Optimizer (`src/optimizer/`)
+**Purpose**: Store optimization patterns as separate markdown files.
 
-**Purpose**: Main optimization engine that coordinates all components.
+**Structure**:
+- `column_pruning.md`: Column pruning optimization
+- `join_reordering.md`: JOIN reordering optimization
+- `approximate_aggregation.md`: Approximate aggregation optimization
+- `subquery_to_join.md`: Subquery to JOIN conversion
+- `window_optimization.md`: Window function optimization
+- `predicate_pushdown.md`: Predicate pushdown optimization
+- `having_to_where_conversion.md`: HAVING to WHERE conversion
+- `unnecessary_operations.md`: Unnecessary operations elimination
 
-**Key Components**:
-- `BigQueryOptimizer`: Main orchestrator class
-- `GeminiQueryOptimizer`: AI-powered optimization using Gemini
-- `BigQueryClient`: BigQuery service wrapper with performance measurement
-- `QueryValidator`: Ensures optimized queries return identical results
+**Benefits**:
+- Easy to maintain and update
+- Clear separation of concerns
+- Version control friendly
+- Human readable documentation
 
-**Optimization Flow**:
-1. **Analysis**: Parse and analyze SQL query structure
-2. **Pattern Matching**: Identify applicable optimization patterns
-3. **Context Gathering**: Retrieve relevant documentation
-4. **AI Optimization**: Use Gemini to generate optimized query
-5. **Validation**: Verify results are identical (optional)
-6. **Performance Measurement**: Compare execution times (optional)
+### 4. **Simplified Query Optimizer** (`src/optimizer/query_optimizer.py`)
 
-### 4. Common Components (`src/common/`)
+**Purpose**: Orchestrates the simplified optimization workflow.
 
-**Purpose**: Shared utilities and data models.
+**Simplified Flow**:
+1. Send raw SQL to MCP handler
+2. Get system and user prompts from MCP
+3. Send prompts to LLM optimizer
+4. Validate optimized query
+5. Measure performance if requested
+6. Return results
 
-**Key Components**:
-- `models.py`: Pydantic data models for all system entities
-- `exceptions.py`: Custom exception classes
-- `logger.py`: Structured logging utilities
+## Data Flow Architecture
 
-## Data Models
+### **Simplified Integration Flow**:
+```
+Raw SQL Query → MCP Handler → Pattern Files → LLM Prompts → 
+Gemini LLM → Optimized SQL → Validation → Results
+```
 
-### Core Models
+### **Detailed Processing Steps**:
 
-#### `OptimizationResult`
-Complete result of the optimization process including:
-- Original and optimized queries
-- Applied optimizations with explanations
-- Performance metrics and validation results
-- Processing metadata
+1. **User Input**: Raw SQL query entered in web interface
+2. **MCP Processing**: Query sent to MCP handler for direct processing
+3. **Pattern Matching**: Handler reads markdown files and finds applicable patterns
+4. **Prompt Creation**: System and user prompts created with documentation context
+5. **LLM Optimization**: Prompts sent to Gemini LLM for optimization
+6. **Query Validation**: Optimized query validated for syntax and table/column existence
+7. **Results Display**: Show original and optimized queries with explanations
 
-#### `QueryAnalysis`
-Detailed analysis of SQL query structure:
-- Complexity assessment
-- Table, JOIN, and function counts
-- Identified performance issues
-- Applicable optimization patterns
+## Key Benefits
 
-#### `OptimizationPattern`
-Represents a specific optimization technique:
-- Pattern identification and description
-- Expected performance improvement
-- Applicability conditions
-- Documentation references
+### **1. Simplified Architecture**
+- ✅ Direct SQL processing without complex transformations
+- ✅ Clear separation between pattern storage and processing logic
+- ✅ Easier to maintain and debug
+- ✅ Faster processing with fewer components
 
-#### `PerformanceMetrics`
-Performance measurement data:
-- Execution time and resource usage
-- Bytes processed and billed
-- Cache hit information
+### **2. Flexible Documentation**
+- ✅ Separate markdown files for each optimization pattern
+- ✅ Easy to add, modify, or remove patterns
+- ✅ Version control friendly
+- ✅ Human readable and maintainable
 
-## AI Integration
+### **3. Direct LLM Integration**
+- ✅ System and user prompts for better LLM control
+- ✅ Documentation context sent directly to LLM
+- ✅ No intermediate processing or transformation
+- ✅ Better optimization quality with direct context
 
-### Gemini API Integration
+### **4. Robust Validation**
+- ✅ Table and column validation against BigQuery
+- ✅ Syntax validation of optimized queries
+- ✅ Project ID handling and validation
+- ✅ Error handling and fallback mechanisms
 
-The system uses Google's Gemini AI model for intelligent query optimization:
+## Technology Stack
 
-1. **Context Building**: Combines query analysis, applicable patterns, and relevant documentation
-2. **Prompt Engineering**: Structured prompts that ensure consistent, high-quality outputs
-3. **Response Processing**: Parses AI responses and validates optimization suggestions
-4. **Error Handling**: Graceful fallbacks when AI services are unavailable
+### **Core Technologies**:
+- **FastAPI**: Web API framework
+- **Google Gemini**: LLM for query optimization
+- **BigQuery Client**: Table/column validation
+- **Markdown Files**: Pattern documentation storage
+- **MCP Server**: Direct SQL processing
 
-### Optimization Patterns
+### **Removed Dependencies**:
+- **ChromaDB**: No longer needed for vector search
+- **Sentence Transformers**: No longer needed for embeddings
+- **Complex Documentation Processor**: Simplified to direct file reading
+- **Async Processing**: Simplified to direct synchronous processing
 
-The system recognizes and applies 20+ optimization patterns:
+## File Organization
 
-- **JOIN Reordering**: Optimize JOIN order based on table sizes
-- **Partition Filtering**: Add partition filters to reduce data scanned
-- **Subquery Conversion**: Convert subqueries to JOINs where appropriate
-- **Window Function Optimization**: Improve window function specifications
-- **Approximate Aggregation**: Use approximate functions for large datasets
-- **Column Pruning**: Replace SELECT * with specific columns
-- **Predicate Pushdown**: Move filters closer to data sources
-- **Clustering Optimization**: Leverage clustering keys in WHERE clauses
+### **Core Files**:
+- `src/mcp_server/handlers.py`: Direct SQL processing handler
+- `src/optimizer/llm_optimizer.py`: Direct LLM optimization
+- `src/optimizer/query_optimizer.py`: Simplified orchestrator
+- `data/optimization_patterns/*.md`: Individual pattern files
 
-## Performance and Scalability
+### **Pattern Files Structure**:
+```
+data/optimization_patterns/
+├── column_pruning.md
+├── join_reordering.md
+├── approximate_aggregation.md
+├── subquery_to_join.md
+├── window_optimization.md
+├── predicate_pushdown.md
+├── having_to_where_conversion.md
+└── unnecessary_operations.md
+```
 
-### Performance Optimization
+## Performance Characteristics
 
-1. **Caching**: Documentation and embeddings are cached locally
-2. **Batch Processing**: Support for optimizing multiple queries concurrently
-3. **Async Operations**: Non-blocking operations where possible
-4. **Connection Pooling**: Efficient BigQuery connection management
+### **Processing Speed**:
+- **Faster Startup**: No vector database initialization
+- **Direct Processing**: No complex transformations
+- **Efficient Pattern Matching**: Simple file-based pattern storage
+- **Quick LLM Calls**: Direct prompting without preprocessing
 
-### Scalability Considerations
+### **Memory Usage**:
+- **Lower Memory**: No vector embeddings in memory
+- **Efficient Storage**: Markdown files loaded on demand
+- **Simple Caching**: Pattern files cached in memory
+- **Reduced Dependencies**: Fewer libraries and components
 
-1. **Stateless Design**: All components are stateless for horizontal scaling
-2. **Resource Management**: Configurable resource limits and timeouts
-3. **Error Isolation**: Component failures don't cascade
-4. **Monitoring**: Comprehensive logging and metrics
+### **Scalability**:
+- **Easy Pattern Addition**: Just add new markdown files
+- **Simple Maintenance**: Clear file structure
+- **Version Control**: Git-friendly markdown files
+- **Documentation Updates**: Direct file editing
 
-## Security and Privacy
-
-### Data Handling
-
-1. **No Query Storage**: Queries are processed in memory only
-2. **Secure Connections**: All external API calls use HTTPS/TLS
-3. **Credential Management**: Secure handling of API keys and service accounts
-4. **Audit Logging**: All operations are logged for security auditing
-
-### Access Control
-
-1. **API Authentication**: MCP server supports authentication
-2. **Role-Based Access**: Integration with Google Cloud IAM
-3. **Rate Limiting**: Protection against abuse
-
-## Configuration and Deployment
-
-### Environment Configuration
-
-The system uses environment variables and configuration files:
-- Google Cloud project and credentials
-- Gemini API configuration
-- BigQuery settings and preferences
-- Performance and logging parameters
-
-### Deployment Options
-
-1. **Local Development**: Run all components locally
-2. **Container Deployment**: Docker containers for easy deployment
-3. **Cloud Deployment**: Deploy to Google Cloud Run or Kubernetes
-4. **Hybrid Deployment**: MCP server in cloud, CLI tools local
-
-## Monitoring and Observability
-
-### Logging
-
-Structured logging using `structlog`:
-- Query analysis and optimization events
-- Performance metrics and timing
-- Error tracking and debugging information
-- API request/response logging
-
-### Metrics
-
-Key performance indicators:
-- Optimization success rate
-- Average performance improvement
-- Processing time per query
-- API response times
-- Error rates by component
-
-### Health Checks
-
-Comprehensive health monitoring:
-- BigQuery connectivity
-- Gemini API availability
-- Documentation freshness
-- Vector database status
-
-## Testing Strategy
-
-### Test Categories
-
-1. **Unit Tests**: Individual component testing with mocks
-2. **Integration Tests**: End-to-end workflow testing
-3. **Performance Tests**: Optimization effectiveness validation
-4. **Functional Tests**: Result accuracy verification
-
-### Test Coverage
-
-- Query analysis accuracy
-- Optimization pattern identification
-- AI integration reliability
-- Performance measurement precision
-- Error handling robustness
-
-## Future Enhancements
-
-### Planned Features
-
-1. **Web Interface**: Browser-based query optimization
-2. **Query Recommendation**: Proactive optimization suggestions
-3. **Cost Analysis**: Detailed cost impact analysis
-4. **Custom Patterns**: User-defined optimization patterns
-5. **Batch Analytics**: Analysis of query patterns across organizations
-
-### Scalability Improvements
-
-1. **Distributed Processing**: Multi-node query processing
-2. **Advanced Caching**: Redis-based distributed caching
-3. **Machine Learning**: Custom ML models for pattern recognition
-4. **Real-time Optimization**: Stream processing for continuous optimization
-
-This architecture provides a robust, scalable foundation for AI-powered BigQuery query optimization while maintaining flexibility for future enhancements and deployment scenarios.
+This simplified architecture provides the same optimization capabilities with a cleaner, more maintainable design that's easier to understand and extend.

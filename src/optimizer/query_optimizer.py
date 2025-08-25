@@ -19,11 +19,11 @@ from config.settings import get_settings
 from src.common.exceptions import OptimizationError, BigQueryConnectionError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import OptimizationResult, QueryAnalysis, QueryComplexity
-from src.optimizer.ai_optimizer import GeminiQueryOptimizer
+from src.optimizer.llm_optimizer import LLMQueryOptimizer
 from src.optimizer.bigquery_client import BigQueryClient
 from src.optimizer.validator import QueryValidator
-from src.mcp_server.handlers import OptimizationHandler
-from src.crawler.documentation_processor import DocumentationProcessor
+from src.mcp_server.handlers import DirectSQLOptimizationHandler
+from src.mcp_server.handlers import DirectSQLOptimizationHandler
 
 
 class BigQueryOptimizer:
@@ -44,17 +44,15 @@ class BigQueryOptimizer:
         try:
             self.bq_client = BigQueryClient(project_id)
             
-            # Initialize MCP server components for documentation access
+            # Initialize MCP handler for direct SQL processing
             try:
-                self.documentation_processor = DocumentationProcessor()
-                self.mcp_handler = OptimizationHandler(self.documentation_processor)
-                print("✅ MCP server components initialized")
-            except ImportError:
-                print("⚠️ MCP server components not available - using fallback mode")
-                self.documentation_processor = None
-                self.mcp_handler = None
+                self.optimization_analyzer = DirectSQLOptimizationHandler()
+                print("✅ MCP handler initialized for direct SQL processing")
+            except Exception as e:
+                print(f"⚠️ MCP handler initialization failed: {e}")
+                self.optimization_analyzer = None
             
-            self.ai_optimizer = GeminiQueryOptimizer()
+            self.llm_optimizer = LLMQueryOptimizer()
             
             if validate_results:
                 # self.validator = QueryValidator(self.bq_client)  # Commented out for now
@@ -93,44 +91,60 @@ class BigQueryOptimizer:
             print(f"\n🚀 AI-POWERED BIGQUERY QUERY OPTIMIZER")
             print(f"=" * 80)
             print(f"🎯 BUSINESS PROBLEM: Underperforming queries failing performance SLAs")
-            print(f"🤖 SOLUTION: Apply Google's official BigQuery best practices automatically")
+            print(f"🤖 SOLUTION: Direct SQL processing with LLM optimization")
             print(f"✅ GUARANTEE: Preserve exact business logic and output")
             print(f"=" * 80)
             
-            # Step 1: Analyze the underperforming query
-            print(f"\n📊 ANALYZING UNDERPERFORMING QUERY")
+            # Step 1: Send raw SQL to MCP server for processing
+            print(f"\n📡 SENDING RAW SQL TO MCP SERVER")
             print(f"Query length: {len(query)} characters")
             
-            analysis = self._analyze_query_structure(query)
-            print(f"Complexity: {analysis.complexity}")
-            print(f"Tables: {analysis.table_count}, JOINs: {analysis.join_count}")
-            print(f"Performance issues found: {len(analysis.potential_issues)}")
-            
-            if analysis.potential_issues:
-                print(f"🚨 PERFORMANCE ISSUES DETECTED:")
-                for issue in analysis.potential_issues:
-                    print(f"   - {issue}")
-            
-            # Step 2: Get table metadata for smart optimizations
-            print(f"\n🗃️ ANALYZING TABLE METADATA FOR OPTIMIZATION")
-            table_metadata = self._get_table_metadata(query)
-            
-            # Step 3: Apply Google's official BigQuery best practices using AI
-            print(f"\n🤖 APPLYING GOOGLE'S BIGQUERY BEST PRACTICES")
-            print(f"Applicable patterns: {', '.join(analysis.applicable_patterns)}")
-            
-            # NEW WORKFLOW: Use MCP server for optimization recommendations
-            if self.mcp_handler:
-                print(f"📡 Getting optimization recommendations from MCP server...")
-                optimization_suggestions = self._get_mcp_optimization_suggestions_safe(query)
+            # Get optimization context from MCP server
+            if self.optimization_analyzer:
+                print(f"📡 Getting optimization recommendations from markdown documentation...")
+                optimization_suggestions = self.optimization_analyzer.get_optimization_suggestions_for_llm(query)
                 
-                optimization_result = self.ai_optimizer.optimize_with_best_practices(
-                    query, analysis, table_metadata, mcp_suggestions=optimization_suggestions
-                )
+                if optimization_suggestions and optimization_suggestions != "No specific optimization patterns found for this query.":
+                    print(f"✅ Documentation analysis successful")
+                    
+                    # Step 2: Send to LLM with system and user prompts
+                    print(f"\n🤖 SENDING TO LLM FOR OPTIMIZATION")
+                    
+                    # Create system prompt
+                    system_prompt = self._create_system_prompt()
+                    
+                    # Create user prompt with query and documentation
+                    user_prompt = self._create_user_prompt(query, optimization_suggestions)
+                    
+                    optimization_result = self.llm_optimizer.optimize_with_llm(
+                        query,
+                        system_prompt,
+                        user_prompt,
+                        self.bq_client.project_id
+                    )
+                else:
+                    print(f"⚠️ No optimization patterns found for this query")
+                    # Create basic analysis for fallback
+                    analysis = self._analyze_query_structure(query)
+                    optimization_result = OptimizationResult(
+                        original_query=query,
+                        query_analysis=analysis,
+                        optimized_query=query,
+                        optimizations_applied=[],
+                        total_optimizations=0,
+                        validation_error="No optimization patterns applicable"
+                    )
             else:
-                print(f"⚠️ Using direct AI optimization (MCP server not available)")
-                optimization_result = self.ai_optimizer.optimize_with_best_practices(
-                    query, analysis, table_metadata
+                print(f"⚠️ Optimization analyzer not available - using fallback")
+                # Create basic analysis for fallback
+                analysis = self._analyze_query_structure(query)
+                optimization_result = OptimizationResult(
+                    original_query=query,
+                    query_analysis=analysis,
+                    optimized_query=query,
+                    optimizations_applied=[],
+                    total_optimizations=0,
+                    validation_error="Optimization analyzer not available"
                 )
             
             print(f"✅ OPTIMIZATIONS APPLIED: {optimization_result.total_optimizations}")
@@ -148,8 +162,7 @@ class BigQueryOptimizer:
             else:
                 print(f"⚠️ NO OPTIMIZATIONS APPLIED - Query may already be optimized")
             
-            # Step 4: CRITICAL - Validate business logic preservation (100% accuracy requirement)
-            # Step 4: Display both query results for comparison (validation commented out)
+            # Step 3: Display both query results for comparison (validation commented out)
             if validate_results:
                 print(f"\n📊 DISPLAYING QUERY RESULTS FOR COMPARISON")
                 print(f"🔍 Validation logic temporarily disabled - showing results only")
@@ -256,7 +269,7 @@ class BigQueryOptimizer:
             #         print(f"❌ FUNCTIONAL ACCURACY: 0% ✗")
             #         optimization_result.validation_error = "Query results are not identical"
             
-            # Step 5: Measure performance improvement (30-50% target)
+            # Step 4: Measure performance improvement (30-50% target)
             if measure_performance:
                 print(f"\n📊 MEASURING PERFORMANCE IMPROVEMENT")
                 print(f"🎯 SUCCESS METRIC: Target 30-50% reduction in execution time")
@@ -265,9 +278,10 @@ class BigQueryOptimizer:
                     query, optimization_result.optimized_query
                 )
                 
-                if performance_result["success"]:
+                if performance_result.get("success"):
                     improvement = performance_result["improvement_percentage"]
                     optimization_result.actual_improvement = improvement
+                    optimization_result.performance_metrics = performance_result
                     
                     print(f"📈 PERFORMANCE IMPROVEMENT: {improvement:.1%}")
                     
@@ -279,6 +293,7 @@ class BigQueryOptimizer:
                         print(f"❌ FAILURE: No performance improvement measured")
                 else:
                     print(f"⚠️ Performance measurement failed: {performance_result['error']}")
+                    optimization_result.performance_metrics = {"success": False, "error": performance_result.get('error', 'Unknown error')}
             
             # Final summary
             optimization_result.processing_time_seconds = time.time() - start_time
@@ -319,52 +334,29 @@ class BigQueryOptimizer:
                 validation_error=str(e)
             )
     
-    def _get_mcp_optimization_suggestions_sync(self, query: str) -> Dict[str, Any]:
-        """Get optimization suggestions from MCP server."""
-        try:
-            if not self.mcp_handler:
-                return {}
-            
-            # Use asyncio.run to handle async call in sync context
-            import asyncio
-            
-            # Get comprehensive optimization suggestions from MCP server
-            suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
-            
-            print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
-            
-            return suggestions
-            
-        except Exception as e:
-            self.logger.log_error(e, {"operation": "get_mcp_optimization_suggestions_sync"})
-            print(f"⚠️ MCP server request failed: {e}")
-            return {}
-    
     def analyze_query_only(self, query: str) -> QueryAnalysis:
-        """Analyze a query without optimizing it using MCP server."""
+        """Analyze a query without optimizing it."""
         try:
-            if self.mcp_handler:
-                # Use MCP server for enhanced analysis
-                import asyncio
-                analysis = asyncio.run(self.mcp_handler.analyze_query(query))
-                print(f"📊 Enhanced analysis from MCP server")
-                return analysis
-            else:
-                # Fallback to direct analysis
-                return self._analyze_query_structure(query)
+            return self._analyze_query_structure(query)
         except Exception as e:
             self.logger.log_error(e, {"operation": "analyze_query_only"})
             return self._analyze_query_structure(query)
     
     def get_optimization_suggestions(self, query: str) -> Dict[str, Any]:
-        """Get optimization suggestions from MCP server without applying them."""
+        """Get optimization suggestions without applying them."""
         try:
-            if self.mcp_handler:
-                # Use MCP server for comprehensive suggestions
-                import asyncio
-                suggestions = asyncio.run(self.mcp_handler.get_optimization_suggestions(query))
-                print(f"💡 MCP server provided comprehensive optimization suggestions")
-                return suggestions
+            if self.optimization_analyzer:
+                # Get suggestions from markdown documentation
+                suggestions = self.optimization_analyzer.get_optimization_suggestions_for_llm(query)
+                analysis = self._analyze_query_structure(query)
+                
+                return {
+                    "analysis": analysis.model_dump(),
+                    "applicable_patterns": analysis.applicable_patterns,
+                    "specific_suggestions": suggestions,
+                    "documentation_references": self._get_documentation_references(analysis.applicable_patterns),
+                    "priority_optimizations": analysis.applicable_patterns[:3]
+                }
             else:
                 # Fallback to direct suggestions
                 analysis = self._analyze_query_structure(query)
@@ -600,17 +592,15 @@ class BigQueryOptimizer:
             try:
                 print(f"  📊 Checking table: {table_name}")
                 
-                # Always construct the correct full table name
-                if table_name.count('.') >= 2:
-                    # Already fully qualified, but might have wrong project ID
-                    parts = table_name.split('.')
-                    if len(parts) >= 3:
-                        # Replace project ID with actual one
-                        full_table_name = f"{self.bq_client.project_id}.{parts[-2]}.{parts[-1]}"
-                    else:
-                        full_table_name = table_name
+                # Construct the correct full table name
+                if table_name.count('.') == 2:
+                    # Already fully qualified (project.dataset.table)
+                    full_table_name = table_name
+                elif table_name.count('.') == 1:
+                    # dataset.table format
+                    full_table_name = f"{self.bq_client.project_id}.{table_name}"
                 else:
-                    # Simple table name, construct full name
+                    # Simple table name only
                     full_table_name = f"{self.bq_client.project_id}.optimizer_test_dataset.{table_name}"
                 
                 print(f"    🔍 Using table name: {full_table_name}")
@@ -739,58 +729,6 @@ class BigQueryOptimizer:
         if len(results) > max_rows:
             print(f"   ... and {len(results) - max_rows} more rows")
     
-    def _get_mcp_optimization_suggestions_safe(self, query: str) -> Dict[str, Any]:
-        """Get optimization suggestions from MCP server with safe async handling."""
-        try:
-            if not self.mcp_handler:
-                return {}
-            
-            # Use the safe async runner
-            suggestions = self._run_async_safely(
-                self.mcp_handler.get_optimization_suggestions(query)
-            )
-            
-            print(f"📋 MCP server provided {len(suggestions.get('specific_suggestions', []))} optimization suggestions")
-            
-            return suggestions
-            
-        except Exception as e:
-            self.logger.log_error(e, {"operation": "_get_mcp_optimization_suggestions_safe"})
-            print(f"⚠️ MCP server request failed: {e}")
-            return {}
-    
-    def _run_async_safely(self, coro):
-        """Safely run async coroutine whether or not we're in an event loop."""
-        import asyncio
-        
-        try:
-            # Check if we're already in an event loop
-            loop = asyncio.get_running_loop()
-            # If we're in an event loop, we need to handle this differently
-            # Create a new thread to run the async function
-            import concurrent.futures
-            import threading
-            
-            def run_in_thread():
-                # Create new event loop in thread
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                try:
-                    return new_loop.run_until_complete(coro)
-                finally:
-                    new_loop.close()
-            
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(run_in_thread)
-                return future.result(timeout=30)  # 30 second timeout
-                
-        except RuntimeError:
-            # No event loop running, safe to use asyncio.run()
-            return asyncio.run(coro)
-        except Exception as e:
-            self.logger.log_error(e, {"operation": "_run_async_safely"})
-            raise
-    
     def _extract_table_alias(self, query: str, table_name: str) -> Optional[str]:
         """Extract table alias from query for a given table."""
         import re
@@ -815,23 +753,97 @@ class BigQueryOptimizer:
     
     def _extract_table_names(self, query: str) -> List[str]:
         """Extract table names from SQL query."""
-        # Extract table names from various SQL patterns
+        # Extract table names from SQL query, handling both simple and fully qualified names
         patterns = [
-            r'FROM\s+`([^`]+)`',  # FROM `project.dataset.table`
-            r'JOIN\s+`([^`]+)`',  # JOIN `project.dataset.table`
-            r'FROM\s+`[^`]*\.([^`\.]+)`',  # Extract table name from backticks
-            r'JOIN\s+`[^`]*\.([^`\.]+)`',  # Extract table name from JOIN backticks
-            r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names
-            r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)',  # Simple table names in JOINs
+            r'FROM\s+`([^`]+)`',  # FROM `project.dataset.table` - keep full name
+            r'JOIN\s+`([^`]+)`',  # JOIN `project.dataset.table` - keep full name
+            r'FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*?)(?:\s+[a-zA-Z_]|\s*$|\s*WHERE|\s*GROUP|\s*ORDER|\s*LIMIT)',  # Table names without alias
+            r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_\.]*?)(?:\s+[a-zA-Z_]|\s+ON|\s*$)',  # Table names in JOINs without alias
         ]
         
         tables = set()
         for pattern in patterns:
             matches = re.findall(pattern, query, re.IGNORECASE)
             for match in matches:
-                tables.add(match)
+                # Clean up table name
+                table_name = match.strip()
+                if table_name and not table_name.upper() in ['ON', 'WHERE', 'GROUP', 'ORDER', 'LIMIT', 'AS']:
+                    tables.add(table_name)
+        
+        # Also try to extract from simple patterns without backticks
+        simple_patterns = [
+            r'FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)\s',  # Simple table names
+            r'JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)\s',  # Simple table names in JOINs
+        ]
+        
+        for pattern in simple_patterns:
+            matches = re.findall(pattern, query + ' ', re.IGNORECASE)  # Add space for matching
+            for match in matches:
+                table_name = match.strip()
+                if table_name and not table_name.upper() in ['ON', 'WHERE', 'GROUP', 'ORDER', 'LIMIT', 'AS']:
+                    tables.add(table_name)
         
         return list(tables)
+    
+    def _create_system_prompt(self) -> str:
+        """Create system prompt for LLM optimization."""
+        return """You are an expert BigQuery SQL optimizer. Your task is to optimize SQL queries for better performance while preserving exact business logic.
+
+CRITICAL REQUIREMENTS:
+1. The optimized query MUST return identical results to the original query
+2. Apply Google's official BigQuery best practices
+3. Target 30-50% performance improvement
+4. Use only existing table columns (no made-up column names)
+5. Preserve all business logic exactly
+
+OPTIMIZATION PRIORITIES:
+1. Replace SELECT * with specific columns (30-50% improvement)
+2. Convert COUNT(DISTINCT) to APPROX_COUNT_DISTINCT (50-80% improvement)
+3. Convert subqueries to JOINs (40-70% improvement)
+4. Reorder JOINs to place smaller tables first (25-50% improvement)
+5. Add proper PARTITION BY to window functions (25-40% improvement)
+6. Remove unnecessary CAST/string operations (20-35% improvement)
+
+RESPONSE FORMAT:
+Return a JSON object with:
+{
+    "optimized_query": "The optimized SQL query",
+    "optimizations_applied": [
+        {
+            "pattern_id": "column_pruning",
+            "pattern_name": "Column Pruning",
+            "description": "What was changed and why",
+            "expected_improvement": 0.3
+        }
+    ],
+    "estimated_improvement": 0.4,
+    "explanation": "Summary of all optimizations applied"
+}"""
+    
+    def _create_user_prompt(self, sql_query: str, optimization_suggestions: str) -> str:
+        """Create user prompt with query and documentation."""
+        return f"""OPTIMIZE THIS BIGQUERY SQL QUERY:
+
+```sql
+{sql_query}
+```
+
+PROJECT CONTEXT:
+- Target: 30-50% performance improvement minimum
+- Requirement: Preserve exact business logic
+
+APPLICABLE OPTIMIZATION DOCUMENTATION:
+
+{optimization_suggestions}
+
+INSTRUCTIONS:
+1. Analyze the query for inefficiencies
+2. Apply the optimization patterns from the documentation above
+3. Ensure the optimized query returns identical results
+4. Focus on high-impact optimizations first
+5. Provide clear explanations for each optimization
+
+Generate the optimized query following the JSON format specified in the system prompt."""
     
     def _identify_performance_issues(self, query: str) -> List[str]:
         """Identify performance issues based on Google's BigQuery best practices."""
@@ -917,30 +929,77 @@ class BigQueryOptimizer:
         return patterns
     
     def _measure_performance_improvement(self, original_query: str, optimized_query: str) -> Dict[str, Any]:
-        """Measure actual performance improvement between queries."""
+        """Measure actual performance improvement between original and optimized queries."""
         try:
-            # Use dry run to estimate performance
-            original_perf = self.bq_client.execute_query(original_query, dry_run=True)
-            optimized_perf = self.bq_client.execute_query(optimized_query, dry_run=True)
+            print(f"🔍 Executing original query for performance measurement...")
+            original_result = self.bq_client.execute_query(original_query, dry_run=False)
             
-            if original_perf["success"] and optimized_perf["success"]:
-                original_bytes = original_perf["performance"].bytes_processed or 0
-                optimized_bytes = optimized_perf["performance"].bytes_processed or 0
+            print(f"🔍 Executing optimized query for performance measurement...")
+            optimized_result = self.bq_client.execute_query(optimized_query, dry_run=False)
+            
+            if original_result["success"] and optimized_result["success"]:
+                # Extract performance metrics
+                original_time = original_result["performance"].execution_time_ms
+                optimized_time = optimized_result["performance"].execution_time_ms
+                original_bytes = original_result["performance"].bytes_processed or 0
+                optimized_bytes = optimized_result["performance"].bytes_processed or 0
+                original_billed = getattr(original_result["performance"], 'bytes_billed', 0) or 0
+                optimized_billed = getattr(optimized_result["performance"], 'bytes_billed', 0) or 0
                 
-                if original_bytes > 0:
-                    improvement = (original_bytes - optimized_bytes) / original_bytes
-                    return {
-                        "success": True,
-                        "improvement_percentage": improvement,
-                        "original_bytes": original_bytes,
-                        "optimized_bytes": optimized_bytes,
-                        "bytes_saved": original_bytes - optimized_bytes
-                    }
-            
-            return {"success": False, "error": "Could not measure performance"}
-            
+                # Calculate improvements
+                time_improvement = (original_time - optimized_time) / original_time if original_time > 0 else 0
+                bytes_improvement = (original_bytes - optimized_bytes) / original_bytes if original_bytes > 0 else 0
+                cost_improvement = (original_billed - optimized_billed) / original_billed if original_billed > 0 else 0
+                
+                # Calculate cost savings (BigQuery pricing: ~$5 per TB)
+                cost_per_tb = 5.0
+                original_cost = (original_billed / (1024**4)) * cost_per_tb
+                optimized_cost = (optimized_billed / (1024**4)) * cost_per_tb
+                cost_saved = original_cost - optimized_cost
+                
+                print(f"📊 Performance Results:")
+                print(f"   Original time: {original_time}ms")
+                print(f"   Optimized time: {optimized_time}ms")
+                print(f"   Time improvement: {time_improvement:.1%}")
+                print(f"   Bytes improvement: {bytes_improvement:.1%}")
+                print(f"   Cost improvement: {cost_improvement:.1%}")
+                print(f"   Cost saved: ${cost_saved:.4f}")
+                
+                return {
+                    "success": True,
+                    "improvement_percentage": time_improvement,
+                    "time_improvement": time_improvement,
+                    "bytes_improvement": bytes_improvement,
+                    "cost_improvement": cost_improvement,
+                    "original_time_ms": original_time,
+                    "optimized_time_ms": optimized_time,
+                    "original_bytes": original_bytes,
+                    "optimized_bytes": optimized_bytes,
+                    "original_cost": original_cost,
+                    "optimized_cost": optimized_cost,
+                    "time_saved_ms": original_time - optimized_time,
+                    "bytes_saved": original_bytes - optimized_bytes,
+                    "cost_saved": cost_saved,
+                    "performance_summary": f"Time: {time_improvement:.1%}, Bytes: {bytes_improvement:.1%}, Cost: {cost_improvement:.1%}"
+                }
+            else:
+                error_msg = []
+                if not original_result["success"]:
+                    error_msg.append(f"Original query failed: {original_result.get('error', 'Unknown')}")
+                if not optimized_result["success"]:
+                    error_msg.append(f"Optimized query failed: {optimized_result.get('error', 'Unknown')}")
+                
+                return {
+                    "success": False,
+                    "error": "; ".join(error_msg)
+                }
+        
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            self.logger.log_error(e, {"operation": "measure_performance_improvement"})
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
     def _generate_specific_suggestions(self, query: str, analysis: QueryAnalysis) -> List[Dict[str, Any]]:
         """Generate specific optimization suggestions with documentation references."""

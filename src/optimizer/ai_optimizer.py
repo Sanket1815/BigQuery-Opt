@@ -52,7 +52,7 @@ class GeminiQueryOptimizer:
         query: str, 
         analysis: QueryAnalysis,
         table_metadata: Dict[str, Any],
-        mcp_suggestions: Optional[Dict[str, Any]] = None
+        optimization_suggestions: Optional[str] = None  # NEW parameter
     ) -> OptimizationResult:
         """
         Apply Google's official BigQuery best practices to underperforming queries.
@@ -60,14 +60,14 @@ class GeminiQueryOptimizer:
         CRITICAL BUSINESS REQUIREMENT: The optimized query MUST return IDENTICAL results.
         This is non-negotiable for business logic preservation.
         
-        Now enhanced with MCP server integration for better documentation access.
+        Now enhanced with direct optimization suggestions from markdown documentation.
         """
         start_time = time.time()
         
         try:
             # Build optimization prompt with Google's best practices
             prompt = self._build_comprehensive_optimization_prompt(
-                query, analysis, table_metadata, mcp_suggestions
+                query, analysis, table_metadata, optimization_suggestions
             )
             
             # Generate optimization using Gemini
@@ -110,7 +110,7 @@ class GeminiQueryOptimizer:
         query: str, 
         analysis: QueryAnalysis,
         table_metadata: Dict[str, Any],
-        mcp_suggestions: Optional[Dict[str, Any]] = None
+        optimization_suggestions: Optional[str] = None
     ) -> str:
         """Build comprehensive optimization prompt based on Google's BigQuery best practices."""
         
@@ -137,190 +137,38 @@ class GeminiQueryOptimizer:
   🚨 CRITICAL: ONLY add _PARTITIONDATE if Partitioned=True!
 """
         
-        # Add MCP server suggestions if available
-        mcp_context = ""
-        if mcp_suggestions:
-            mcp_context = f"""
+        # Add optimization suggestions from documentation if available (truncated)
+        suggestions_context = ""
+        if optimization_suggestions:
+            # Truncate suggestions to prevent API limits
+            truncated_suggestions = optimization_suggestions[:2000] + "..." if len(optimization_suggestions) > 2000 else optimization_suggestions
+            suggestions_context = f"""
 
-📡 MCP SERVER OPTIMIZATION RECOMMENDATIONS:
+📚 BIGQUERY OPTIMIZATION DOCUMENTATION:
 
-PRIORITY OPTIMIZATIONS: {', '.join(mcp_suggestions.get('priority_optimizations', []))}
-
-SPECIFIC SUGGESTIONS FROM DOCUMENTATION:
-"""
-            for suggestion in mcp_suggestions.get('specific_suggestions', []):
-                mcp_context += f"""
-• {suggestion.get('pattern_name', 'Unknown')}: {suggestion.get('description', '')}
-  Expected improvement: {suggestion.get('expected_improvement', 0):.1%}
-  Documentation: {suggestion.get('documentation_reference', 'N/A')}
-"""
-            
-            if mcp_suggestions.get('documentation_references'):
-                mcp_context += f"""
-
-RELEVANT DOCUMENTATION CONTEXT:
-"""
-                for doc_ref in mcp_suggestions.get('documentation_references', [])[:3]:
-                    mcp_context += f"""
-• {doc_ref.get('title', 'Unknown')}: {doc_ref.get('content', '')[:200]}...
+{truncated_suggestions}
 """
         
         # Build comprehensive prompt
         prompt = f"""
-You are an expert BigQuery SQL optimizer implementing Google's official best practices to solve real business problems.
-
-🚨 BUSINESS PROBLEM 🚨
-Organizations have underperforming BigQuery queries that:
-- Fail to meet performance SLAs
-- Cost money through inefficient compute usage  
-- Delay business insights
-- Frustrate end users
-
-🎯 YOUR MISSION 🎯
-Transform this underperforming query into an optimized version that:
-- Returns EXACTLY THE SAME RESULTS (100% functional accuracy)
-- Improves performance by 30-50%
-- Applies Google's official BigQuery best practices
-- Includes clear explanations with documentation references
-
-🚨 CRITICAL BUSINESS REQUIREMENT 🚨
-The optimized query MUST return EXACTLY THE SAME RESULTS as the original query.
-- Same number of rows
-- Same column values  
-- Same data types
-- ZERO differences allowed
-- Business logic must be preserved 100%
-
-🚨 CRITICAL PROJECT ID REQUIREMENT 🚨
-- ALWAYS use the ACTUAL project ID from table metadata
-- NEVER use placeholder project IDs like "your-project" or "project"
-- Replace ANY placeholder project IDs with the REAL project ID
-- Ensure ALL table references use the correct project ID
-
-🚨 CRITICAL COLUMN VALIDATION REQUIREMENT 🚨
-- ONLY use columns that ACTUALLY exist in the table schema
-- NEVER generate non-existent column names
-- When replacing SELECT *, use ONLY the columns listed in "Available columns"
-- If unsure about column names, keep the original SELECT clause
-- Example: If Available columns: [order_id, customer_id, total_amount], use these EXACT names
-
-📋 GOOGLE'S BIGQUERY BEST PRACTICES (20+ PATTERNS):
-
-1. **PARTITION FILTERING** (High Impact - 50-80% improvement)
-   - 🚨 CRITICAL: Only add _PARTITIONDATE >= 'YYYY-MM-DD' if table shows Partitioned=True
-   - NEVER add _PARTITIONDATE if Partitioned=False - this causes BigQuery errors!
-   - 🚨 IMPORTANT: Use table alias when adding _PARTITIONDATE (e.g., o._PARTITIONDATE, not just _PARTITIONDATE)
-   - Check table metadata carefully before adding partition filters
-   - Documentation: https://cloud.google.com/bigquery/docs/partitioned-tables
-
-2. **COLUMN PRUNING** (Medium Impact - 20-40% improvement)
-   - Replace SELECT * with specific column names
-   - 🚨 CRITICAL: ONLY use columns that exist in the table schema
-   - Use the exact column names from "Available columns" in table metadata
-   - Reduces data transfer and processing costs
-   - Documentation: https://cloud.google.com/bigquery/docs/best-practices-performance-input
-
-3. **SUBQUERY TO JOIN CONVERSION** (High Impact - 30-60% improvement)
-   - Convert EXISTS subqueries to INNER JOINs
-   - Convert IN subqueries to INNER JOINs  
-   - Convert NOT EXISTS to LEFT JOIN with IS NULL
-   - Documentation: https://cloud.google.com/bigquery/docs/best-practices-performance-compute
-
-4. **JOIN REORDERING** (Medium Impact - 20-40% improvement)
-   - Place smaller tables first in JOIN order
-   - Apply more selective filters early
-   - Use table size metadata for optimization
-   - Documentation: https://cloud.google.com/bigquery/docs/best-practices-performance-compute
-
-5. **APPROXIMATE AGGREGATION** (High Impact - 40-70% improvement)
-   - Replace COUNT(DISTINCT column) with APPROX_COUNT_DISTINCT(column)
-   - Use for large datasets where exact counts aren't critical
-   - Documentation: https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions
-
-6. **WINDOW FUNCTION OPTIMIZATION** (Medium Impact - 15-30% improvement)
-   - Convert correlated subqueries to window functions
-   - Optimize PARTITION BY clauses
-   - Improve ORDER BY specifications
-   - Documentation: https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-functions
-
-7. **PREDICATE PUSHDOWN** (Medium Impact - 25-45% improvement)
-   - Move WHERE conditions closer to data sources
-   - Apply filters before JOINs where possible
-   - Reduce intermediate result sizes
-   - Documentation: https://cloud.google.com/bigquery/docs/best-practices-performance-compute
-
-8. **CLUSTERING OPTIMIZATION** (Medium Impact - 20-35% improvement)
-   - Use clustering keys in WHERE clauses
-   - Leverage existing clustering for better performance
-   - Documentation: https://cloud.google.com/bigquery/docs/clustered-tables
-
-9. **MATERIALIZED VIEW SUGGESTIONS** (High Impact - 60-90% improvement)
-   - Identify frequently used aggregations
-   - Suggest materialized views for common patterns
-   - Documentation: https://cloud.google.com/bigquery/docs/materialized-views-intro
-
-10. **LIMIT OPTIMIZATION** (Variable Impact)
-    - Add LIMIT when appropriate to reduce result size
-    - Optimize ORDER BY with LIMIT
-    - Documentation: https://cloud.google.com/bigquery/docs/best-practices-performance-output
-
-TABLE METADATA:
-{table_info}
-
-QUERY ANALYSIS:
-- Complexity: {analysis.complexity}
-- Tables: {analysis.table_count}
-- JOINs: {analysis.join_count}
-- Subqueries: {analysis.subquery_count}
-- Window functions: {analysis.window_function_count}
-- Aggregations: {analysis.aggregate_function_count}
-- Performance issues: {', '.join(analysis.potential_issues)}
-- Applicable patterns: {', '.join(analysis.applicable_patterns)}
+2. Use only existing columns from table schema
+3. Apply Google's BigQuery best practices
+4. Include documentation references
 
 UNDERPERFORMING QUERY TO OPTIMIZE:
 ```sql
 {query}
 ```
-{mcp_context}
+{suggestions_context}
 
-🚨 CRITICAL PARTITION FILTERING RULES:
-1. ONLY add _PARTITIONDATE if table metadata shows Partitioned=True
-2. NEVER add _PARTITIONDATE to non-partitioned tables - this causes BigQuery errors!
-3. If table is partitioned, use the date column filter instead of _PARTITIONDATE
-4. Example: WHERE order_date >= '2024-01-01' (NOT _PARTITIONDATE)
-5. Focus on other optimizations like column pruning, JOIN reordering, approximate aggregation
-
-🚨 PARTITION FILTERING IS DISABLED - DO NOT USE _PARTITIONDATE
-Instead of partition filtering, focus on these high-impact optimizations:
-- Column Pruning (SELECT specific columns instead of *)
-- JOIN Reordering (smaller tables first)
-- Approximate Aggregation (APPROX_COUNT_DISTINCT)
-- Subquery to JOIN conversion
-- Window function optimization
-
-🎯 OPTIMIZATION REQUIREMENTS:
-1. Apply at least 1-3 relevant optimizations from Google's best practices
-2. ENSURE the optimized query returns IDENTICAL results
-3. CRITICAL: Replace ALL placeholder project IDs with the ACTUAL project ID
-4. CRITICAL: Check table metadata - only add table_alias._PARTITIONDATE if Partitioned=True
-5. Focus on performance without changing business logic
-6. Include documentation references for each optimization
-7. Target 30-50% performance improvement
+Apply optimizations based on the documentation suggestions above.
+Focus on: Column Pruning, JOIN Reordering, Approximate Aggregation, Subquery Conversion.
+DO NOT use _PARTITIONDATE filters.
 
 RESPONSE FORMAT (JSON ONLY):
 {{
-    "optimized_query": "The optimized SQL query with CORRECT project ID that returns IDENTICAL results",
+    "optimized_query": "The optimized SQL query that returns IDENTICAL results",
     "optimizations_applied": [
-        {{
-            "pattern_id": "partition_filtering",
-            "pattern_name": "Partition Filtering",
-            "description": "Added _PARTITIONDATE filter to reduce data scanned by 60%",
-            "before_snippet": "WHERE o.order_date >= '2024-01-01'",
-            "after_snippet": "WHERE o._PARTITIONDATE >= '2024-01-01' AND o.order_date >= '2024-01-01'",
-            "expected_improvement": 0.6,
-            "confidence_score": 0.95,
-            "documentation_reference": "https://cloud.google.com/bigquery/docs/partitioned-tables"
-        }},
         {{
             "pattern_id": "column_pruning",
             "pattern_name": "Column Pruning",
@@ -332,22 +180,9 @@ RESPONSE FORMAT (JSON ONLY):
             "documentation_reference": "https://cloud.google.com/bigquery/docs/best-practices-performance-input"
         }}
     ],
-    "estimated_improvement": 0.72,
-    "explanation": "Applied Google's BigQuery best practices: partition filtering and column pruning for significant performance improvement while preserving exact business logic"
+    "estimated_improvement": 0.3,
+    "explanation": "Applied BigQuery best practices for performance improvement while preserving exact business logic"
 }}
-
-🚨 CRITICAL REMINDERS:
-- ALWAYS replace placeholder project IDs with the actual project ID from table metadata
-- NEVER add _PARTITIONDATE to non-partitioned tables
-- ALWAYS use table alias with _PARTITIONDATE (e.g., o._PARTITIONDATE)
-- ONLY use column names that exist in the table schema (see "Available columns")
-- When doing column pruning, use EXACT column names from table metadata
-- Results must be 100% identical
-- Apply multiple optimizations when possible
-- Include documentation references
-- Target 30-50% performance improvement
-
-Return only the JSON object. The optimized query will be executed and validated for identical results.
 """
         return prompt
     

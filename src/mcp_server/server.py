@@ -12,8 +12,7 @@ from config.settings import get_settings
 from src.common.exceptions import MCPServerError
 from src.common.logger import QueryOptimizerLogger
 from src.common.models import MCPRequest, MCPResponse
-from src.crawler.documentation_processor import DocumentationProcessor
-from .handlers import DocumentationHandler, OptimizationHandler
+from .handlers import DirectSQLOptimizationHandler
 
 
 class BigQueryMCPServer:
@@ -29,9 +28,7 @@ class BigQueryMCPServer:
         )
         
         # Initialize components
-        self.documentation_processor = DocumentationProcessor()
-        self.documentation_handler = DocumentationHandler(self.documentation_processor)
-        self.optimization_handler = OptimizationHandler(self.documentation_processor)
+        self.sql_handler = DirectSQLOptimizationHandler()
         
         # Setup middleware
         self._setup_middleware()
@@ -72,40 +69,39 @@ class BigQueryMCPServer:
         async def health_check():
             """Health check endpoint."""
             try:
-                summary = self.documentation_processor.get_documentation_summary()
+                patterns_count = len(self.sql_handler.optimization_patterns)
                 return {
                     "status": "healthy",
                     "timestamp": time.time(),
-                    "documentation": summary
+                    "optimization_patterns": patterns_count,
+                    "documentation_source": str(self.sql_handler.docs_directory)
                 }
             except Exception as e:
                 raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
         
-        @self.app.post("/search")
-        async def search_documentation(request: MCPRequest) -> MCPResponse:
-            """Search documentation for relevant information."""
+        @self.app.post("/optimize-sql")
+        async def optimize_raw_sql(request: MCPRequest) -> MCPResponse:
+            """Process raw SQL query and return optimization context for LLM."""
             start_time = time.time()
             
             try:
-                query = request.query
-                n_results = request.options.get("n_results", 5)
-                filter_patterns = request.options.get("filter_patterns")
+                sql_query = request.query
+                project_id = request.options.get("project_id")
                 
-                results = await self.documentation_handler.search_documentation(
-                    query, n_results, filter_patterns
-                )
+                # Process raw SQL query directly
+                optimization_context = self.sql_handler.process_raw_sql_query(sql_query, project_id)
                 
                 processing_time = int((time.time() - start_time) * 1000)
-                self.logger.log_mcp_request("search", processing_time)
+                self.logger.log_mcp_request("optimize-sql", processing_time)
                 
                 return MCPResponse(
                     success=True,
-                    data={"results": results},
+                    data=optimization_context,
                     processing_time_ms=processing_time
                 )
                 
             except Exception as e:
-                self.logger.log_error(e, {"endpoint": "/search", "query": request.query})
+                self.logger.log_error(e, {"endpoint": "/optimize-sql", "query": request.query})
                 return MCPResponse(
                     success=False,
                     error_message=str(e),
@@ -113,26 +109,29 @@ class BigQueryMCPServer:
                     processing_time_ms=int((time.time() - start_time) * 1000)
                 )
         
-        @self.app.post("/patterns")
-        async def get_optimization_patterns(request: MCPRequest) -> MCPResponse:
-            """Get optimization patterns for a SQL query."""
+        @self.app.post("/optimize-with-gemini")
+        async def optimize_with_gemini(request: MCPRequest) -> MCPResponse:
+            """Process raw SQL query directly with Gemini API and return optimized query."""
             start_time = time.time()
             
             try:
-                query = request.query
-                patterns = await self.optimization_handler.get_patterns_for_query(query)
+                sql_query = request.query
+                project_id = request.options.get("project_id")
+                
+                # Use Gemini API for direct optimization
+                optimization_result = self.sql_handler.optimize_with_gemini(sql_query, project_id)
                 
                 processing_time = int((time.time() - start_time) * 1000)
-                self.logger.log_mcp_request("patterns", processing_time)
+                self.logger.log_mcp_request("optimize-with-gemini", processing_time)
                 
                 return MCPResponse(
-                    success=True,
-                    data={"patterns": [pattern.model_dump() for pattern in patterns]},
+                    success=optimization_result.get("success", False),
+                    data=optimization_result,
                     processing_time_ms=processing_time
                 )
                 
             except Exception as e:
-                self.logger.log_error(e, {"endpoint": "/patterns", "query": request.query})
+                self.logger.log_error(e, {"endpoint": "/optimize-with-gemini", "query": request.query})
                 return MCPResponse(
                     success=False,
                     error_message=str(e),
@@ -140,67 +139,22 @@ class BigQueryMCPServer:
                     processing_time_ms=int((time.time() - start_time) * 1000)
                 )
         
-        @self.app.post("/analyze")
-        async def analyze_query(request: MCPRequest) -> MCPResponse:
-            """Analyze a SQL query for optimization opportunities."""
-            start_time = time.time()
-            
-            try:
-                query = request.query
-                analysis = await self.optimization_handler.analyze_query(query)
-                
-                processing_time = int((time.time() - start_time) * 1000)
-                self.logger.log_mcp_request("analyze", processing_time)
-                
-                return MCPResponse(
-                    success=True,
-                    data={"analysis": analysis.model_dump()},
-                    processing_time_ms=processing_time
-                )
-                
-            except Exception as e:
-                self.logger.log_error(e, {"endpoint": "/analyze", "query": request.query})
-                return MCPResponse(
-                    success=False,
-                    error_message=str(e),
-                    data={},
-                    processing_time_ms=int((time.time() - start_time) * 1000)
-                )
-        
-        @self.app.post("/optimize")
-        async def optimize_query(request: MCPRequest) -> MCPResponse:
-            """Get optimization suggestions for a SQL query."""
-            start_time = time.time()
-            
-            try:
-                query = request.query
-                suggestions = await self.optimization_handler.get_optimization_suggestions(query)
-                
-                processing_time = int((time.time() - start_time) * 1000)
-                self.logger.log_mcp_request("optimize", processing_time)
-                
-                return MCPResponse(
-                    success=True,
-                    data={"suggestions": suggestions},
-                    processing_time_ms=processing_time
-                )
-                
-            except Exception as e:
-                self.logger.log_error(e, {"endpoint": "/optimize", "query": request.query})
-                return MCPResponse(
-                    success=False,
-                    error_message=str(e),
-                    data={},
-                    processing_time_ms=int((time.time() - start_time) * 1000)
-                )
-        
-        @self.app.get("/patterns/all")
+        @self.app.get("/patterns")
         async def get_all_patterns():
             """Get all available optimization patterns."""
             try:
-                patterns = self.documentation_processor.optimization_patterns
+                patterns = []
+                for pattern_id, pattern_content in self.sql_handler.optimization_patterns.items():
+                    pattern_data = self.sql_handler._parse_pattern_metadata(pattern_content)
+                    patterns.append({
+                        'pattern_id': pattern_id,
+                        'title': pattern_data.get('title', pattern_id),
+                        'performance_impact': pattern_data.get('performance_impact', 'Unknown'),
+                        'use_case': pattern_data.get('use_case', 'Unknown')
+                    })
+                
                 return {
-                    "patterns": [pattern.model_dump() for pattern in patterns],
+                    "patterns": patterns,
                     "total": len(patterns)
                 }
             except Exception as e:
