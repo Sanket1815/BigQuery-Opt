@@ -179,7 +179,11 @@ class BigQueryOptimizer:
                     if original_result["success"]:
                         optimization_result.original_query_results = original_result["results"]
                         optimization_result.original_row_count = original_result["row_count"]
+                        optimization_result.original_execution_time_ms = original_result["performance"].execution_time_ms
+                        optimization_result.original_bytes_processed = original_result["performance"].bytes_processed
                         print(f"✅ Original query executed: {original_result['row_count']} rows")
+                        print(f"   ⏱️ Execution time: {original_result['performance'].execution_time_ms}ms")
+                        print(f"   📊 Bytes processed: {original_result['performance'].bytes_processed:,}")
                     else:
                         optimization_result.query_execution_error = f"Original query failed: {original_result.get('error', 'Unknown error')}"
                         print(f"❌ Original query failed: {original_result.get('error', 'Unknown error')}")
@@ -187,7 +191,36 @@ class BigQueryOptimizer:
                     if optimized_result["success"]:
                         optimization_result.optimized_query_results = optimized_result["results"]
                         optimization_result.optimized_row_count = optimized_result["row_count"]
+                        optimization_result.optimized_execution_time_ms = optimized_result["performance"].execution_time_ms
+                        optimization_result.optimized_bytes_processed = optimized_result["performance"].bytes_processed
                         print(f"✅ Optimized query executed: {optimized_result['row_count']} rows")
+                        print(f"   ⏱️ Execution time: {optimized_result['performance'].execution_time_ms}ms")
+                        print(f"   📊 Bytes processed: {optimized_result['performance'].bytes_processed:,}")
+                        
+                        # Calculate performance improvements
+                        if (optimization_result.original_execution_time_ms and 
+                            optimization_result.optimized_execution_time_ms):
+                            time_saved = optimization_result.original_execution_time_ms - optimization_result.optimized_execution_time_ms
+                            optimization_result.performance_improvement_ms = time_saved
+                            
+                            if time_saved > 0:
+                                improvement_pct = (time_saved / optimization_result.original_execution_time_ms) * 100
+                                print(f"   🚀 Performance improvement: {improvement_pct:.1f}% ({time_saved}ms saved)")
+                        
+                        if (optimization_result.original_bytes_processed and 
+                            optimization_result.optimized_bytes_processed):
+                            bytes_saved = optimization_result.original_bytes_processed - optimization_result.optimized_bytes_processed
+                            optimization_result.bytes_saved = bytes_saved
+                            
+                            if bytes_saved > 0:
+                                # Estimate cost savings (BigQuery pricing: ~$5 per TB)
+                                tb_saved = bytes_saved / (1024**4)
+                                cost_savings = tb_saved * 5.0
+                                optimization_result.cost_savings_usd = cost_savings
+                                
+                                bytes_improvement_pct = (bytes_saved / optimization_result.original_bytes_processed) * 100
+                                print(f"   💰 Data reduction: {bytes_improvement_pct:.1f}% ({bytes_saved:,} bytes saved)")
+                                print(f"   💵 Estimated cost savings: ${cost_savings:.4f}")
                     else:
                         optimization_result.query_execution_error = f"Optimized query failed: {optimized_result.get('error', 'Unknown error')}"
                         print(f"❌ Optimized query failed: {optimized_result.get('error', 'Unknown error')}")
